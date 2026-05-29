@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M7-4 发布会 · Launch Day · 课程结业</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(168,85,247,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Slide template */
+  .slide{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1.3rem;min-height:140px}
+  .slide-title{font-size:.7rem;font-weight:800;text-transform:uppercase;color:#a855f7;letter-spacing:.05em;margin-bottom:.5rem}
+
+  /* Checklist */
+  .check-item{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.8rem 1rem;display:flex;align-items:flex-start;gap:.8rem;cursor:pointer;transition:all .2s}
+  .check-item:hover{border-color:#94A3B8}
+  .check-item.checked{border-color:#10B981;background:#ECFDF5}
+  .check-box{width:24px;height:24px;border:2px solid #CBD5E1;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;transition:all .15s}
+  .check-item.checked .check-box{background:#10B981;border-color:#10B981}
+
+  /* Reporter */
+  .reporter-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.2rem}
+  .reporter-avatar{width:42px;height:42px;border-radius:50%;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:2px solid #FBBF24;flex-shrink:0}
+
+  .b-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s;font-family:inherit}
+  .b-input:focus{outline:none;border-color:#3B82F6}
+  .b-input.ok{border-color:#10B981;background:#F0FDF4}
+
+  /* Certificate */
+  .cert{background:linear-gradient(135deg,#FEF3C7 0%,#FFF8F0 50%,#FED7AA 100%);border:8px double #D97706;border-radius:16px;padding:2rem;position:relative;font-family:Songti SC,STSong,serif}
+  .cert::before{content:"";position:absolute;inset:8px;border:1px solid #92400E;border-radius:10px;pointer-events:none}
+  .cert-sealed{box-shadow:0 0 0 4px rgba(220,38,38,.15),0 24px 48px -16px rgba(220,38,38,.25)}
+
+  .badge-glow-final{box-shadow:0 0 0 8px rgba(220,38,38,.1),0 0 0 16px rgba(245,158,11,.1),0 0 0 24px rgba(59,130,246,.08),0 24px 50px -16px rgba(220,38,38,.4)}
+
+  @keyframes confetti{0%{transform:translateY(-20px) rotate(0)}100%{transform:translateY(100vh) rotate(720deg)}}
+  .confetti{position:fixed;top:-20px;width:10px;height:10px;pointer-events:none;animation:confetti 3s linear infinite}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M7-4 · Mission</span>
+      <span class="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Ch.7 · 毕业作品 / Capstone</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>分享 · 30 min</span><span data-en>Share · 30 min</span></span>
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full"><span data-zh>🎓 最终关</span><span data-en>🎓 FINAL</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>发布会：你的 AI 要见世界了</span>
+      <span data-en>Launch Day: Your AI Meets the World</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-purple-700 mt-1"><span data-zh>小京灵 · 毕业典礼版</span><span data-en>Jingling · Graduation</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-purple-700 font-bold" data-zh>
+            🎉 <strong>这是整门课的最后一关</strong>。你已经完成了 27 关——你的 AI 准备好<strong>见世界</strong>了。
+          </p>
+          <p class="text-lg leading-relaxed text-purple-700 font-bold" data-en>
+            🎉 <strong>This is the LAST mission of the course</strong>. 27 missions done — your AI is ready to <strong>meet the world</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            但<strong>"发布"不只是"上线"</strong>。今天你要做 5 件事：
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            But <strong>"launch" isn't just "deploy"</strong>. Today, 5 things:
+          </p>
+          <ul class="mt-2 space-y-1 text-sm" data-zh>
+            <li>1. ✍️ 写一份 <strong>5 分钟演示稿</strong>（不能再多，老师/家长没耐心）</li>
+            <li>2. ✅ 通过 <strong>10 项"负责任发布清单"</strong>（你已经准备好了？）</li>
+            <li>3. 🎙️ 应对 <strong>4 个记者的尖锐提问</strong>（模拟新闻发布会）</li>
+            <li>4. 👵 学会 <strong>用奶奶能听懂的话</strong>解释你的 AI</li>
+            <li>5. 🎓 拿到"<strong>AI 少年研究员</strong>"证书</li>
+          </ul>
+          <ul class="mt-2 space-y-1 text-sm" data-en>
+            <li>1. ✍️ Write a <strong>5-min pitch</strong> (no longer — teachers/parents have no patience)</li>
+            <li>2. ✅ Pass the <strong>10-item "responsible launch checklist"</strong> (you're ready?)</li>
+            <li>3. 🎙️ Field <strong>4 sharp reporter questions</strong> (mock press conference)</li>
+            <li>4. 👵 Explain your AI to <strong>grandma in plain words</strong></li>
+            <li>5. 🎓 Receive the "<strong>AI Junior Researcher</strong>" certificate</li>
+          </ul>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>开始：写演示稿 →</span><span data-en>Start: write pitch →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: PITCH SLIDES ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>5 张幻灯片 = 完整的 5 分钟演示。<strong>每张 1 分钟</strong>。这是产品经理向投资人/老板/老师推介 AI 项目的<strong>标准结构</strong>。<strong>5 张全填完</strong>才能继续。</p>
+      <p data-en>5 slides = full 5-min pitch. <strong>1 min each</strong>. This is the PM's <strong>standard structure</strong> for pitching AI to investors/bosses/teachers. <strong>Fill all 5</strong>.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4" id="slides-grid"></div>
+
+    <div class="mt-5 flex items-center justify-between">
+      <div class="text-sm text-slate-600"><span data-zh>已填：</span><span data-en>Filled:</span><strong id="slides-filled">0</strong> / 5</div>
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：负责任发布清单 →</span><span data-en>Next: responsible checklist →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: RESPONSIBILITY CHECKLIST ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>来自 Google、Microsoft、Anthropic 等公司<strong>真实的</strong> AI 发布前 checklist——简化成你能用的 <strong>10 项</strong>。<strong>每项必须勾</strong>——这是你和"不负责任的 AI"之间的<strong>差别</strong>。</p>
+      <p data-en>From real Google/Microsoft/Anthropic AI pre-launch checklists — simplified to <strong>10 items</strong> for you. <strong>Check all</strong> — this is the <strong>difference</strong> between you and "irresponsible AI".</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已勾：</span><span data-en>Checked:</span><span id="check-count">0</span> / 10</div>
+    </div>
+
+    <div id="check-list" class="space-y-2"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：模拟记者会 →</span><span data-en>Next: press conference →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: PRESS CONFERENCE ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>🎙️ <strong>新闻发布会现场</strong>——4 位记者问你<strong>最尖锐的问题</strong>。每个问题给 3 个回答选择，<strong>选你认为最合适的</strong>，然后看专家点评。</p>
+      <p data-en>🎙️ <strong>Press conference</strong> — 4 reporters with <strong>sharpest questions</strong>. Pick the best answer of 3, then read expert commentary.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已答：</span><span data-en>Answered:</span><span id="qa-count">0</span> / 4</div>
+    </div>
+
+    <div id="qa-list" class="space-y-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：给奶奶的 1 句话 →</span><span data-en>Next: grandma's 1-liner →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: GRANDMA EXPLAIN ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>最后一个挑战：<strong>用你 70 岁的奶奶能听懂的话</strong>，<strong>1 句话</strong>解释你的 AI。<strong>不准用</strong>：算法、模型、训练、神经网络、AI、数据这些词。<strong>必须用</strong>：奶奶生活里的东西做类比。</p>
+      <p data-en>Final challenge: explain your AI in <strong>1 sentence your 70-yo grandma understands</strong>. <strong>Forbidden</strong>: algorithm, model, training, neural net, AI, data. <strong>Required</strong>: analogies from grandma's life.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-amber-50 to-red-50 border-2 border-amber-300 rounded-2xl p-6">
+      <div class="mb-4 text-center">
+        <div class="text-6xl mb-2">👵</div>
+        <div class="text-sm text-slate-600"><span data-zh>奶奶坐在沙发上，看着你，等你解释……</span><span data-en>Grandma's on the couch, waiting for your explanation…</span></div>
+      </div>
+
+      <label class="text-xs font-bold uppercase tracking-wide text-amber-800 mb-2 block"><span data-zh>📝 你的 1 句话（≥ 30 字，不准用专业术语）</span><span data-en>📝 Your 1-liner (≥30 chars, no jargon)</span></label>
+      <textarea class="b-input" id="grandma-line" rows="3" placeholder="" data-zh-placeholder="奶奶，你看，我做了一个东西，它能像我们家小阿黄认得你一样，认得果园里的虫子……" data-en-placeholder="Grandma, you know how Bunbun recognizes you? I made something that recognizes pests in our orchard the same way…" oninput="checkGrandma()"></textarea>
+
+      <div id="jargon-warning" class="hidden mt-2 text-xs text-red-700 font-bold"></div>
+
+      <div class="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
+        <div class="bg-white rounded-lg p-3">
+          <div class="font-bold text-amber-700 mb-1">💡 <span data-zh>好示例</span><span data-en>Good example</span></div>
+          <p data-zh class="text-slate-700">"奶奶，我做了一个像家里小狗一样的东西。小狗见过妈妈很多次，就认得妈妈了。我这个东西看过很多熊猫照片，也能认得熊猫了——这样保护区的叔叔就不用一张一张数了。"</p>
+          <p data-en class="text-slate-700">"Grandma, I made something like our family dog. Our dog has seen mom many times, so she knows mom. My thing has seen many panda pictures, so it knows pandas — so the rangers don't have to count one by one."</p>
+        </div>
+        <div class="bg-white rounded-lg p-3">
+          <div class="font-bold text-red-700 mb-1">❌ <span data-zh>坏示例</span><span data-en>Bad example</span></div>
+          <p data-zh class="text-slate-700">"我训练了一个基于深度学习的 CNN 卷积神经网络模型，用 ImageNet 预训练，在 500 张本地数据上微调，准确率达 92%……"</p>
+          <p data-en class="text-slate-700">"I trained a CNN deep-learning model pre-trained on ImageNet, fine-tuned on 500 local samples, achieving 92% accuracy…"</p>
+          <p class="text-xs text-red-700 mt-2"><span data-zh>奶奶：什么？</span><span data-en>Grandma: huh?</span></p>
+        </div>
+      </div>
+
+      <div class="mt-5 text-right">
+        <button class="btn-primary" id="grandma-submit" disabled onclick="goTo(5)">
+          <span data-zh>奶奶懂了！下一步：颁发证书 →</span><span data-en>Grandma got it! Next: certificate →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: CERTIFICATE + COURSE COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="text-5xl mb-3">🎓 ✨ 🎉</div>
+      <h2 class="text-4xl font-black mb-3 bg-gradient-to-r from-red-600 via-amber-600 to-blue-600 bg-clip-text text-transparent">
+        <span data-zh>恭喜！全课程完成！</span>
+        <span data-en>CONGRATULATIONS! Course Complete!</span>
+      </h2>
+      <p class="text-lg text-slate-700"><span data-zh>28 / 28 任务 · 7 / 7 章节</span><span data-en>28 / 28 missions · 7 / 7 chapters</span></p>
+
+      <!-- Certificate -->
+      <div class="mt-8 max-w-3xl mx-auto cert cert-sealed">
+        <div class="text-center">
+          <div class="text-xs uppercase tracking-widest text-amber-800 font-bold">从0开始学AI · 智能教育</div>
+          <div class="text-xs uppercase tracking-widest text-amber-800 mt-1">AI LITERACY COURSES FOR BEGINNERS</div>
+
+          <div class="mt-6 text-2xl font-black text-red-700"><span data-zh>结业证书</span><span data-en>CERTIFICATE OF COMPLETION</span></div>
+
+          <div class="mt-6 text-sm text-slate-600"><span data-zh>兹证明</span><span data-en>This certifies that</span></div>
+
+          <div class="mt-3">
+            <div class="inline-block px-6 py-2 bg-white/50 border-b-2 border-red-700 text-3xl font-black tracking-wider" id="cert-name">—</div>
+          </div>
+
+          <div class="mt-6 text-sm text-slate-700 leading-relaxed max-w-lg mx-auto" data-zh>
+            已圆满完成《从0开始学AI · AI 素养互动学习》全部 <strong>28 个互动任务</strong>，
+            涵盖 AI 感知、推理、学习、对话、社会影响、暴雨中的 AI、毕业作品<strong>七大章节</strong>，
+            掌握 AI4K12 五大思想 + 中国教育部 2025 通识指南 + UNESCO 框架的核心内容，
+            完成毕业项目"<strong id="cert-project">—</strong>"。
+          </div>
+          <div class="mt-6 text-sm text-slate-700 leading-relaxed max-w-lg mx-auto" data-en>
+            has successfully completed all <strong>28 interactive missions</strong> of <em>AI Literacy Courses for Beginners</em>,
+            across <strong>7 chapters</strong>: AI perception, reasoning, learning, interaction, societal impact, real-world flood AI, and capstone,
+            mastering AI4K12 Five Big Ideas + China MoE 2025 Guidelines + UNESCO framework,
+            culminating in the capstone project "<strong id="cert-project-en">—</strong>".
+          </div>
+
+          <div class="mt-6 grid grid-cols-2 gap-6 max-w-lg mx-auto">
+            <div class="text-center">
+              <div class="text-xs uppercase text-amber-800"><span data-zh>授予称号</span><span data-en>Title awarded</span></div>
+              <div class="text-2xl font-black text-red-700 mt-1"><span data-zh>AI 少年研究员</span><span data-en>AI Junior Researcher</span></div>
+            </div>
+            <div class="text-center">
+              <div class="text-xs uppercase text-amber-800"><span data-zh>结业日期</span><span data-en>Date</span></div>
+              <div class="text-lg font-bold mt-1" id="cert-date">2026.05.28</div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-around items-end max-w-lg mx-auto">
+            <div class="text-center">
+              <div class="font-bold italic text-blue-700 text-lg">小京灵</div>
+              <div class="border-t-2 border-slate-400 mt-1 pt-1 text-xs text-slate-500"><span data-zh>导师 Mentor</span><span data-en>Mentor</span></div>
+            </div>
+            <!-- Seal -->
+            <div class="text-center">
+              <div class="w-16 h-16 mx-auto rounded-full bg-red-600 flex items-center justify-center text-white text-xs font-black border-4 border-red-800 transform -rotate-12 shadow-lg">
+                <div class="text-center leading-tight">
+                  <div>小京灵</div>
+                  <div style="font-size:8px">官 印</div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="font-bold italic text-purple-700 text-lg" id="cert-self">—</div>
+              <div class="border-t-2 border-slate-400 mt-1 pt-1 text-xs text-slate-500"><span data-zh>研究员 Researcher</span><span data-en>Researcher</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost text-sm" onclick="window.print()">
+          🖨️ <span data-zh>打印证书</span><span data-en>Print certificate</span>
+        </button>
+        <button class="btn-primary" onclick="goTo(6)">
+          <span data-zh>课程总结 →</span><span data-en>Course summary →</span>
+        </button>
+      </div>
+
+      <p class="mt-4 text-sm text-slate-500 italic">
+        <span data-zh>提示：上面没有显示你的名字？请在下方输入你的真实姓名。</span>
+        <span data-en>Tip: name not showing? Enter your name below.</span>
+      </p>
+      <div class="mt-2 max-w-sm mx-auto">
+        <input type="text" class="b-input" id="real-name" placeholder="" data-zh-placeholder="输入你的姓名" data-en-placeholder="Your name" oninput="updateCertName()"/>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COURSE SUMMARY + WHAT'S NEXT ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6 mb-6">
+      <div class="inline-block badge-glow-final rounded-full p-4 bg-gradient-to-br from-red-500 via-amber-500 to-blue-500 mb-5">
+        <svg viewBox="0 0 100 100" width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FBBF24"/><stop offset="50%" stop-color="#DC2626"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs>
+          <circle cx="50" cy="50" r="46" fill="url(#grad)" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🎓</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>你做到了！</span><span data-en>YOU DID IT!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"AI 少年研究员" 终身荣誉解锁</span><span data-en>"AI Junior Researcher" lifetime honor unlocked</span></p>
+    </div>
+
+    <div class="max-w-3xl mx-auto p-5 bg-gradient-to-br from-purple-50 to-red-50 border-2 border-purple-300 rounded-2xl text-left mb-5">
+      <div class="font-bold mb-3 text-purple-900"><span data-zh>这一年你完成了……</span><span data-en>This year you completed…</span></div>
+      <div class="grid sm:grid-cols-3 gap-3 text-center">
+        <div class="bg-white rounded-xl p-3">
+          <div class="text-3xl font-black text-purple-700">28</div>
+          <div class="text-xs text-slate-600"><span data-zh>互动任务</span><span data-en>Missions</span></div>
+        </div>
+        <div class="bg-white rounded-xl p-3">
+          <div class="text-3xl font-black text-purple-700">7</div>
+          <div class="text-xs text-slate-600"><span data-zh>核心章节</span><span data-en>Chapters</span></div>
+        </div>
+        <div class="bg-white rounded-xl p-3">
+          <div class="text-3xl font-black text-purple-700">1</div>
+          <div class="text-xs text-slate-600"><span data-zh>自己的 AI 项目</span><span data-en>Your AI project</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto p-5 bg-white border border-slate-200 rounded-2xl text-left mb-5">
+      <div class="font-bold mb-3"><span data-zh>📚 你掌握的核心知识</span><span data-en>📚 Core knowledge you mastered</span></div>
+      <ul class="space-y-1 text-sm text-slate-700">
+        <li>✓ <span data-zh>Ch.1 · <strong>AI 怎么看</strong>：像素、特征、训练数据、偏差与代价</span><span data-en>Ch.1 · <strong>How AI sees</strong>: pixels, features, training data, bias & cost</span></li>
+        <li>✓ <span data-zh>Ch.2 · <strong>AI 怎么想</strong>：知识图谱、决策树、AI 边界、标签权力</span><span data-en>Ch.2 · <strong>How AI thinks</strong>: graphs, decision trees, AI boundaries, label power</span></li>
+        <li>✓ <span data-zh>Ch.3 · <strong>AI 怎么学</strong>：数据来源、训练/测试、过拟合、数据主权</span><span data-en>Ch.3 · <strong>How AI learns</strong>: data sources, train/test, overfitting, data sovereignty</span></li>
+        <li>✓ <span data-zh>Ch.4 · <strong>AI 怎么说话</strong>：LLM、提示词工程、幻觉、方言公平</span><span data-en>Ch.4 · <strong>How AI talks</strong>: LLMs, prompt engineering, hallucinations, dialect equity</span></li>
+        <li>✓ <span data-zh>Ch.5 · <strong>AI 与社会</strong>：推荐算法、信息茧房、深度伪造、公民身份</span><span data-en>Ch.5 · <strong>AI & society</strong>: recsys, filter bubbles, deepfakes, citizenship</span></li>
+        <li>✓ <span data-zh>Ch.6 · <strong>暴雨中的 AI</strong>：城市级 AI 系统、多源数据融合、资源调度、风险沟通</span><span data-en>Ch.6 · <strong>AI in the Rainstorm</strong>: city-scale AI, multi-source fusion, resource allocation, risk comms</span></li>
+        <li>✓ <span data-zh>Ch.7 · <strong>毕业作品</strong>：从选问题到部署 AI 的完整产品周期</span><span data-en>Ch.7 · <strong>Capstone</strong>: complete product cycle from problem to deployed AI</span></li>
+      </ul>
+    </div>
+
+    <div class="max-w-3xl mx-auto p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl text-left mb-5">
+      <div class="font-bold text-lg mb-3 text-amber-900"><span data-zh>🚀 接下来你可以……</span><span data-en>🚀 What's next…</span></div>
+      <div class="space-y-3 text-sm">
+        <div class="bg-white rounded-lg p-3">
+          <strong>1. 🏆 <span data-zh>真的把 M7-1 的项目做出来</span><span data-en>Actually build your M7-1 project</span></strong>
+          <p class="mt-1 text-slate-600" data-zh>用 M7-3 的 Teachable Machine 真实跑一遍。你已经有项目意图书 + 数据计划 + 训练评估方案——只差<strong>动手</strong>。</p>
+          <p class="mt-1 text-slate-600" data-en>Use Teachable Machine to actually run it. You have the intent doc + data plan + training scheme — just <strong>do it</strong>.</p>
+        </div>
+        <div class="bg-white rounded-lg p-3">
+          <strong>2. 📣 <span data-zh>分享给同学和老师</span><span data-en>Share with classmates & teachers</span></strong>
+          <p class="mt-1 text-slate-600" data-zh>把课程入口 index.html 分享给他们。也可以拿这个证书去参加全国青少年 AI 创新大赛。</p>
+          <p class="mt-1 text-slate-600" data-en>Share the index.html link. Use this certificate to enter youth AI competitions.</p>
+        </div>
+        <div class="bg-white rounded-lg p-3">
+          <strong>3. 👨‍👩‍👧 <span data-zh>教家人</span><span data-en>Teach your family</span></strong>
+          <p class="mt-1 text-slate-600" data-zh>奶奶反诈骗（M5-3）、爸妈数据权利（M3-4、M5-4）——你现在知道得比他们多。</p>
+          <p class="mt-1 text-slate-600" data-en>Grandma anti-scam (M5-3), parents' data rights (M3-4, M5-4) — you know more than them now.</p>
+        </div>
+        <div class="bg-white rounded-lg p-3">
+          <strong>4. 🌱 <span data-zh>持续学习</span><span data-en>Keep learning</span></strong>
+          <p class="mt-1 text-slate-600" data-zh>这门课是<strong>2026 年 5 月</strong>的快照。AI 在飞速发展——关注 AI4K12、Google AI Quests、Anthropic 的青少年项目。</p>
+          <p class="mt-1 text-slate-600" data-en>This course is a <strong>May 2026</strong> snapshot. AI moves fast — follow AI4K12, Google AI Quests, Anthropic's youth programs.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto p-5 bg-slate-50 border border-slate-200 rounded-2xl text-center mb-5">
+      <div class="text-sm text-slate-700 leading-relaxed" data-zh>
+        "<strong>这门课不是结束，是开始。</strong><br>
+        12 岁的你已经比 99% 的成年人更懂 AI——更重要的是，<strong>你知道 AI 的局限，知道怎么负责任地用它，知道怎么保护你身边的人</strong>。<br>
+        AI 时代正在到来，<strong>但 AI 不会决定你的未来——你的判断会</strong>。"
+      </div>
+      <div class="text-sm text-slate-700 leading-relaxed" data-en>
+        "<strong>This course isn't an end — it's a beginning.</strong><br>
+        At 12, you understand AI better than 99% of adults. More importantly, <strong>you know AI's limits, how to use it responsibly, how to protect the people around you</strong>.<br>
+        The AI era is coming — <strong>but AI won't decide your future. Your judgment will.</strong>"
+      </div>
+      <div class="text-sm text-slate-500 mt-3"><span data-zh>—— 小京灵</span><span data-en>— Jingling</span></div>
+    </div>
+
+    <div class="mt-7 flex flex-wrap justify-center gap-3">
+      <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+      <a href="index.html" class="btn-primary inline-flex">
+        🏠 <span data-zh>返回课程首页（28/28）</span><span data-en>Back to home (28/28)</span>
+      </a>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400 text-center">
+  <span data-zh>从0开始学AI · M7-4 · 开发者：辜月晗 · 全课程完结 · 2026</span>
+  <span data-en>AI Literacy Courses for Beginners · M7-4 · Dev: Gu Yuehan · Course Complete · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+  updatePlaceholders();
+}
+function updatePlaceholders(){
+  document.querySelectorAll('.b-input').forEach(el=>{
+    const ph = el.getAttribute(LANG==='en'?'data-en-placeholder':'data-zh-placeholder');
+    if(ph) el.placeholder = ph;
+  });
+}
+
+// Load project data
+const m61 = JSON.parse(localStorage.getItem('lingxi-m7-1')||'null');
+const projectName = m61?.project?.name || (LANG==='en'?'My AI Project':'我的 AI 项目');
+
+/* =====================================================
+   5 PITCH SLIDES
+   ===================================================== */
+const SLIDES = [
+  {id:'s1', emoji:'❓', title:{zh:'问题',en:'Problem'},
+   hint:{zh:'我们要解决什么具体问题？',en:'What specific problem are we solving?'},
+   ph:{zh:'例：山西果农每年损失 15-20% 产量在虫害',en:'e.g. Shanxi farmers lose 15-20% yield to pests'}},
+  {id:'s2', emoji:'💡', title:{zh:'解决方案',en:'Solution'},
+   hint:{zh:'我们的 AI 怎么帮（一句话）',en:'How our AI helps (1 sentence)'},
+   ph:{zh:'例：识别 10 种本地虫害，预警时间提前 7 天',en:'e.g. Spot 10 local pests, warn 7 days earlier'}},
+  {id:'s3', emoji:'👥', title:{zh:'谁会用',en:'Who uses it'},
+   hint:{zh:'目标用户是谁？多少人？',en:'Target users? How many?'},
+   ph:{zh:'例：山西 6000 万果农 + 我家社区 300 户',en:'e.g. 60M Shanxi farmers + 300 nearby families'}},
+  {id:'s4', emoji:'🔧', title:{zh:'怎么做的',en:'How it works'},
+   hint:{zh:'用什么数据 + 什么 AI 技术（简洁）',en:'What data + AI tech (concise)'},
+   ph:{zh:'例：500 张虫害照片，Teachable Machine 训练',en:'e.g. 500 pest photos, Teachable Machine'}},
+  {id:'s5', emoji:'⚠️', title:{zh:'局限',en:'Limits'},
+   hint:{zh:'什么情况 AI 会失灵？（必须承认）',en:'When does it fail? (must admit)'},
+   ph:{zh:'例：阴雨天准确率下降；新虫种识别不准',en:'e.g. Lower accuracy on rainy days; new pest species unreliable'}},
+];
+
+/* =====================================================
+   10 RESPONSIBILITY CHECKS
+   ===================================================== */
+const CHECKS = [
+  {id:'c1', emoji:'🔒', text:{zh:'<strong>隐私</strong>：我没有收集真实姓名、身份证号、家庭住址等个人身份信息。',
+                          en:'<strong>Privacy</strong>: I haven\'t collected real names, IDs, addresses, or other PII.'}},
+  {id:'c2', emoji:'👶', text:{zh:'<strong>未成年人</strong>：如果用户是 14 岁以下，我有家长同意机制。',
+                          en:'<strong>Minors</strong>: If users are under 14, I have parental consent.'}},
+  {id:'c3', emoji:'📊', text:{zh:'<strong>数据多样性</strong>：训练数据覆盖了至少 3 种不同情境（光线/地点/人）。',
+                          en:'<strong>Data diversity</strong>: covers at least 3 different contexts (light/place/people).'}},
+  {id:'c4', emoji:'❌', text:{zh:'<strong>已知错误率</strong>：我知道 AI 准确率，<strong>诚实地</strong>告诉用户它会犯错。',
+                          en:'<strong>Known error rate</strong>: I know the accuracy and <strong>honestly</strong> tell users it errs.'}},
+  {id:'c5', emoji:'📖', text:{zh:'<strong>文档</strong>：有简单说明书写明：AI 做什么、不能做什么、谁负责。',
+                          en:'<strong>Documentation</strong>: simple readme listing what AI does/doesn\'t, who\'s responsible.'}},
+  {id:'c6', emoji:'📞', text:{zh:'<strong>反馈渠道</strong>：用户能找到我（邮箱/微信）报告错误或问题。',
+                          en:'<strong>Feedback channel</strong>: users can reach me (email/WeChat) to report issues.'}},
+  {id:'c7', emoji:'🔘', text:{zh:'<strong>可关闭</strong>：用户能随时停止使用，删除自己的数据。',
+                          en:'<strong>Opt-out</strong>: users can stop and delete their data anytime.'}},
+  {id:'c8', emoji:'🚫', text:{zh:'<strong>不滥用</strong>：我不会让 AI 做它能力之外的事（如代替医生诊断）。',
+                          en:'<strong>No misuse</strong>: I won\'t let AI do things beyond its scope (e.g., replace doctors).'}},
+  {id:'c9', emoji:'💡', text:{zh:'<strong>可解释</strong>：用户能看到"AI 为什么这么判断"——至少给一个简单理由。',
+                          en:'<strong>Explainable</strong>: users see "why AI decided that" — at least a simple reason.'}},
+  {id:'c10', emoji:'🔄', text:{zh:'<strong>持续改进</strong>：我每月会更新数据 / 修 bug，不会"扔了就不管"。',
+                           en:'<strong>Continuous improvement</strong>: I\'ll update monthly, not "deploy and forget".'}},
+];
+
+/* =====================================================
+   4 REPORTER QUESTIONS
+   ===================================================== */
+const REPORTERS = [
+  {id:'r1', emoji:'📰',
+   name:{zh:'《人民日报》记者',en:'People\'s Daily reporter'},
+   q:{zh:'你 12 岁就做 AI——但同行 AI 公司的工程师都是<strong>有 10 年经验的博士</strong>。<strong>你凭什么能做？</strong>',
+      en:'You\'re 12 making AI — but industry engineers are <strong>PhDs with 10 yrs experience</strong>. <strong>Why can you do this?</strong>'},
+   options:[
+     {good:false, text:{zh:'A. 我比他们聪明',en:'A. I\'m smarter than them'},
+      crit:{zh:'⚠️ 傲慢、不准确——别这么答',en:'⚠️ Arrogant + inaccurate — don\'t say this'}},
+     {good:true, text:{zh:'B. 我不需要比他们强——我只解决<strong>他们没注意到</strong>的问题（如我家果园、我家方言）',
+                       en:'B. I don\'t need to outdo them — I solve problems <strong>they overlooked</strong> (my orchard, my dialect)'},
+      crit:{zh:'✓ 完美回答——这是 12 岁的<strong>独特价值</strong>',en:'✓ Perfect — this is the 12-yo\'s <strong>unique value</strong>'}},
+     {good:false, text:{zh:'C. AI 现在工具好用，谁都能做',en:'C. AI tools are easy now, anyone can do it'},
+      crit:{zh:'🤔 一半对——但忽略了你的<strong>专长</strong>（懂 12 岁的视角）',en:'🤔 Half-right — ignores your <strong>expertise</strong> (12-yo\'s view)'}},
+   ]},
+  {id:'r2', emoji:'🔍',
+   name:{zh:'《财新》调查记者',en:'Caixin investigative reporter'},
+   q:{zh:'你的 AI 准确率是 85%。<strong>剩下 15% 错了怎么办</strong>？你能赔吗？',
+      en:'Your AI is 85% accurate. <strong>What about the 15% that\'s wrong</strong>? Can you compensate?'},
+   options:[
+     {good:false, text:{zh:'A. 我不能赔，但用户自己用是自愿的',en:'A. I can\'t pay, users opt in voluntarily'},
+      crit:{zh:'⚠️ 推卸责任——不负责的设计师永远不会这么说',en:'⚠️ Buck-passing — responsible designers never say this'}},
+     {good:true, text:{zh:'B. 我提前告诉用户准确率 + 局限；<strong>关键决策不能只靠 AI</strong>（如阿宝叔的预警还要再请专家看）',
+                       en:'B. I tell users accuracy + limits upfront; <strong>critical decisions need humans too</strong> (Abao\'s warnings + expert review)'},
+      crit:{zh:'✓ 教科书式答案——透明 + 人机协作',en:'✓ Textbook answer — transparency + human-AI collaboration'}},
+     {good:false, text:{zh:'C. 85% 已经很高了，所有 AI 都会错',en:'C. 85% is high, all AI errs'},
+      crit:{zh:'🤔 部分对——但避开了"那 15% 的人怎么办"',en:'🤔 Partial — dodges "what happens to that 15%"'}},
+   ]},
+  {id:'r3', emoji:'🤔',
+   name:{zh:'《三联生活周刊》记者',en:'Sanlian Lifeweek reporter'},
+   q:{zh:'你想让你的 AI<strong>赚钱</strong>吗？如果有人用你的 AI 做不好的事，<strong>责任在谁</strong>？',
+      en:'Do you want your AI to <strong>make money</strong>? If someone misuses it, <strong>who\'s responsible</strong>?'},
+   options:[
+     {good:false, text:{zh:'A. 我想做免费开源——所以错了不是我的事',en:'A. I\'m doing open-source free — so misuse isn\'t my fault'},
+      crit:{zh:'⚠️ 免费 ≠ 没责任。Linus Torvalds 做 Linux 也对其 bug 负责',en:'⚠️ Free ≠ no responsibility. Linus is responsible for Linux bugs too'}},
+     {good:true, text:{zh:'B. 我会想清楚<strong>能不能</strong>赚钱 + <strong>怎么</strong>赚（不是所有场景都该收费）；同时写明 AI 的<strong>禁止使用场景</strong>',
+                       en:'B. I think hard about <strong>whether</strong> + <strong>how</strong> to monetize (not all uses should pay); document <strong>prohibited uses</strong>'},
+      crit:{zh:'✓ 成熟思考——清晰的边界 + 商业模式',en:'✓ Mature — clear boundaries + business model'}},
+     {good:false, text:{zh:'C. 我不想赚钱，纯粹做爱好',en:'C. Not for money, just a hobby'},
+      crit:{zh:'🤔 真诚但可能不可持续——好项目需要资源维护',en:'🤔 Sincere but maybe unsustainable — good projects need resources'}},
+   ]},
+  {id:'r4', emoji:'🎤',
+   name:{zh:'《新京报》文化记者',en:'Beijing News culture reporter'},
+   q:{zh:'你这个项目，<strong>3 年后还会维护吗</strong>？还是又一个被遗弃的"少年作品"？',
+      en:'In <strong>3 years</strong>, will this still be maintained? Or another abandoned "teen project"?'},
+   options:[
+     {good:false, text:{zh:'A. 我尽量维护，不能保证',en:'A. I\'ll try, no guarantee'},
+      crit:{zh:'🤔 诚实但弱——记者会追问"怎么尽量"',en:'🤔 Honest but weak — reporter will press "how exactly"'}},
+     {good:true, text:{zh:'B. 我把代码 + 数据集开源放 GitHub，写好文档；<strong>如果我没空了，别人可以接手</strong>',
+                       en:'B. I\'ll open-source code + data on GitHub with docs; <strong>if I move on, others can continue</strong>'},
+      crit:{zh:'✓ 长远思考——通过开源给项目"寿命"',en:'✓ Long-term thinking — open-source gives projects "lifespan"'}},
+     {good:false, text:{zh:'C. 3 年后 AI 都换代了，没必要维护',en:'C. AI will be replaced in 3 yrs, no need to maintain'},
+      crit:{zh:'⚠️ 短视——你的"经验"和"数据"<strong>是有价值的</strong>，哪怕技术换了',en:'⚠️ Short-sighted — your "experience + data" remain valuable even if tech changes'}},
+   ]},
+];
+
+const state = {phase:0, slides:{}, checks:new Set(), qaAnswers:{}, grandmaLine:'', realName:'', certName:''};
+
+/* =====================================================
+   PHASE 1: SLIDES
+   ===================================================== */
+function renderSlides(){
+  const host = document.getElementById('slides-grid');
+  host.innerHTML = SLIDES.map(s=>`
+    <div class="slide" data-id="${s.id}">
+      <div class="slide-title">${s.emoji} <span data-zh>${s.title.zh}</span><span data-en>${s.title.en}</span></div>
+      <div class="text-xs text-slate-500 mb-2"><span data-zh>${s.hint.zh}</span><span data-en>${s.hint.en}</span></div>
+      <textarea class="b-input" id="sl-${s.id}" rows="3" placeholder="" data-zh-placeholder="${s.ph.zh}" data-en-placeholder="${s.ph.en}" oninput="updateSlide('${s.id}')">${state.slides[s.id]||''}</textarea>
+    </div>
+  `).join('');
+  updatePlaceholders();
+}
+function updateSlide(id){
+  const el = document.getElementById('sl-'+id);
+  state.slides[id] = el.value;
+  el.classList.toggle('ok', Array.from(el.value).length>=15);
+  const filled = SLIDES.filter(s=>Array.from(state.slides[s.id]||'').length>=15).length;
+  document.getElementById('slides-filled').textContent = filled;
+  document.getElementById('p1-next').disabled = filled<5;
+}
+
+/* =====================================================
+   PHASE 2: CHECKS
+   ===================================================== */
+function renderChecks(){
+  const host = document.getElementById('check-list');
+  host.innerHTML = CHECKS.map(c=>`
+    <div class="check-item ${state.checks.has(c.id)?'checked':''}" data-id="${c.id}" onclick="toggleCheck('${c.id}')">
+      <div class="check-box">${state.checks.has(c.id)?'✓':''}</div>
+      <div class="flex-1">
+        <div class="flex items-start gap-2">
+          <div class="text-xl">${c.emoji}</div>
+          <p class="text-sm flex-1"><span data-zh>${c.text.zh}</span><span data-en>${c.text.en}</span></p>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('check-count').textContent = state.checks.size;
+  document.getElementById('p2-next').disabled = state.checks.size<10;
+}
+function toggleCheck(id){
+  if(state.checks.has(id)) state.checks.delete(id);
+  else state.checks.add(id);
+  renderChecks();
+}
+
+/* =====================================================
+   PHASE 3: REPORTER Q&A
+   ===================================================== */
+function renderQA(){
+  const host = document.getElementById('qa-list');
+  host.innerHTML = REPORTERS.map(r=>{
+    const picked = state.qaAnswers[r.id];
+    return `<div class="reporter-card" data-id="${r.id}">
+      <div class="flex items-start gap-3 mb-3">
+        <div class="reporter-avatar">${r.emoji}</div>
+        <div class="flex-1">
+          <div class="text-xs font-bold text-amber-700"><span data-zh>${r.name.zh}</span><span data-en>${r.name.en}</span></div>
+          <p class="text-sm mt-1"><span data-zh>${r.q.zh}</span><span data-en>${r.q.en}</span></p>
+        </div>
+      </div>
+      <div class="space-y-2">
+        ${r.options.map((o,i)=>`
+          <button class="check-item w-full ${picked===i?'checked':''}" onclick="pickQA('${r.id}',${i})">
+            <span class="check-box">${picked===i?'✓':''}</span>
+            <span class="flex-1 text-left text-sm"><span data-zh>${o.text.zh}</span><span data-en>${o.text.en}</span></span>
+          </button>
+        `).join('')}
+      </div>
+      ${picked!==undefined?`
+        <div class="mt-3 p-3 rounded-lg ${r.options[picked].good?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200'} text-sm">
+          <strong>${r.options[picked].good?'✓ ':'🤔 '}<span data-zh>专家点评</span><span data-en>Expert comment</span></strong>：
+          <span data-zh>${r.options[picked].crit.zh}</span><span data-en>${r.options[picked].crit.en}</span>
+        </div>
+      `:''}
+    </div>`;
+  }).join('');
+  const answered = Object.keys(state.qaAnswers).length;
+  document.getElementById('qa-count').textContent = answered;
+  document.getElementById('p3-next').disabled = answered<4;
+}
+function pickQA(rid, idx){
+  if(state.qaAnswers[rid]!==undefined) return;
+  state.qaAnswers[rid] = idx;
+  renderQA();
+}
+
+/* =====================================================
+   PHASE 4: GRANDMA EXPLAIN
+   ===================================================== */
+const JARGON_WORDS = ['算法','模型','训练','神经网络','机器学习','AI','数据','参数','准确率','epoch','卷积','优化',
+                      'algorithm','model','training','neural','machine learning','data','accuracy','parameters'];
+
+function checkGrandma(){
+  const el = document.getElementById('grandma-line');
+  const text = el.value;
+  state.grandmaLine = text;
+  const len = Array.from(text).length;
+
+  // Check for jargon
+  const lower = text.toLowerCase();
+  const foundJargon = JARGON_WORDS.filter(j=>text.includes(j) || lower.includes(j.toLowerCase()));
+
+  const warn = document.getElementById('jargon-warning');
+  if(foundJargon.length>0){
+    warn.classList.remove('hidden');
+    warn.innerHTML = `⚠️ <span data-zh>你用了奶奶听不懂的词：</span><span data-en>You used jargon Grandma won\'t get:</span> <strong>${foundJargon.join('、')}</strong>`;
+    el.classList.remove('ok');
+    document.getElementById('grandma-submit').disabled = true;
+  } else if(len>=30){
+    warn.classList.add('hidden');
+    el.classList.add('ok');
+    document.getElementById('grandma-submit').disabled = false;
+  } else {
+    warn.classList.add('hidden');
+    el.classList.remove('ok');
+    document.getElementById('grandma-submit').disabled = true;
+  }
+}
+
+/* =====================================================
+   PHASE 5: CERTIFICATE
+   ===================================================== */
+function updateCertName(){
+  const v = document.getElementById('real-name').value;
+  state.realName = v;
+  state.certName = v;
+  document.getElementById('cert-name').textContent = v || '—';
+  document.getElementById('cert-self').textContent = v || '研究员';
+}
+
+function fillCertificate(){
+  document.getElementById('cert-project').textContent = projectName;
+  document.getElementById('cert-project-en').textContent = projectName;
+  // date
+  const d = new Date();
+  document.getElementById('cert-date').textContent = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('cert-name').textContent = state.realName || '—';
+  document.getElementById('cert-self').textContent = state.realName || '研究员';
+}
+
+/* =====================================================
+   SUBMIT (final mission complete)
+   ===================================================== */
+function finishMission(){
+  const data = {timestamp:Date.now(),mission:'M7-4',
+    slides:state.slides, checks:[...state.checks], qaAnswers:state.qaAnswers,
+    grandmaLine:state.grandmaLine, realName:state.realName,
+    courseComplete:true};
+  localStorage.setItem('lingxi-m7-4', JSON.stringify(data));
+  launchConfetti();
+}
+
+function launchConfetti(){
+  const colors = ['#DC2626','#F59E0B','#10B981','#3B82F6','#a855f7','#FBBF24'];
+  for(let i=0;i<50;i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random()*100 + '%';
+    c.style.backgroundColor = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDelay = Math.random()*1.5 + 's';
+    c.style.animationDuration = (2 + Math.random()*2) + 's';
+    if(Math.random()>0.5) c.style.borderRadius='50%';
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(), 5000);
+  }
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderSlides();
+  if(n===2) renderChecks();
+  if(n===3) renderQA();
+  if(n===5){
+    fillCertificate();
+    finishMission();
+    setTimeout(launchConfetti, 500);
+  }
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart this mission? (Your course completion stays)':'重新开始本关？（课程完成状态保留）')){
+    state.phase=0;state.slides={};state.checks=new Set();state.qaAnswers={};state.grandmaLine='';state.realName='';
+    document.getElementById('slides-filled').textContent='0';
+    document.getElementById('check-count').textContent='0';
+    document.getElementById('qa-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('grandma-submit').disabled=true;
+    document.getElementById('grandma-line').value='';
+    document.getElementById('real-name').value='';
+    document.getElementById('jargon-warning').classList.add('hidden');
+    goTo(0);
+  }
+}
+
+updatePlaceholders();
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

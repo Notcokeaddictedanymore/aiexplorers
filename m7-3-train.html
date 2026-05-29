@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M7-3 训练 + 评估 · Train & Evaluate Your AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(168,85,247,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Training option */
+  .train-opt{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .train-opt:hover{border-color:#94A3B8}
+  .train-opt.tried{border-color:#10B981;background:#ECFDF5}
+
+  /* Confusion matrix */
+  .cm-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:6px;font-size:.95rem}
+  .cm-diag{background:#10B981;color:#fff}
+  .cm-cell.cm-bad{background:#FCA5A5;color:#7F1D1D}
+  .cm-cell.cm-warn{background:#FED7AA;color:#7C2D12}
+
+  /* Training curve canvas placeholder */
+  .curve-box{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;overflow-x:auto}
+
+  /* TM CTA card */
+  .tm-cta{background:linear-gradient(135deg,#FEF3C7,#FED7AA);border:2px solid #F59E0B;border-radius:18px;padding:1.5rem}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(168,85,247,.08),0 0 0 12px rgba(168,85,247,.04),0 18px 40px -12px rgba(168,85,247,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M7-3 · Mission</span>
+      <span class="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Ch.7 · 毕业作品 / Capstone</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>制作 · 40 min</span><span data-en>Build · 40 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>训练 + 评估：让你的 AI 真正"活"起来</span>
+      <span data-en>Train + Evaluate: Bring Your AI to Life</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-purple-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            数据收齐了！现在到 <strong>AI 训练 + 评估</strong>——这是<strong>最神奇的环节</strong>，你的数据要真正"喂"给一个 AI 大脑。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Data collected! Now: <strong>train + evaluate</strong> — the <strong>magical phase</strong> where your data feeds an AI brain.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            <strong>好消息</strong>：你<strong>不需要写一行代码</strong>。Google 做了一个免费工具叫<strong>"Teachable Machine"</strong>——12 岁就能用，3 个浏览器标签页就训出一个能用的 AI。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            <strong>Good news</strong>: <strong>no code needed</strong>. Google made a free tool called <strong>"Teachable Machine"</strong> — usable by a 12-yo, 3 browser tabs = working AI.
+          </p>
+          <p class="mt-3 leading-relaxed text-purple-700 font-semibold" data-zh>
+            今天的目标：① 模拟训练你的 AI ② 看混淆矩阵评估 ③ 根据评估改进 ④ 学会用 Teachable Machine 真实跑一遍。
+          </p>
+          <p class="mt-3 leading-relaxed text-purple-700 font-semibold" data-en>
+            Today: ① simulate training ② evaluate via confusion matrix ③ improve based on eval ④ learn Teachable Machine for real.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>先分训练 / 测试 →</span><span data-en>First, train/test split →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: TRAIN/TEST SPLIT ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>Ch.3 M3-2 你学了：<strong>训练数据和测试数据必须分开</strong>。现在用到你的项目：你 M7-2 计划有 <strong id="ttl-needed">—</strong> 张数据。<strong>怎么分</strong>？</p>
+      <p data-en>From Ch.3 M3-2: <strong>train and test must be separate</strong>. Applied to your project: M7-2 planned <strong id="ttl-needed-en">—</strong> items. <strong>How to split</strong>?</p>
+    </div>
+
+    <div class="bg-white border-2 border-purple-200 rounded-2xl p-5">
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-2 block">📊 <span data-zh>选择训练/测试比例</span><span data-en>Pick train/test ratio</span></label>
+          <div id="ratio-grid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-2"></div>
+        </div>
+
+        <div id="split-result" class="hidden p-4 rounded-xl"></div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：模拟训练 →</span><span data-en>Next: simulate training →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: SIMULATED TRAINING ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>真实 Teachable Machine 训练 1 分钟左右。我用<strong>模拟</strong>让你<strong>同时看到 3 个版本</strong>——训练时间不同，效果完全不同。<strong>3 个都点完才能继续</strong>。</p>
+      <p data-en>Real Teachable Machine takes ~1 min. I'll <strong>simulate</strong> so you can see <strong>3 versions side-by-side</strong> — different training times, completely different results. <strong>Try all 3</strong>.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已尝试：</span><span data-en>Tried:</span><span id="train-tried">0</span> / 3</div>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-3 mb-4" id="train-opts"></div>
+
+    <div id="train-result" class="hidden">
+      <div class="bg-white border-2 border-purple-200 rounded-2xl p-5 mb-4">
+        <h3 class="font-bold text-lg mb-3"><span data-zh>训练结果</span><span data-en>Training results</span></h3>
+        <div class="grid sm:grid-cols-3 gap-3" id="train-stats"></div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm" id="train-advice"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：看混淆矩阵 →</span><span data-en>Next: confusion matrix →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: CONFUSION MATRIX ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh><strong>"准确率 85%"</strong> 还不够 —— 你需要知道 AI <strong>错在哪儿</strong>。这就是<strong>混淆矩阵（Confusion Matrix）</strong>。绿色对角线是答对的，其他都是错的——<strong>哪两类被混了</strong>，矩阵告诉你。</p>
+      <p data-en><strong>"85% accuracy"</strong> isn't enough — you need to know <strong>where AI errs</strong>. The <strong>confusion matrix</strong> shows it. Green diagonal = correct; off-diagonal = errors. The matrix tells you <strong>which classes get confused</strong>.</p>
+    </div>
+
+    <div class="bg-white border-2 border-purple-200 rounded-2xl p-5">
+      <div class="text-sm font-bold mb-3"><span data-zh>这是 4 类分类器的混淆矩阵（每类 25 张测试样本）</span><span data-en>4-class confusion matrix (25 test samples each)</span></div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full" style="border-spacing:.3rem;border-collapse:separate">
+          <thead>
+            <tr>
+              <th class="text-xs text-slate-500 font-bold p-2"></th>
+              <th class="text-xs text-blue-700 font-bold p-2" colspan="4"><span data-zh>AI 的预测 →</span><span data-en>AI predicts →</span></th>
+            </tr>
+            <tr>
+              <th class="text-xs text-amber-700 font-bold p-2"><span data-zh>真实↓</span><span data-en>Actual ↓</span></th>
+              <th class="text-xs font-bold p-2 bg-blue-50 rounded">🍎 <span data-zh>苹果</span><span data-en>Apple</span></th>
+              <th class="text-xs font-bold p-2 bg-blue-50 rounded">🍅 <span data-zh>西红柿</span><span data-en>Tomato</span></th>
+              <th class="text-xs font-bold p-2 bg-blue-50 rounded">🍑 <span data-zh>桃子</span><span data-en>Peach</span></th>
+              <th class="text-xs font-bold p-2 bg-blue-50 rounded">🍊 <span data-zh>橘子</span><span data-en>Orange</span></th>
+            </tr>
+          </thead>
+          <tbody id="cm-body"></tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 grid sm:grid-cols-3 gap-3">
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+          <div class="text-xs uppercase text-green-700 font-bold"><span data-zh>整体准确率</span><span data-en>Overall accuracy</span></div>
+          <div class="text-3xl font-black text-green-700 mt-1">85%</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+          <div class="text-xs uppercase text-amber-700 font-bold"><span data-zh>最差类</span><span data-en>Worst class</span></div>
+          <div class="text-lg font-black text-amber-700 mt-1">🍅 → 🍎</div>
+          <div class="text-xs text-slate-600"><span data-zh>西红柿常被认成苹果</span><span data-en>tomato → apple</span></div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+          <div class="text-xs uppercase text-blue-700 font-bold"><span data-zh>最好类</span><span data-en>Best class</span></div>
+          <div class="text-lg font-black text-blue-700 mt-1">🍊 92%</div>
+          <div class="text-xs text-slate-600"><span data-zh>橘子识别最准</span><span data-en>orange most reliable</span></div>
+        </div>
+      </div>
+
+      <div class="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm">
+        <strong>🔍 <span data-zh>你发现了什么</span><span data-en>What you spotted</span></strong>：
+        <span data-zh><strong>西红柿和苹果被混淆了 8 次</strong>（在矩阵右上角）。这告诉你下一步该<strong>加更多西红柿和苹果的对比数据</strong>，特别是<strong>容易混淆的角度</strong>（如远看）。</span>
+        <span data-en><strong>Tomato vs Apple confused 8 times</strong> (top-right of matrix). Next step: <strong>add more tomato/apple contrast data</strong>, especially <strong>confusable angles</strong> (e.g., distance shots).</span>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>下一关：你来决定怎么改进 →</span><span data-en>Next: you decide improvements →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: IMPROVE ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你看了混淆矩阵——西红柿 vs 苹果是<strong>最大问题</strong>。<strong>你会怎么改进</strong>？下面 6 种策略——<strong>选 3 个</strong>你觉得最有效的。</p>
+      <p data-en>You saw the matrix — tomato vs apple is the <strong>biggest issue</strong>. <strong>How to improve</strong>? 6 strategies below — <strong>pick the 3</strong> most effective.</p>
+    </div>
+
+    <div id="improve-grid" class="grid sm:grid-cols-2 gap-3 mb-5"></div>
+
+    <div class="flex items-center justify-between text-sm mb-4">
+      <div class="text-slate-600"><span data-zh>已选 </span><span data-en>Picked </span><strong id="imp-picked">0</strong>/3</div>
+      <button class="btn-primary text-sm" id="check-imp-btn" disabled onclick="checkImproves()">
+        ✓ <span data-zh>看专家分析</span><span data-en>See expert analysis</span>
+      </button>
+    </div>
+
+    <div id="imp-result" class="hidden"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>下一关：用 Teachable Machine 真实操作 →</span><span data-en>Next: real Teachable Machine →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: TEACHABLE MACHINE ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>现在<strong>真实操作</strong>！打开 <strong>Teachable Machine</strong>，按下面 7 步完成你的第一个真实 AI。</p>
+      <p data-en>Now go <strong>real</strong>! Open <strong>Teachable Machine</strong> and follow these 7 steps to ship your first actual AI.</p>
+    </div>
+
+    <div class="tm-cta mb-5 text-center">
+      <div class="text-4xl mb-2">🚀</div>
+      <h3 class="text-2xl font-black mb-2"><span data-zh>Google Teachable Machine</span><span data-en>Google Teachable Machine</span></h3>
+      <p class="text-sm mb-3" data-zh>完全免费 · 在浏览器里跑 · 无需账号 · 中文友好</p>
+      <p class="text-sm mb-3" data-en>Free · Browser-based · No account · CN-friendly</p>
+      <a href="https://teachablemachine.withgoogle.com/" target="_blank" rel="noopener" class="btn-primary inline-flex">
+        🔗 <span data-zh>打开 Teachable Machine</span><span data-en>Open Teachable Machine</span>
+      </a>
+      <p class="text-xs mt-3 text-amber-900" data-zh>提示：链接在新标签打开。本关保留你的进度。</p>
+      <p class="text-xs mt-3 text-amber-900" data-en>Note: opens in new tab. Progress saved here.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读步骤：</span><span data-en>Steps read:</span><span id="tm-step-count">0</span> / 7</div>
+    </div>
+
+    <div id="tm-steps" class="space-y-3"></div>
+
+    <div class="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+      <strong>💡 <span data-zh>真实操作时</span><span data-en>While doing it for real</span></strong>：
+      <span data-zh>不用一次完成。<strong>你可以</strong>：用样例先跑通 → 再用自己的数据 → 慢慢加 → 多次测试。Teachable Machine 会<strong>记住你的工作</strong>（保存为本地文件）。</span>
+      <span data-en>Don't finish in one go. <strong>You can</strong>: try sample first → use your data → grow → test repeatedly. Teachable Machine <strong>saves your work</strong> (local file).</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p5-next" disabled onclick="goTo(6)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: REFLECTION ========== -->
+  <section class="phase" id="p6">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>训练 + 评估是 AI 工程师的<strong>核心日常工作</strong>。今天你完成了 ML 工程师的第一个"<strong>训练-评估-迭代</strong>"循环。</p>
+      <p data-en>Train + evaluate is the AI engineer's <strong>daily core</strong>. Today you finished your first <strong>train-evaluate-iterate</strong> loop.</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① "<strong>训练时间越长，AI 越好</strong>"——这话<strong>哪里对、哪里错</strong>？</span>
+        <span data-en>① "<strong>Longer training = better AI</strong>" — <strong>where right, where wrong</strong>?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 看混淆矩阵<strong>比看总准确率有用</strong>——为什么？举一个你能想到的<strong>真实场景</strong>。</span>
+        <span data-en>② Confusion matrix is <strong>more useful than overall accuracy</strong> — why? Give one <strong>real scenario</strong>.</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 真实跑 Teachable Machine 时，你<strong>预计</strong>遇到哪些困难？打算怎么解决？</span>
+        <span data-en>③ When using Teachable Machine for real, what challenges do you <strong>expect</strong>? How to solve?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M7-3 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 7: COMPLETION ========== -->
+  <section class="phase" id="p7">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-purple-500 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#a855f7" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🚀</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 3 关完成</span><span data-en>Mission #3 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"ML 工程师学徒" 徽章已解锁</span><span data-en>"ML Engineer Apprentice" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-purple-50 border border-purple-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天做出了……</span><span data-en>You produced…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>选了<strong>训练 / 测试分配</strong>（用 Ch.3 M3-2 学到的）</span><span data-en>Picked <strong>train/test split</strong> (using Ch.3 M3-2)</span></li>
+          <li>✓ <span data-zh>体验了<strong>3 种训练长度</strong>的不同后果（M3-3 过拟合）</span><span data-en>Tried <strong>3 training durations</strong> (M3-3 overfitting)</span></li>
+          <li>✓ <span data-zh>读懂了<strong>混淆矩阵</strong>——能找出"哪两类被混"</span><span data-en>Read <strong>confusion matrix</strong> — can spot "which classes confuse"</span></li>
+          <li>✓ <span data-zh>选了<strong>3 个改进策略</strong>（基于数据，不是凭感觉）</span><span data-en>Chose <strong>3 improvement strategies</strong> (data-driven)</span></li>
+          <li>✓ <span data-zh>拿到 <strong>Teachable Machine 7 步操作指南</strong>，可以真实跑一遍</span><span data-en>Got <strong>7-step Teachable Machine guide</strong> for real run</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m7-4-launch.html'">
+          <span data-zh>下一关：M7-4 发布会 →</span><span data-en>Next: M7-4 Launch Day →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M7-3 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M7-3 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+// Load total from M7-2
+const m62 = JSON.parse(localStorage.getItem('lingxi-m7-2')||'null');
+const totalNeed = (m62?.needs?.classes||0) * (m62?.needs?.perclass||0) || 100;
+document.getElementById('ttl-needed').textContent = totalNeed.toLocaleString();
+document.getElementById('ttl-needed-en').textContent = totalNeed.toLocaleString();
+
+/* =====================================================
+   SPLIT RATIOS
+   ===================================================== */
+const RATIOS = [
+  {v:100, label:{zh:'100% 训练 / 0% 测试',en:'100% train / 0% test'}, good:false,
+   why:{zh:'⚠️ 经典陷阱——<strong>你永远不知道</strong>真实表现',en:'⚠️ Classic trap — <strong>you\'ll never know</strong> real performance'}},
+  {v:80, label:{zh:'80% 训练 / 20% 测试 ⭐',en:'80% train / 20% test ⭐'}, good:true,
+   why:{zh:'✓ <strong>黄金标准</strong>——训练足够 + 测试可靠',en:'✓ <strong>Gold standard</strong> — enough training + reliable testing'}},
+  {v:70, label:{zh:'70% 训练 / 30% 测试',en:'70% train / 30% test'}, good:true,
+   why:{zh:'✓ 数据不多时<strong>更稳</strong>，测试集更大',en:'✓ <strong>More stable</strong> with limited data, larger test set'}},
+  {v:50, label:{zh:'50% 训练 / 50% 测试',en:'50% train / 50% test'}, good:false,
+   why:{zh:'🤔 训练不足——AI 学得太浅',en:'🤔 Too little training — AI learns shallowly'}},
+];
+
+function renderRatios(){
+  const host = document.getElementById('ratio-grid');
+  host.innerHTML = RATIOS.map(r=>`
+    <button class="train-opt" data-v="${r.v}" onclick="pickRatio(${r.v})">
+      <div class="font-bold text-sm"><span data-zh>${r.label.zh}</span><span data-en>${r.label.en}</span></div>
+      <div class="text-xs text-slate-600 mt-1">
+        <span data-zh>训练 ${Math.round(totalNeed*r.v/100)} · 测试 ${totalNeed-Math.round(totalNeed*r.v/100)}</span>
+        <span data-en>Train ${Math.round(totalNeed*r.v/100)} · Test ${totalNeed-Math.round(totalNeed*r.v/100)}</span>
+      </div>
+    </button>
+  `).join('');
+}
+
+const state = {phase:0, ratioPicked:null, trainTried:new Set(), improvesPicked:new Set(), tmStepsRead:new Set(), reflectChoice:null, reflectText:''};
+
+function pickRatio(v){
+  state.ratioPicked = v;
+  const r = RATIOS.find(x=>x.v===v);
+  const box = document.getElementById('split-result');
+  box.classList.remove('hidden');
+  box.className = 'mt-4 p-4 rounded-xl ' + (r.good?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  box.innerHTML = `<strong>${r.good?'✓ ':'🤔 '}</strong><span data-zh>${r.why.zh}</span><span data-en>${r.why.en}</span>`;
+  document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   TRAINING OPTIONS
+   ===================================================== */
+const TRAIN_OPTIONS = [
+  {id:'short', emoji:'⏱️', mins:5,
+   name:{zh:'快速训练', en:'Quick train'},
+   trainAcc:65, testAcc:60,
+   label:{zh:'欠拟合', en:'Underfit'},
+   note:{zh:'AI 还没"学会"——训练不够',en:'AI hasn\'t "learned" yet — too little training'}},
+  {id:'medium', emoji:'⏰', mins:10,
+   name:{zh:'平衡训练', en:'Balanced train'},
+   trainAcc:90, testAcc:88,
+   label:{zh:'最佳 ⭐', en:'Sweet spot ⭐'},
+   note:{zh:'训练-测试差距只有 2%——AI 真的"学会"了',en:'2% train-test gap — AI truly learned'}},
+  {id:'long', emoji:'🕐', mins:30,
+   name:{zh:'长时训练', en:'Long train'},
+   trainAcc:99, testAcc:70,
+   label:{zh:'过拟合', en:'Overfit'},
+   note:{zh:'训练 99% 但测试 70%——AI"背"下来了，新数据翻车',en:'99% train but 70% test — AI memorized, fails on new'}},
+];
+
+function renderTrainOpts(){
+  const host = document.getElementById('train-opts');
+  host.innerHTML = TRAIN_OPTIONS.map(t=>`
+    <button class="train-opt ${state.trainTried.has(t.id)?'tried':''}" data-id="${t.id}" onclick="tryTrain('${t.id}')">
+      <div class="text-3xl mb-2">${t.emoji}</div>
+      <div class="font-bold text-sm mb-1"><span data-zh>${t.name.zh}</span><span data-en>${t.name.en}</span></div>
+      <div class="text-xs text-slate-500"><span data-zh>${t.mins} 分钟</span><span data-en>${t.mins} min</span></div>
+    </button>
+  `).join('');
+}
+
+function tryTrain(id){
+  state.trainTried.add(id);
+  renderTrainOpts();
+  document.getElementById('train-tried').textContent = state.trainTried.size;
+  // Show comparison
+  document.getElementById('train-result').classList.remove('hidden');
+  const statsHost = document.getElementById('train-stats');
+  statsHost.innerHTML = [...state.trainTried].map(id=>{
+    const t = TRAIN_OPTIONS.find(x=>x.id===id);
+    const isOK = t.id==='medium';
+    return `<div class="bg-${isOK?'green':'slate'}-50 border border-${isOK?'green':'slate'}-200 rounded-lg p-3">
+      <div class="text-2xl mb-1">${t.emoji}</div>
+      <div class="font-bold text-sm"><span data-zh>${t.name.zh}</span><span data-en>${t.name.en}</span></div>
+      <div class="text-xs uppercase font-bold mt-1 text-${isOK?'green':'amber'}-700"><span data-zh>${t.label.zh}</span><span data-en>${t.label.en}</span></div>
+      <div class="mt-2 space-y-1 text-xs">
+        <div class="flex justify-between"><span><span data-zh>训练</span><span data-en>Train</span></span><strong>${t.trainAcc}%</strong></div>
+        <div class="flex justify-between"><span><span data-zh>测试</span><span data-en>Test</span></span><strong class="text-${t.testAcc>=80?'green':'red'}-700">${t.testAcc}%</strong></div>
+        <div class="flex justify-between"><span><span data-zh>差距</span><span data-en>Gap</span></span><strong>${t.trainAcc-t.testAcc}%</strong></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if(state.trainTried.size>=3){
+    document.getElementById('train-advice').innerHTML = `
+      <strong>💡 <span data-zh>关键洞察</span><span data-en>Key insight</span></strong>：
+      <span data-zh>看 <strong>"差距"</strong> 比看准确率重要——<strong>5 分钟版 5%</strong>（欠拟合）、<strong>10 分钟 2%</strong>（最佳）、<strong>30 分钟 29%</strong>（过拟合）。Teachable Machine 默认 50 epoch 大概对应你的"10 分钟"——通常已经够了，不要过度训练。</span>
+      <span data-en>The <strong>"gap"</strong> matters more than accuracy alone — <strong>5-min: 5%</strong> (underfit), <strong>10-min: 2%</strong> (sweet), <strong>30-min: 29%</strong> (overfit). Teachable Machine\'s default 50 epochs ≈ your "10 min" — usually enough, don\'t overtrain.</span>
+    `;
+    document.getElementById('p2-next').disabled = false;
+  }
+}
+
+/* =====================================================
+   CONFUSION MATRIX
+   ===================================================== */
+function renderCM(){
+  // 4x4 matrix, diagonal mostly correct
+  const data = [
+    [22, 0, 2, 1],   // apple: 22 correct, mostly mistaken as peach
+    [8, 16, 1, 0],   // tomato: 8 mistaken as apple
+    [3, 0, 21, 1],   // peach: 21 correct, mistaken as apple
+    [0, 0, 2, 23],   // orange: 23 correct
+  ];
+  const labels = ['🍎','🍅','🍑','🍊'];
+  const host = document.getElementById('cm-body');
+  host.innerHTML = data.map((row,i)=>{
+    return `<tr>
+      <th class="text-xs font-bold p-2 bg-amber-50 rounded">${labels[i]}</th>
+      ${row.map((v,j)=>{
+        let cls = 'cm-cell';
+        if(i===j) cls += ' cm-diag';
+        else if(v>=5) cls += ' cm-bad';
+        else if(v>=2) cls += ' cm-warn';
+        else cls += ' bg-slate-50';
+        return `<td><div class="${cls}">${v}</div></td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+}
+
+/* =====================================================
+   IMPROVE STRATEGIES
+   ===================================================== */
+const IMPROVES = [
+  {id:'im1', emoji:'📸', text:{zh:'多拍西红柿和苹果的<strong>对比照片</strong>（同一光线下）',en:'Take more <strong>side-by-side</strong> tomato/apple photos (same lighting)'}, good:true,
+   why:{zh:'✓ 直击混淆——对比照能让 AI 学到"区别"',en:'✓ Targets confusion — contrast trains AI on "the difference"'}},
+  {id:'im2', emoji:'📐', text:{zh:'多拍<strong>不同角度</strong>（远近、俯仰、侧面）',en:'More <strong>angle variety</strong> (near/far, top/side)'}, good:true,
+   why:{zh:'✓ AI 现在"近距离区分好、远距离混"，加角度解决',en:'✓ AI distinguishes near, confuses far — angle fixes that'}},
+  {id:'im3', emoji:'➕', text:{zh:'再多收 <strong>200 张</strong>苹果照片（不管什么样的）',en:'Add <strong>200 more</strong> apple photos (any kind)'}, good:false,
+   why:{zh:'⚠️ 量大但不<strong>对症</strong>——可能让"苹果"类更强，但西红柿照样混',en:'⚠️ Quantity not <strong>targeted</strong> — apple class strengthens but tomato still confuses'}},
+  {id:'im4', emoji:'🌗', text:{zh:'多拍<strong>不同光线</strong>下的西红柿和苹果',en:'More <strong>varied lighting</strong> for tomato + apple'}, good:true,
+   why:{zh:'✓ 光线会改变颜色 — 数据需要覆盖不同光线条件',en:'✓ Lighting changes color — data must cover lighting conditions'}},
+  {id:'im5', emoji:'🏃', text:{zh:'<strong>训练 2 小时</strong>，让 AI 学透',en:'<strong>Train 2 hours</strong> to learn everything'}, good:false,
+   why:{zh:'⚠️ <strong>过拟合陷阱</strong>——训练越久测试越差（M3-3）',en:'⚠️ <strong>Overfit trap</strong> — longer training = worse test (M3-3)'}},
+  {id:'im6', emoji:'❌', text:{zh:'删掉"西红柿"类，反正混着',en:'Just remove "tomato" class since it confuses'}, good:false,
+   why:{zh:'⚠️ <strong>放弃问题</strong>不是解决方案——你的用户需要它',en:'⚠️ <strong>Giving up</strong> isn\'t solving — users need it'}},
+];
+
+function renderImproves(){
+  const host = document.getElementById('improve-grid');
+  host.innerHTML = IMPROVES.map(im=>`
+    <button class="train-opt ${state.improvesPicked.has(im.id)?'tried':''}" data-id="${im.id}" onclick="pickImprove('${im.id}')">
+      <div class="flex items-start gap-2">
+        <div class="text-2xl">${im.emoji}</div>
+        <div class="text-sm"><span data-zh>${im.text.zh}</span><span data-en>${im.text.en}</span></div>
+      </div>
+    </button>
+  `).join('');
+  document.getElementById('imp-picked').textContent = state.improvesPicked.size;
+  document.getElementById('check-imp-btn').disabled = state.improvesPicked.size<3;
+}
+
+function pickImprove(id){
+  if(state.improvesPicked.has(id)) state.improvesPicked.delete(id);
+  else if(state.improvesPicked.size<3) state.improvesPicked.add(id);
+  renderImproves();
+}
+
+function checkImproves(){
+  const host = document.getElementById('imp-result');
+  host.classList.remove('hidden');
+  const picked = IMPROVES.filter(i=>state.improvesPicked.has(i.id));
+  const goodCount = picked.filter(i=>i.good).length;
+  host.innerHTML = `
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-5 mb-3">
+      <div class="font-bold mb-3">🎯 <span data-zh>专家分析</span><span data-en>Expert analysis</span> · <span data-zh>正确策略</span><span data-en>Correct picks</span>：<strong class="text-${goodCount>=2?'green':'amber'}-700">${goodCount} / 3</strong></div>
+      <div class="space-y-2">
+        ${picked.map(im=>`
+          <div class="bg-white rounded-lg p-3">
+            <div class="font-bold text-sm mb-1">${im.emoji} <span data-zh>${im.text.zh}</span><span data-en>${im.text.en}</span></div>
+            <p class="text-sm"><span data-zh>${im.why.zh}</span><span data-en>${im.why.en}</span></p>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+      <strong>💡 <span data-zh>最佳改进路径</span><span data-en>Best improvement path</span></strong>：
+      <span data-zh>① 针对性收数据（对比照、不同角度、不同光线）② <strong>不是</strong>盲目加数据 ③ <strong>不是</strong>训练更久 ④ <strong>不是</strong>删除问题类</span>
+      <span data-en>① Targeted collection (contrast, angles, lighting) ② <strong>NOT</strong> blind quantity ③ <strong>NOT</strong> longer training ④ <strong>NOT</strong> deleting the confusing class</span>
+    </div>
+  `;
+  document.getElementById('check-imp-btn').disabled = true;
+  document.getElementById('p4-next').disabled = false;
+}
+
+/* =====================================================
+   TEACHABLE MACHINE STEPS
+   ===================================================== */
+const TM_STEPS = [
+  {n:1, emoji:'🌐', t:{zh:'打开 teachablemachine.withgoogle.com',en:'Go to teachablemachine.withgoogle.com'},
+   d:{zh:'点击"开始使用"，选择"图像项目"（图像 / 音频 / 姿势 三选一）',en:'Click "Get Started" → "Image Project" (Image / Audio / Pose)'}},
+  {n:2, emoji:'➕', t:{zh:'添加你的类别',en:'Add your classes'},
+   d:{zh:'默认 2 类，点"Add a class"加更多。每类输入名字（如"苹果""西红柿"）',en:'Defaults to 2 classes; click "Add a class" for more. Name each (e.g. "Apple", "Tomato")'}},
+  {n:3, emoji:'📸', t:{zh:'上传或拍照',en:'Upload or webcam'},
+   d:{zh:'每类点"Webcam"实时拍照，或"Upload"上传你已收的照片（每类 ≥ 30 张）',en:'For each class, click "Webcam" to capture live, or "Upload" to add your photos (≥30/class)'}},
+  {n:4, emoji:'🚀', t:{zh:'点"Train Model"',en:'Click "Train Model"'},
+   d:{zh:'默认参数（50 epochs / batch 16 / learning rate 0.001）—— 初学者别改。约 1 分钟训完',en:'Default params (50 epochs / batch 16 / LR 0.001) — beginners: don\'t touch. ~1 min to train'}},
+  {n:5, emoji:'✅', t:{zh:'即时预览',en:'Live preview'},
+   d:{zh:'训练完毕后右侧自动开摄像头，对准物体看 AI 实时识别。准确率不够？回去加数据',en:'After training, right panel shows live cam — point at object, see real-time prediction. Low accuracy? Add more data'}},
+  {n:6, emoji:'💾', t:{zh:'导出 / 保存',en:'Export / save'},
+   d:{zh:'点"Export Model"可下载完整模型文件 + 网页代码，可以部署到自己的网站',en:'Click "Export Model" to download full model + web code, deployable to your own site'}},
+  {n:7, emoji:'📤', t:{zh:'分享给同学测试',en:'Share for testing'},
+   d:{zh:'Export 后选"Upload (sharable link)"，得到链接发给同学。让他们试，记录哪些不灵',en:'After Export, pick "Upload (sharable link)" → send to classmates. Let them try, log what fails'}},
+];
+
+function renderTM(){
+  const host = document.getElementById('tm-steps');
+  host.innerHTML = TM_STEPS.map(s=>`
+    <div class="bg-white border-2 border-slate-200 rounded-xl p-3 cursor-pointer ${state.tmStepsRead.has(s.n)?'border-green-300 bg-green-50':''}" data-n="${s.n}" onclick="readTM(${s.n})">
+      <div class="flex items-start gap-3">
+        <div class="text-2xl">${s.emoji}</div>
+        <div class="flex-1">
+          <div class="font-bold text-sm">${s.n}. <span data-zh>${s.t.zh}</span><span data-en>${s.t.en}</span></div>
+          <p class="text-xs text-slate-600 mt-1"><span data-zh>${s.d.zh}</span><span data-en>${s.d.en}</span></p>
+        </div>
+        ${state.tmStepsRead.has(s.n)?'<span class="text-green-700 font-bold">✓</span>':''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function readTM(n){
+  state.tmStepsRead.add(n);
+  renderTM();
+  document.getElementById('tm-step-count').textContent = state.tmStepsRead.size;
+  if(state.tmStepsRead.size>=7) document.getElementById('p5-next').disabled = false;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M7-3',
+    ratioPicked:state.ratioPicked, trainTried:[...state.trainTried], improvesPicked:[...state.improvesPicked], tmStepsRead:state.tmStepsRead.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m7-3', JSON.stringify(data));
+  goTo(7);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,7);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderRatios();
+  if(n===2) renderTrainOpts();
+  if(n===3) renderCM();
+  if(n===4) renderImproves();
+  if(n===5) renderTM();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.ratioPicked=null;state.trainTried=new Set();state.improvesPicked=new Set();state.tmStepsRead=new Set();state.reflectChoice=null;state.reflectText='';
+    document.getElementById('split-result').classList.add('hidden');
+    document.getElementById('train-result').classList.add('hidden');
+    document.getElementById('imp-result').classList.add('hidden');
+    document.getElementById('reflect-text').value='';
+    document.getElementById('train-tried').textContent='0';
+    document.getElementById('imp-picked').textContent='0';
+    document.getElementById('tm-step-count').textContent='0';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    ['p1','p2','p4','p5'].forEach(p=>{const b=document.getElementById(p+'-next');if(b)b.disabled=true});
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

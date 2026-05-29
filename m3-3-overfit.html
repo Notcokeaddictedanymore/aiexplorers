@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M3-3 过拟合陷阱 · The Overfitting Trap</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* AI portrait cards */
+  .ai-card{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1rem;transition:all .25s}
+  .ai-card.under{border-color:#94A3B8}
+  .ai-card.good{border-color:#10B981;box-shadow:0 12px 28px -12px rgba(16,185,129,.25)}
+  .ai-card.over{border-color:#DC2626}
+
+  .ai-portrait{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 0.5rem}
+  .ai-under{background:linear-gradient(135deg,#CBD5E1,#94A3B8)}
+  .ai-good{background:linear-gradient(135deg,#34D399,#10B981)}
+  .ai-over{background:linear-gradient(135deg,#FCA5A5,#DC2626)}
+
+  /* Slider */
+  .smart-slider{-webkit-appearance:none;width:100%;background:transparent}
+  .smart-slider::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);box-shadow:0 4px 10px rgba(59,130,246,.4);cursor:pointer;border:3px solid #fff;margin-top:-12px}
+  .smart-slider::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);cursor:pointer;border:3px solid #fff}
+  .smart-slider::-webkit-slider-runnable-track{background:#E2E8F0;height:6px;border-radius:3px}
+
+  /* Curve indicator */
+  .curve-marker{transition:all .15s ease}
+
+  /* Strategy cards */
+  .strat-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .strat-card:hover{border-color:#94A3B8;transform:translateY(-2px)}
+  .strat-card.visited{border-color:#10B981}
+  .strat-card.visited::after{content:"✓";float:right;color:#10B981;font-weight:700}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M3-3 · Mission</span>
+      <span class="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">Ch.3 · 学习 / Learning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>挑战 · 25 min</span><span data-en>Challenge · 25 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>过拟合陷阱：AI 也会"死记硬背"</span>
+      <span data-en>The Overfitting Trap: When AI Memorizes Instead of Learning</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            上一关阿宝叔学会了<strong>训练/测试分开</strong>。今天他遇到一个新麻烦：训练时间<strong>多长</strong>才对？
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Abao learned <strong>train/test split</strong>. New trouble: how <strong>long</strong> should training last?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            他训练了 3 个 AI——分别花了 <strong>1 分钟、10 分钟、1 小时</strong>。结果差别很大。问题：<strong>训练时间越长，AI 越聪明吗？</strong>
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            He trained 3 AIs for <strong>1 min, 10 min, 1 hour</strong>. Big difference. Question: <strong>longer training = smarter AI?</strong>
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            ⚠️ 剧透：训练太久，AI 会变笨。它学会的不是"识别"，而是"<strong>死记硬背</strong>"。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            ⚠️ Spoiler: train too long and AI gets dumber. It learns <strong>memorization</strong>, not understanding.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 3 个 AI 的对比 →</span><span data-en>Compare 3 AIs →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: 3 AIS COMPARISON ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>阿宝叔训练了 3 个 AI，分别叫<strong>大壮（学得太少）、小麦（恰好）、阿憨（学得太多）</strong>。看看他们的成绩单：</p>
+      <p data-en>Abao trained 3 AIs: <strong>Big-Buff (undertrained), Little-Wheat (just right), Goofy (overtrained)</strong>. Their report cards:</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 mb-5">
+      <!-- Undertrained -->
+      <div class="ai-card under">
+        <div class="ai-portrait ai-under">😵</div>
+        <div class="text-center font-bold"><span data-zh>大壮</span><span data-en>Big-Buff</span></div>
+        <div class="text-center text-xs text-slate-500"><span data-zh>训练 1 分钟</span><span data-en>Trained 1 min</span></div>
+        <div class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between"><span><span data-zh>训练集准确率</span><span data-en>Train acc</span></span><strong class="text-slate-700">62%</strong></div>
+          <div class="flex justify-between"><span><span data-zh>测试集准确率</span><span data-en>Test acc</span></span><strong class="text-slate-700">60%</strong></div>
+        </div>
+        <div class="mt-3 p-2 bg-slate-50 rounded text-xs">
+          <span data-zh>📌 看哪都模糊。<strong>欠拟合</strong>——根本没学会。</span>
+          <span data-en>📌 Foggy everywhere. <strong>Underfitting</strong> — never really learned.</span>
+        </div>
+      </div>
+      <!-- Goodly trained -->
+      <div class="ai-card good">
+        <div class="ai-portrait ai-good">😊</div>
+        <div class="text-center font-bold"><span data-zh>小麦</span><span data-en>Little-Wheat</span></div>
+        <div class="text-center text-xs text-slate-500"><span data-zh>训练 10 分钟</span><span data-en>Trained 10 min</span></div>
+        <div class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between"><span><span data-zh>训练集准确率</span><span data-en>Train acc</span></span><strong class="text-green-700">90%</strong></div>
+          <div class="flex justify-between"><span><span data-zh>测试集准确率</span><span data-en>Test acc</span></span><strong class="text-green-700">88%</strong></div>
+        </div>
+        <div class="mt-3 p-2 bg-green-50 rounded text-xs">
+          <span data-zh>✨ 两边都不错，相差很小。<strong>真的学会了</strong>。</span>
+          <span data-en>✨ Both high, gap is small. <strong>Truly learned</strong>.</span>
+        </div>
+      </div>
+      <!-- Overtrained -->
+      <div class="ai-card over">
+        <div class="ai-portrait ai-over">🤓</div>
+        <div class="text-center font-bold"><span data-zh>阿憨</span><span data-en>Goofy</span></div>
+        <div class="text-center text-xs text-slate-500"><span data-zh>训练 1 小时</span><span data-en>Trained 1 hr</span></div>
+        <div class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between"><span><span data-zh>训练集准确率</span><span data-en>Train acc</span></span><strong class="text-red-700">99%</strong></div>
+          <div class="flex justify-between"><span><span data-zh>测试集准确率</span><span data-en>Test acc</span></span><strong class="text-red-700">65%</strong></div>
+        </div>
+        <div class="mt-3 p-2 bg-red-50 rounded text-xs">
+          <span data-zh>📌 训练集 99% 但测试集 65%！<strong>过拟合</strong>——把照片背下来了，新情况不会。</span>
+          <span data-en>📌 99% train but 65% test! <strong>Overfitting</strong> — memorized photos, fails on new.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+      <div class="font-bold mb-2">💡 <span data-zh>关键观察</span><span data-en>Key observation</span></div>
+      <p data-zh>阿憨的"训练集 99%"看起来比小麦"训练集 90%"<strong>更好</strong>——但<strong>真实表现差远了</strong>。判断 AI 好坏的关键指标是<strong>测试集准确率</strong>，以及<strong>训练-测试的差距</strong>：</p>
+      <p data-en>Goofy's "99% train" looks <strong>better</strong> than Wheat's "90%" — but <strong>real performance is far worse</strong>. The KPI is <strong>test accuracy</strong>, plus the <strong>train-test gap</strong>:</p>
+      <ul class="mt-2 ml-5 list-disc space-y-1 text-xs">
+        <li><span data-zh>大壮：差距 <strong>2%</strong>（两边都低，没学会）</span><span data-en>Big-Buff: gap <strong>2%</strong> (both low, never learned)</span></li>
+        <li><span data-zh>小麦：差距 <strong>2%</strong>（两边都高，最佳）✨</span><span data-en>Wheat: gap <strong>2%</strong> (both high, ideal) ✨</span></li>
+        <li><span data-zh>阿憨：差距 <strong>34%</strong>（背训练数据，新数据翻车）⚠️</span><span data-en>Goofy: gap <strong>34%</strong> (memorized train, bombs new) ⚠️</span></li>
+      </ul>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(2)">
+        <span data-zh>下一关：看训练曲线 →</span><span data-en>Next: see the curve →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: TRAINING CURVE ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我把"训练时间"做成了滑杆。你拖动它，看 AI 的<strong>训练曲线</strong>怎么变。<strong>找到"最佳停止点"</strong>。</p>
+      <p data-en>I made "training time" into a slider. Drag it and watch the <strong>training curve</strong>. <strong>Find the "sweet spot"</strong>.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-4">
+      <svg id="curve-svg" viewBox="0 0 700 320" class="w-full" style="height:320px"></svg>
+
+      <div class="mt-3">
+        <input type="range" min="0" max="100" value="0" class="smart-slider" id="time-slider" oninput="updateCurve()"/>
+        <div class="flex justify-between text-xs text-slate-500 mt-1">
+          <span><span data-zh>0 分钟</span><span data-en>0 min</span></span>
+          <span><span data-zh>30 分钟（最佳）</span><span data-en>30 min (sweet spot)</span></span>
+          <span><span data-zh>100 分钟</span><span data-en>100 min</span></span>
+        </div>
+      </div>
+
+      <div class="mt-4 grid sm:grid-cols-3 gap-3">
+        <div class="bg-slate-50 rounded-xl p-3">
+          <div class="text-xs uppercase text-slate-500"><span data-zh>训练时间</span><span data-en>Training time</span></div>
+          <div class="text-2xl font-black"><span id="cur-time">0</span> min</div>
+        </div>
+        <div class="bg-blue-50 rounded-xl p-3">
+          <div class="text-xs uppercase text-blue-700 font-bold"><span data-zh>训练集准确率</span><span data-en>Train acc</span></div>
+          <div class="text-2xl font-black text-blue-700"><span id="cur-train">0</span>%</div>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-3">
+          <div class="text-xs uppercase text-amber-700 font-bold"><span data-zh>测试集准确率</span><span data-en>Test acc</span></div>
+          <div class="text-2xl font-black text-amber-700"><span id="cur-test">0</span>%</div>
+        </div>
+      </div>
+
+      <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm" id="curve-msg">
+        <span data-zh>📍 拖动滑杆，找出测试准确率最高的位置。</span>
+        <span data-en>📍 Slide to find where test accuracy peaks.</span>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：4 种应对策略 →</span><span data-en>Next: 4 strategies →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: STRATEGIES ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>知道了"过拟合"是什么，怎么<strong>对付它</strong>？工程师有 <strong>4 招</strong>。每招都点开看清楚——4 招都看完才能进入反思。</p>
+      <p data-en>Now that you know overfitting, how to <strong>fight it</strong>? 4 engineer tricks. Visit all 4 to continue.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="strat-count">0</span> / 4</div>
+    </div>
+
+    <div id="strat-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: REFLECTION ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>过拟合是 AI 圈最爱讨论的话题之一。它<strong>不只是技术问题，也是认知问题</strong>——人也会过拟合。</p>
+      <p data-en>Overfitting is AI's favorite gossip — but it's <strong>not just technical, it's cognitive</strong>. Humans overfit too.</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你身边有没有"死记硬背但不会变通"的同学？描述一个场景。这是不是"人类版过拟合"？</span>
+        <span data-en>① Have you met a classmate who memorizes but can't adapt? Describe a scene. Is it "human overfitting"?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 一家公司的 AI 自动驾驶在测试场地准确率 99%，到了真实道路只有 70%。这是过拟合吗？怎么修？</span>
+        <span data-en>② A self-driving AI hits 99% on closed tracks but 70% on real roads. Is this overfitting? How to fix?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ "过拟合"和"应试教育"有关系吗？教育系统怎么避免培养"过拟合的学生"？</span>
+        <span data-en>③ Is overfitting related to exam-focused education? How can schools avoid creating "overfit students"?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M3-3 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-green-500 to-emerald-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#34D399" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">📈</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 3 关完成</span><span data-en>Mission #3 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"过拟合猎人" 徽章已解锁</span><span data-en>"Overfitting Hunter" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-green-50 border border-green-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh><strong>过拟合</strong>：AI 把训练数据"背"下来了，新数据来一脸懵</span><span data-en><strong>Overfitting</strong>: AI memorizes training data; new data baffles it</span></li>
+          <li>✓ <span data-zh>判断指标：<strong>训练-测试的差距</strong>（&gt;15% 就要警觉）</span><span data-en>Indicator: <strong>train-test gap</strong> (&gt;15% is a red flag)</span></li>
+          <li>✓ <span data-zh>训练时间<strong>不是越长越好</strong>——有"最佳停止点"</span><span data-en>Training time has a <strong>sweet spot</strong>, not "more is better"</span></li>
+          <li>✓ <span data-zh>4 大对策：<strong>更多数据 / 提早停止 / 数据增强 / 简化模型</strong></span><span data-en>4 fixes: <strong>more data / early stop / augmentation / simpler model</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m3-4-owner.html'">
+          <span data-zh>下一关：M3-4 数据的主人 →</span><span data-en>Next: M3-4 Data Owner →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M3-3 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M3-3 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+const state = {phase:0, sliderUsed:false, stratVisited:new Set(), reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   TRAINING CURVE
+   ===================================================== */
+// Simulated train + test accuracy as function of training time (0-100)
+// Train: monotonic rise toward 99
+// Test: rises to ~88 at t=30, then drops as t increases (overfitting)
+function trainAcc(t){
+  if(t===0) return 0;
+  // Logistic-ish rise
+  return Math.min(99, Math.round(50 + 49 * (1 - Math.exp(-t/15))));
+}
+function testAcc(t){
+  if(t===0) return 0;
+  // Rises to peak ~88 at t=30, then drops
+  if(t<=30){
+    return Math.round(50 + 38 * (1 - Math.exp(-t/10)));
+  } else {
+    // After peak, decline due to overfitting
+    return Math.round(Math.max(50, 88 - (t-30) * 0.5));
+  }
+}
+
+function renderCurve(t){
+  const svg = document.getElementById('curve-svg');
+  const W = 700, H = 320;
+  const pad = {l:50, r:30, t:30, b:50};
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+
+  let trainPath = '', testPath = '';
+  for(let i=0;i<=100;i++){
+    const x = pad.l + (i/100) * plotW;
+    const yT = pad.t + plotH - (trainAcc(i)/100) * plotH;
+    const yE = pad.t + plotH - (testAcc(i)/100) * plotH;
+    trainPath += (i===0?'M':'L') + ` ${x} ${yT} `;
+    testPath += (i===0?'M':'L') + ` ${x} ${yE} `;
+  }
+
+  // Sweet spot marker at t=30
+  const sweetX = pad.l + (30/100) * plotW;
+  const sweetY = pad.t + plotH - (88/100) * plotH;
+
+  // Current marker
+  const curX = pad.l + (t/100) * plotW;
+  const curYT = pad.t + plotH - (trainAcc(t)/100) * plotH;
+  const curYE = pad.t + plotH - (testAcc(t)/100) * plotH;
+
+  // Axes labels
+  const yLabels = [0,25,50,75,100].map(v=>{
+    const y = pad.t + plotH - (v/100) * plotH;
+    return `<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="#F1F5F9"/>
+            <text x="${pad.l-8}" y="${y+4}" text-anchor="end" font-size="10" fill="#64748B">${v}%</text>`;
+  }).join('');
+
+  svg.innerHTML = `
+    <!-- Background regions -->
+    <rect x="${pad.l}" y="${pad.t}" width="${(30/100)*plotW}" height="${plotH}" fill="#FEF3C7" opacity="0.3"/>
+    <rect x="${pad.l+(30/100)*plotW}" y="${pad.t}" width="${(70/100)*plotW}" height="${plotH}" fill="#FEE2E2" opacity="0.25"/>
+    <text x="${pad.l+(15/100)*plotW}" y="${pad.t+15}" text-anchor="middle" font-size="11" font-weight="700" fill="#92400E">${LANG==='en'?'Underfit':'欠拟合区'}</text>
+    <text x="${pad.l+(65/100)*plotW}" y="${pad.t+15}" text-anchor="middle" font-size="11" font-weight="700" fill="#991B1B">${LANG==='en'?'Overfit':'过拟合区'}</text>
+
+    <!-- Grid -->
+    ${yLabels}
+    <line x1="${pad.l}" y1="${pad.t+plotH}" x2="${W-pad.r}" y2="${pad.t+plotH}" stroke="#94A3B8" stroke-width="2"/>
+    <line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+plotH}" stroke="#94A3B8" stroke-width="2"/>
+
+    <!-- X-axis labels -->
+    <text x="${pad.l}" y="${H-pad.b+18}" text-anchor="middle" font-size="10" fill="#64748B">0</text>
+    <text x="${pad.l+(30/100)*plotW}" y="${H-pad.b+18}" text-anchor="middle" font-size="10" fill="#64748B">30</text>
+    <text x="${pad.l+(60/100)*plotW}" y="${H-pad.b+18}" text-anchor="middle" font-size="10" fill="#64748B">60</text>
+    <text x="${pad.l+plotW}" y="${H-pad.b+18}" text-anchor="middle" font-size="10" fill="#64748B">100 min</text>
+
+    <!-- Lines -->
+    <path d="${trainPath}" stroke="#3B82F6" stroke-width="3" fill="none"/>
+    <path d="${testPath}" stroke="#F59E0B" stroke-width="3" fill="none"/>
+
+    <!-- Sweet spot -->
+    <line x1="${sweetX}" y1="${pad.t}" x2="${sweetX}" y2="${pad.t+plotH}" stroke="#10B981" stroke-width="2" stroke-dasharray="4,3"/>
+    <circle cx="${sweetX}" cy="${sweetY}" r="6" fill="#10B981"/>
+    <text x="${sweetX}" y="${pad.t-5}" text-anchor="middle" font-size="11" font-weight="700" fill="#059669">★ ${LANG==='en'?'Sweet spot':'最佳'}</text>
+
+    <!-- Current markers -->
+    ${t>0?`
+      <line x1="${curX}" y1="${pad.t}" x2="${curX}" y2="${pad.t+plotH}" stroke="#DC2626" stroke-width="2" stroke-dasharray="2,2"/>
+      <circle class="curve-marker" cx="${curX}" cy="${curYT}" r="7" fill="#3B82F6" stroke="#fff" stroke-width="2"/>
+      <circle class="curve-marker" cx="${curX}" cy="${curYE}" r="7" fill="#F59E0B" stroke="#fff" stroke-width="2"/>
+    `:''}
+
+    <!-- Legend -->
+    <g transform="translate(${W-pad.r-160}, ${pad.t+20})">
+      <rect x="-10" y="-10" width="170" height="48" fill="#fff" stroke="#E2E8F0" rx="6"/>
+      <line x1="0" y1="5" x2="20" y2="5" stroke="#3B82F6" stroke-width="3"/>
+      <text x="26" y="9" font-size="11" fill="#0F172A">${LANG==='en'?'Train accuracy':'训练集'}</text>
+      <line x1="0" y1="25" x2="20" y2="25" stroke="#F59E0B" stroke-width="3"/>
+      <text x="26" y="29" font-size="11" fill="#0F172A">${LANG==='en'?'Test accuracy':'测试集'}</text>
+    </g>
+  `;
+}
+
+function updateCurve(){
+  const t = +document.getElementById('time-slider').value;
+  state.sliderUsed = true;
+  document.getElementById('cur-time').textContent = t;
+  document.getElementById('cur-train').textContent = trainAcc(t);
+  document.getElementById('cur-test').textContent = testAcc(t);
+  renderCurve(t);
+
+  const msg = document.getElementById('curve-msg');
+  if(t<15){
+    msg.innerHTML = '<span data-zh>🥱 <strong>欠拟合</strong>：训练时间太短，两个准确率都低。继续训练……</span><span data-en>🥱 <strong>Underfitting</strong>: too short — both accuracies low. Keep going…</span>';
+  } else if(t>=15 && t<=45){
+    msg.innerHTML = '<span data-zh>✨ <strong>最佳区域</strong>：测试集准确率最高。这就是工程师追求的"<strong>恰好</strong>"。</span><span data-en>✨ <strong>Sweet zone</strong>: test accuracy peaks. The engineer\'s "<strong>just right</strong>".</span>';
+  } else {
+    msg.innerHTML = '<span data-zh>⚠️ <strong>过拟合</strong>：训练集还在涨，但测试集开始<strong>下降</strong>！这是死记硬背的开始。应该<strong>提早停止</strong>。</span><span data-en>⚠️ <strong>Overfitting</strong>: train still rising but test <strong>dropping</strong>! Memorization started. Should\'ve <strong>early-stopped</strong>.</span>';
+  }
+
+  if(state.sliderUsed) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   STRATEGIES
+   ===================================================== */
+const STRATEGIES = [
+  {id:'more-data', emoji:'📦', title:{zh:'1. 喂更多数据', en:'1. Feed more data'},
+   pic:{zh:'100 张 → 1000 张 → 10000 张', en:'100 → 1000 → 10000 photos'},
+   why:{zh:'更多更多样的例子让 AI 没法"背下来"——只能去找规律。',
+        en:'More + more diverse examples force AI to find patterns, not memorize.'},
+   when:{zh:'最常用、最有效。但收集数据贵且慢。',
+         en:'Most used, most effective. But data is expensive + slow.'}},
+  {id:'early-stop', emoji:'🛑', title:{zh:'2. 提早停止', en:'2. Early stopping'},
+   pic:{zh:'每 epoch 检查测试准确率——开始下降立刻停', en:'Watch test acc each epoch; stop when it drops'},
+   why:{zh:'像看出"学生开始死记"就拉他出来——别再练同样的题了。',
+        en:'Like spotting a kid memorizing and pulling them out — stop the same practice.'},
+   when:{zh:'每个 AI 训练都该用。免费、简单、有效。',
+         en:'Every AI training should use this. Free, simple, effective.'}},
+  {id:'augment', emoji:'🔄', title:{zh:'3. 数据增强', en:'3. Data augmentation'},
+   pic:{zh:'1 张照片 → 旋转/裁剪/变色 → 10 张"新"照片', en:'1 photo → rotate/crop/recolor → 10 "new" photos'},
+   why:{zh:'用同样的照片造出很多变形版——AI 就没法只记原图，必须学"特征"。',
+        en:'Make many variants from the same photo — AI can\'t memorize originals, must learn features.'},
+   when:{zh:'图像 / 声音 AI 几乎都会用。便宜又强大。',
+         en:'Almost every image/audio AI uses this. Cheap + powerful.'}},
+  {id:'simple-model', emoji:'🪶', title:{zh:'4. 简化模型', en:'4. Use a simpler model'},
+   pic:{zh:'用神经网络太大 → 换更小的 / 决策树', en:'NN too big → use smaller / decision tree'},
+   why:{zh:'AI"脑子"太大就会死记。让脑子"小一点"，它只能记下规律。',
+        en:'AI brain too big → memorizes. Smaller brain → forced to learn patterns.'},
+   when:{zh:'数据少时尤其重要。复杂模型不是越大越好。',
+         en:'Crucial with little data. Bigger model ≠ better.'}},
+];
+
+function renderStrats(){
+  const host = document.getElementById('strat-grid');
+  host.innerHTML = STRATEGIES.map(s=>`
+    <button class="strat-card ${state.stratVisited.has(s.id)?'visited':''}" data-id="${s.id}" onclick="visitStrat('${s.id}')">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-4xl">${s.emoji}</div>
+        <div class="font-bold text-lg flex-1"><span data-zh>${s.title.zh}</span><span data-en>${s.title.en}</span></div>
+      </div>
+      <div class="text-xs text-slate-500 mb-2 font-mono bg-slate-50 rounded p-2"><span data-zh>${s.pic.zh}</span><span data-en>${s.pic.en}</span></div>
+      <p class="text-sm text-slate-700 mb-2"><strong><span data-zh>为什么有用</span><span data-en>Why it works</span>：</strong><span data-zh>${s.why.zh}</span><span data-en>${s.why.en}</span></p>
+      <p class="text-xs text-slate-500"><strong><span data-zh>何时用</span><span data-en>When to use</span>：</strong><span data-zh>${s.when.zh}</span><span data-en>${s.when.en}</span></p>
+    </button>
+  `).join('');
+}
+
+function visitStrat(id){
+  state.stratVisited.add(id);
+  renderStrats();
+  document.getElementById('strat-count').textContent = state.stratVisited.size;
+  if(state.stratVisited.size>=4) document.getElementById('p3-next').disabled = false;
+}
+
+/* REFLECTION */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M3-3',
+    sliderUsed:state.sliderUsed,stratsRead:state.stratVisited.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m3-3', JSON.stringify(data));
+  goTo(5);
+}
+
+/* NAV */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===2) renderCurve(0);
+  if(n===3) renderStrats();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,sliderUsed:false,stratVisited:new Set(),reflectChoice:null,reflectText:''});
+    document.getElementById('time-slider').value=0;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('strat-count').textContent='0';
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

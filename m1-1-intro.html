@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M1-1 AI 视觉初识 · The World Through AI Eyes</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  body.lang-en [data-en="block"]{display:block}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  /* Museum card flip */
+  .flip-card{perspective:1000px;cursor:pointer;aspect-ratio:1/1.15}
+  .flip-card .flip-inner{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+  .flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+  .flip-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;overflow:hidden;border:2px solid #E2E8F0;background:#fff;display:flex;flex-direction:column}
+  .flip-back{transform:rotateY(180deg);background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;padding:1rem;justify-content:space-between}
+  .flip-card.visited .flip-face{border-color:#10B981}
+  .flip-card.visited::after{content:"✓";position:absolute;top:8px;right:8px;background:#10B981;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;z-index:2;box-shadow:0 4px 8px rgba(16,185,129,.3)}
+  /* Speed challenge */
+  .hunt-tile{cursor:pointer;border:2px solid transparent;border-radius:8px;transition:all .15s;aspect-ratio:1}
+  .hunt-tile.found{border-color:#10B981;background:#ECFDF5;transform:scale(.96)}
+  .hunt-tile.miss{border-color:#DC2626;background:#FEF2F2}
+  .hunt-tile:hover:not(.found):not(.miss){border-color:#94A3B8}
+  /* Yes/No buttons */
+  .yn-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .2s;cursor:pointer}
+  .yn-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px -12px rgba(15,23,42,.15)}
+  .yn-card.answered-correct{border-color:#10B981;background:#ECFDF5}
+  .yn-card.answered-wrong{border-color:#DC2626;background:#FEF2F2}
+  /* Badge */
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  @keyframes flashIn{0%{transform:scale(.5);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+  .flash-in{animation:flashIn .5s ease}
+  /* Timer */
+  .timer-ring{transform:rotate(-90deg)}
+  .timer-circle{transition:stroke-dashoffset .9s linear}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M1-1 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.1 · 感知 / Perception</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full">热身 · 15 min</span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>AI 视觉初识：它已经悄悄潜入你的生活</span>
+      <span data-en>The World Through AI Eyes</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 5 关</span><span data-en>Step 1 / 5</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            还记得卧龙保护区的王老师吗？他要数 <strong>5000 张照片</strong>。一个人要数 <strong>8 个小时</strong>。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Remember Ranger Wang at Wolong with <strong>5,000 photos</strong> to count? Would take a human <strong>8 hours</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            一个会"看"的 AI，只用了 <strong>5 分钟</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            An AI that can "see" did it in <strong>5 minutes</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            听起来像魔法？其实你每天都在用 AI 视觉——可能你自己都不知道。今天我带你逛一逛"AI 视觉博物馆"，看看它已经潜入你生活的多少角落。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Sounds like magic? You use AI vision every day—you just don't know it. Today I'm taking you on a tour to see where it's already hiding in your life.
+          </p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-3 gap-3 text-center">
+          <div class="bg-white rounded-xl p-3 border border-slate-200">
+            <div class="text-2xl font-black text-red-600">8h</div>
+            <div class="text-xs text-slate-600 mt-1"><span data-zh>人工数照片</span><span data-en>By human</span></div>
+          </div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200">
+            <div class="text-2xl font-black text-blue-600">5min</div>
+            <div class="text-xs text-slate-600 mt-1"><span data-zh>AI 数照片</span><span data-en>By AI</span></div>
+          </div>
+          <div class="bg-gradient-to-br from-amber-400 to-red-500 rounded-xl p-3 text-white">
+            <div class="text-2xl font-black">96×</div>
+            <div class="text-xs mt-1"><span data-zh>快了 96 倍</span><span data-en>96× faster</span></div>
+          </div>
+        </div>
+
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>进入 AI 视觉博物馆 →</span>
+            <span data-en>Enter the Museum →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: MUSEUM ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这里有 <strong>6 个真实场景</strong>，AI 视觉都已经在做事了。点击每张卡片，翻到背面看故事。<strong>6 张都看完才能继续</strong>。</p>
+      <p data-en>Here are <strong>6 real-world scenes</strong> already powered by AI vision. Click each card to flip it. <strong>Visit all 6 to continue</strong>.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已参观：</span><span data-en>Visited:</span><span id="museum-count">0</span> / 6</div>
+      <div class="text-slate-500"><span data-zh>提示：点卡片翻转</span><span data-en>Click to flip</span></div>
+    </div>
+
+    <div id="museum-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+
+    <div class="mt-6 flex justify-end gap-3">
+      <button class="btn-ghost" onclick="goTo(0)">← <span data-zh>返回</span><span data-en>Back</span></button>
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：你能比 AI 快吗？ →</span><span data-en>Next: Can you beat AI? →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: SPEED CHALLENGE ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>30 张照片里藏着大熊猫。你有 <strong>10 秒</strong>找出所有熊猫——点一下就标记，错了会变红。准备好了吗？</p>
+      <p data-en>30 photos, some are pandas. You have <strong>10 seconds</strong> to find them all — click to mark, mistakes turn red. Ready?</p>
+    </div>
+
+    <div id="hunt-pre" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 text-center">
+      <div class="text-5xl mb-3">⏱️</div>
+      <h3 class="text-xl font-bold"><span data-zh>挑战即将开始</span><span data-en>Challenge ready</span></h3>
+      <p class="text-slate-600 mt-2 max-w-md mx-auto" data-zh>等下，30 个动物会突然出现，你要在 10 秒内点出所有大熊猫。漏掉 = 没找到，点错 = 误判。</p>
+      <p class="text-slate-600 mt-2 max-w-md mx-auto" data-en>30 animals will appear. Click pandas in 10 seconds. Misses = not found. Wrong clicks = false alarm.</p>
+      <button class="btn-primary mt-5" onclick="startHunt()">
+        <span data-zh>🎯 开始挑战</span><span data-en>🎯 Start</span>
+      </button>
+    </div>
+
+    <div id="hunt-active" class="hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <svg width="48" height="48" viewBox="0 0 48 48" class="timer-ring">
+            <circle cx="24" cy="24" r="20" fill="none" stroke="#E2E8F0" stroke-width="4"/>
+            <circle id="timer-circle" class="timer-circle" cx="24" cy="24" r="20" fill="none" stroke="#DC2626" stroke-width="4" stroke-dasharray="125.6" stroke-dashoffset="0" stroke-linecap="round"/>
+          </svg>
+          <div class="text-2xl font-black" id="timer-num">10</div>
+          <span class="text-sm text-slate-500"><span data-zh>秒</span><span data-en>sec</span></span>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-slate-500 uppercase"><span data-zh>已标记</span><span data-en>Marked</span></div>
+          <div class="text-xl font-bold" id="hunt-marked">0</div>
+        </div>
+      </div>
+      <div id="hunt-grid" class="grid grid-cols-6 sm:grid-cols-10 gap-2"></div>
+    </div>
+
+    <div id="hunt-done" class="hidden">
+      <div class="bg-white rounded-2xl p-6 border border-slate-200">
+        <h3 class="text-2xl font-bold mb-4"><span data-zh>结果对比</span><span data-en>Results</span></h3>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div class="text-sm font-semibold text-amber-800"><span data-zh>🧑 你的表现</span><span data-en>🧑 You</span></div>
+            <div class="mt-2 space-y-1 text-sm">
+              <div><span data-zh>找到熊猫：</span><span data-en>Pandas found:</span><strong id="you-found">—</strong><span class="text-slate-500"> / <span id="you-total">—</span></span></div>
+              <div><span data-zh>误判：</span><span data-en>False alarms:</span><strong id="you-miss" class="text-red-600">—</strong></div>
+              <div><span data-zh>用时：</span><span data-en>Time:</span><strong id="you-time">10</strong> <span data-zh>秒</span><span data-en>sec</span></div>
+            </div>
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div class="text-sm font-semibold text-blue-800"><span data-zh>🤖 AI 表现（模拟）</span><span data-en>🤖 AI (simulated)</span></div>
+            <div class="mt-2 space-y-1 text-sm">
+              <div><span data-zh>找到熊猫：</span><span data-en>Pandas found:</span><strong>8 / 8</strong></div>
+              <div><span data-zh>误判：</span><span data-en>False alarms:</span><strong>0</strong></div>
+              <div><span data-zh>用时：</span><span data-en>Time:</span><strong>0.2</strong> <span data-zh>秒</span><span data-en>sec</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-5 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <div class="font-semibold mb-1">💡 <span data-zh>小京灵的话</span><span data-en>Jingling says</span></div>
+          <p class="text-sm" data-zh id="hunt-msg-zh">AI 在重复+大数量的视觉任务上比你快得多。但它<strong>不知道为什么要找熊猫</strong>，也不会因为今天累了而走神。这是它的力量，也是它的盲点。</p>
+          <p class="text-sm" data-en id="hunt-msg-en">AI crushes humans on repetitive visual tasks. But it <strong>has no idea why pandas matter</strong>, and never gets tired or distracted. That's its power — and its blind spot.</p>
+        </div>
+      </div>
+      <div class="mt-5 flex justify-end gap-3">
+        <button class="btn-ghost" onclick="resetHunt()">🔄 <span data-zh>再试一次</span><span data-en>Retry</span></button>
+        <button class="btn-primary" onclick="goTo(3)"><span data-zh>下一关：这是 AI 视觉吗？ →</span><span data-en>Next: Is this AI vision? →</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: IS THIS AI VISION? ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 6 个场景，<strong>哪些用了 AI 视觉</strong>？点击 ✓ 或 ✗。每题做完会立刻告诉你对错。</p>
+      <p data-en>Which of these 6 scenes use <strong>AI vision</strong>? Click ✓ or ✗. Instant feedback on each.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已回答：</span><span data-en>Answered:</span><span id="yn-count">0</span> / 6</div>
+      <div class="text-slate-500"><span data-zh>正确：</span><span data-en>Correct:</span><span id="yn-correct">0</span></div>
+    </div>
+
+    <div id="yn-grid" class="space-y-3"></div>
+
+    <div class="mt-6 flex justify-end gap-3">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>完成！进入反思 →</span><span data-en>Done! Reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: REFLECTION + COMPLETE ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>太棒了！你已经看见了 AI 视觉的全貌。最后一步：把它"内化"成你自己的想法——选一个问题，写下你的回答（≥ 50 字）。</p>
+      <p data-en>You've seen the big picture. Final step: internalize it — pick a question and write your thoughts (≥ 50 chars).</p>
+    </div>
+
+    <h2 class="text-xl font-bold mb-3"><span data-zh>📝 三选一</span><span data-en>📝 Pick one</span></h2>
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你今天看到的 AI 视觉应用里，哪个最让你惊讶？为什么？</span>
+        <span data-en>① Of all the AI vision apps today, which surprised you most? Why?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 如果你能教 AI "看见"一种东西，你想教它看什么？</span>
+        <span data-en>② If you could teach AI to "see" one thing, what would it be?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ AI 视觉这么强，有没有什么地方你<strong>不希望</strong>它"看见"你？</span>
+        <span data-en>③ AI vision is powerful — where do you <strong>not</strong> want it watching you?</span>
+      </label>
+    </div>
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="在这里写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M1-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-blue-400 to-blue-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#60A5FA" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="40" text-anchor="middle">👁️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>恭喜！第 1 关完成</span><span data-en>Congrats! Mission #1 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"AI 视觉初识者" 徽章已解锁</span><span data-en>"AI Vision Initiate" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 视觉已悄悄进入支付、交通、医疗、农业、文物保护等领域</span><span data-en>AI vision powers payment, transport, healthcare, farming, heritage protection</span></li>
+          <li>✓ <span data-zh>AI 在重复+大数据视觉任务上比人快很多，但<strong>没有意图</strong></span><span data-en>AI beats humans at repetitive visual tasks but has <strong>no intent</strong></span></li>
+          <li>✓ <span data-zh>"AI" 不等于"AI 视觉"——还有听觉、语言等其他分支</span><span data-en>"AI" ≠ "AI vision" — there are also hearing, language, etc.</span></li>
+          <li>✓ <span data-zh>AI 视觉的能力会带来强大便利，也会引发"我被看见"的隐私焦虑</span><span data-en>Powerful convenience, also "being watched" privacy worries</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m1-2-pixels.html'">
+          <span data-zh>下一关：M1-2 标签游戏 →</span><span data-en>Next: M1-2 Labeling Game →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回 Ch.1 首页</span><span data-en>← Back to Ch.1 home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M1-1 · 开发者：辜月晗 · 2026</span>
+  <span data-en>AI Literacy Courses for Beginners · M1-1 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* ---------- Museum content ---------- */
+const MUSEUM = [
+  {emoji:'💳', front:{zh:'微信刷脸支付', en:'WeChat Face Pay'},
+   back:{zh:'你站在收银机前 0.3 秒，AI 就把你的脸变成 128 个数字，和数据库对比。每年中国有 <strong>20 多亿次</strong>这样的"刷脸"。',
+         en:'In 0.3 sec, AI turns your face into 128 numbers and matches a database. China has <strong>2+ billion</strong> face payments yearly.'},
+   fact:{zh:'惊人事实：每个人的"脸数字"几乎独一无二，连双胞胎都能分清。', en:'Mind-blow: even twins get different feature vectors.'}},
+  {emoji:'🚗', front:{zh:'高速 ETC 车牌识别', en:'Highway Plate Recognition'},
+   back:{zh:'你开车飞过 ETC 通道时，AI <strong>0.1 秒</strong>就读出了你的车牌。10 年前这要人工查表，每车 30 秒。',
+         en:'AI reads your plate in <strong>0.1 sec</strong> as you fly through. 10 years ago, manual lookups took 30 sec each.'},
+   fact:{zh:'惊人事实：脏车牌、雨天、晚上，AI 都能读——它学过 1000 万张照片。', en:'It still works on dirty plates, rain, night — trained on 10M photos.'}},
+  {emoji:'🩺', front:{zh:'医院 CT 辅助诊断', en:'Hospital CT Scan AI'},
+   back:{zh:'国内多家三甲医院的 AI 已能在 CT 影像中发现 <strong>5mm</strong> 的早期肺结节——比一些医生肉眼能看到的更小。',
+         en:'Top hospitals\' AI spots lung nodules as small as <strong>5mm</strong> — smaller than many doctors can catch by eye.'},
+   fact:{zh:'惊人事实：AI 不替代医生，而是当"第二双眼睛"，帮医生少漏诊。', en:'AI doesn\'t replace doctors — it\'s a "second pair of eyes" to reduce misses.'}},
+  {emoji:'🌾', front:{zh:'智慧农田害虫监测', en:'Smart-Farm Pest Detection'},
+   back:{zh:'山东的果农用无人机扫果园，AI 自动找出生病的果树。<strong>1 小时</strong>能查 100 亩，比人工巡视快 50 倍。',
+         en:'Farmers in Shandong fly drones; AI spots sick trees automatically. <strong>1 hour</strong> covers 100+ acres — 50× faster.'},
+   fact:{zh:'惊人事实：AI 能看到红外光下的叶子发热，比人眼早 7 天发现病害。', en:'AI sees infrared heat in leaves — detects disease 7 days before eyes can.'}},
+  {emoji:'🎨', front:{zh:'敦煌壁画数字化修复', en:'Dunhuang Mural Restoration'},
+   back:{zh:'敦煌研究院联合 AI 团队，用算法<strong>补全</strong>千年前壁画上缺失的颜色和图案。无法触碰真品的我们，能在屏幕上看到"完整"版。',
+         en:'Dunhuang Academy + AI teams <strong>fill in</strong> millennium-old missing pixels on murals. We see "whole" versions on screen, no touching needed.'},
+   fact:{zh:'惊人事实：AI 学了 700 多幅壁画的风格，才能"猜"出消失的部分。', en:'AI studied 700+ murals to "guess" what\'s lost.'}},
+  {emoji:'🐼', front:{zh:'卧龙红外相机熊猫识别', en:'Wolong Camera Trap'},
+   back:{zh:'就是王老师的故事！保护区每年拍 <strong>百万张</strong>红外照片。AI 从中找出大熊猫，研究员只需复核 1%。',
+         en:'Ranger Wang\'s case! Reserves shoot <strong>millions</strong> of trap photos/year. AI finds pandas; humans review just 1%.'},
+   fact:{zh:'惊人事实：AI 还能识别每只熊猫的脸——是的，熊猫脸也能认！', en:'AI even ID\'s individual pandas by face — yes, panda face-rec is real.'}},
+];
+
+/* ---------- State ---------- */
+const state = {phase:0, museumVisited:new Set(), huntFound:0, huntMiss:0, huntTotal:8, huntTime:0, ynAnswers:{}, ynCorrect:0, reflectChoice:null, reflectText:''};
+
+/* ---------- Render Museum ---------- */
+function renderMuseum(){
+  const grid = document.getElementById('museum-grid');
+  grid.innerHTML = MUSEUM.map((m,i)=>`
+    <div class="flip-card" data-idx="${i}" onclick="flipCard(${i})">
+      <div class="flip-inner">
+        <div class="flip-face items-center justify-center p-4 text-center">
+          <div class="text-6xl mb-2">${m.emoji}</div>
+          <div class="font-bold mt-2"><span data-zh>${m.front.zh}</span><span data-en>${m.front.en}</span></div>
+          <div class="text-xs text-slate-500 mt-2"><span data-zh>点击查看故事</span><span data-en>Click for story</span></div>
+        </div>
+        <div class="flip-face flip-back text-left">
+          <div>
+            <div class="text-2xl mb-2">${m.emoji}</div>
+            <p class="text-sm leading-relaxed"><span data-zh>${m.back.zh}</span><span data-en>${m.back.en}</span></p>
+          </div>
+          <div class="mt-3 p-2 bg-white/20 rounded-lg text-xs">
+            💡 <span data-zh>${m.fact.zh}</span><span data-en>${m.fact.en}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function flipCard(i){
+  const card = document.querySelector(`.flip-card[data-idx="${i}"]`);
+  card.classList.toggle('flipped');
+  if(!state.museumVisited.has(i)){
+    state.museumVisited.add(i);
+    card.classList.add('visited');
+  }
+  document.getElementById('museum-count').textContent = state.museumVisited.size;
+  document.getElementById('p1-next').disabled = state.museumVisited.size < 6;
+}
+
+/* ---------- Speed Hunt ---------- */
+const HUNT_ANIMALS = ['🐼','🐼','🐼','🐼','🐼','🐼','🐼','🐼','🐨','🐻','🦊','🐱','🐶','🐰','🐷','🐮','🐯','🐮','🐺','🐭','🐹','🐭','🐺','🐻','🐹','🦝','🦊','🐱','🐶','🦝'];
+let huntInterval=null, huntTimerInterval=null;
+function startHunt(){
+  document.getElementById('hunt-pre').classList.add('hidden');
+  document.getElementById('hunt-active').classList.remove('hidden');
+  state.huntFound=0; state.huntMiss=0;
+  // shuffle a copy
+  const shuffled = [...HUNT_ANIMALS].sort(()=>Math.random()-0.5);
+  const total = shuffled.filter(x=>x==='🐼').length;
+  state.huntTotal = total;
+  const grid = document.getElementById('hunt-grid');
+  grid.innerHTML = shuffled.map((emoji,i)=>`
+    <button class="hunt-tile bg-white text-3xl sm:text-4xl flex items-center justify-center" data-emoji="${emoji}" onclick="huntClick(this)">${emoji}</button>
+  `).join('');
+  // Timer
+  let t=10;
+  document.getElementById('timer-num').textContent=t;
+  const circle = document.getElementById('timer-circle');
+  circle.style.strokeDashoffset='0';
+  setTimeout(()=>{ circle.style.transition='stroke-dashoffset 10s linear'; circle.style.strokeDashoffset='125.6'; },50);
+  huntTimerInterval = setInterval(()=>{
+    t--;
+    document.getElementById('timer-num').textContent=t;
+    if(t<=0){
+      clearInterval(huntTimerInterval);
+      endHunt();
+    }
+  },1000);
+}
+function huntClick(btn){
+  if(btn.classList.contains('found')||btn.classList.contains('miss')) return;
+  if(btn.dataset.emoji==='🐼'){
+    btn.classList.add('found');
+    state.huntFound++;
+  } else {
+    btn.classList.add('miss');
+    state.huntMiss++;
+  }
+  document.getElementById('hunt-marked').textContent = state.huntFound + state.huntMiss;
+}
+function endHunt(){
+  document.getElementById('hunt-active').classList.add('hidden');
+  document.getElementById('hunt-done').classList.remove('hidden');
+  document.getElementById('you-found').textContent = state.huntFound;
+  document.getElementById('you-total').textContent = state.huntTotal;
+  document.getElementById('you-miss').textContent = state.huntMiss;
+}
+function resetHunt(){
+  document.getElementById('hunt-done').classList.add('hidden');
+  document.getElementById('hunt-pre').classList.remove('hidden');
+}
+
+/* ---------- Yes/No Quiz ---------- */
+const YN = [
+  {emoji:'📱', zh:'手机相册自动按"人脸 / 风景 / 美食"分类', en:'Photos app auto-sorting by "people / scenery / food"', isVision:true,
+    why:{zh:'这是典型的图像分类任务，AI 视觉的入门应用。', en:'Classic image classification — AI vision 101.'}},
+  {emoji:'🔊', zh:'智能音箱听到"打开灯"后开灯', en:'Smart speaker turning on lights when you say "lights on"', isVision:false,
+    why:{zh:'这是 AI 语音识别（听觉），不是视觉。', en:'That\'s AI speech recognition (hearing), not vision.'}},
+  {emoji:'🚦', zh:'路口摄像头识别闯红灯的车牌', en:'Intersection cameras catching red-light runners', isVision:true,
+    why:{zh:'目标检测 + 车牌识别，是 AI 视觉两个能力的组合。', en:'Object detection + plate recognition — two AI-vision skills combined.'}},
+  {emoji:'🌐', zh:'翻译软件把中文译成英文', en:'Translation app converting Chinese to English', isVision:false,
+    why:{zh:'这是自然语言处理（NLP），不是视觉。', en:'That\'s natural language processing (NLP), not vision.'}},
+  {emoji:'📦', zh:'快递站用摄像头扫描包裹大小', en:'Delivery station scanning package size via camera', isVision:true,
+    why:{zh:'用视觉测量物体尺寸，已经普及到几乎所有快递公司。', en:'Visual size estimation — used by virtually all delivery companies now.'}},
+  {emoji:'🎵', zh:'音乐 APP 根据你的喜好推荐新歌', en:'Music app recommending songs by your taste', isVision:false,
+    why:{zh:'这是 AI 推荐算法，分析的是行为数据，不是图像。', en:'AI recommendation algorithm on behavior data, not images.'}},
+];
+function renderYN(){
+  const host = document.getElementById('yn-grid');
+  host.innerHTML = YN.map((q,i)=>`
+    <div class="yn-card" data-idx="${i}">
+      <div class="flex items-center gap-4">
+        <div class="text-4xl flex-shrink-0">${q.emoji}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm sm:text-base"><span data-zh>${q.zh}</span><span data-en>${q.en}</span></p>
+          <div class="mt-2 flex gap-2">
+            <button class="text-sm px-3 py-1 rounded-full border border-green-300 hover:bg-green-50" onclick="ynAns(${i}, true, event)">✓ <span data-zh>是 AI 视觉</span><span data-en>Yes</span></button>
+            <button class="text-sm px-3 py-1 rounded-full border border-red-300 hover:bg-red-50" onclick="ynAns(${i}, false, event)">✗ <span data-zh>不是</span><span data-en>No</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="yn-feedback hidden mt-3 p-3 bg-slate-50 rounded-lg text-xs sm:text-sm"></div>
+    </div>
+  `).join('');
+}
+function ynAns(i, ans, ev){
+  if(state.ynAnswers[i]!==undefined) return;
+  const card = document.querySelector(`.yn-card[data-idx="${i}"]`);
+  const q = YN[i];
+  const ok = ans===q.isVision;
+  state.ynAnswers[i] = ans;
+  if(ok) state.ynCorrect++;
+  card.classList.add(ok?'answered-correct':'answered-wrong');
+  const fb = card.querySelector('.yn-feedback');
+  fb.classList.remove('hidden');
+  const correct = q.isVision ? (LANG==='en'?'Yes':'是') : (LANG==='en'?'No':'不是');
+  fb.innerHTML = `${ok ? '✓ '+(LANG==='en'?'Correct!':'答对了！') : '✗ '+(LANG==='en'?'Not quite. Correct: ':'不对，正确答案：')+correct}<br><span class="text-slate-600"><span data-zh>${q.why.zh}</span><span data-en>${q.why.en}</span></span>`;
+  document.getElementById('yn-count').textContent = Object.keys(state.ynAnswers).length;
+  document.getElementById('yn-correct').textContent = state.ynCorrect;
+  if(Object.keys(state.ynAnswers).length===6){
+    document.getElementById('p3-next').disabled=false;
+  }
+  ev.stopPropagation();
+}
+
+/* ---------- Reflection ---------- */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(), mission:'M1-1',
+    museumVisited:state.museumVisited.size,
+    huntScore:`${state.huntFound}/${state.huntTotal}`,
+    quizScore:`${state.ynCorrect}/6`,
+    reflectChoice:state.reflectChoice, reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m1-1', JSON.stringify(data));
+  goTo(5);
+}
+
+/* ---------- Navigation ---------- */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots = document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl = document.getElementById('step-label');
+  if(lbl){
+    const shown = Math.min(n+1,5);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 5 关</span><span data-en>Step ${shown} / 5</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===3 && !document.getElementById('yn-grid').innerHTML) renderYN();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart this mission?':'确定重新开始？')){
+    Object.assign(state,{phase:0,museumVisited:new Set(),huntFound:0,huntMiss:0,huntTotal:8,huntTime:0,ynAnswers:{},ynCorrect:0,reflectChoice:null,reflectText:''});
+    document.querySelectorAll('.flip-card').forEach(c=>{c.classList.remove('flipped','visited')});
+    document.getElementById('museum-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('yn-grid').innerHTML='';
+    document.getElementById('yn-count').textContent='0';
+    document.getElementById('yn-correct').textContent='0';
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+
+/* ---------- Init ---------- */
+renderMuseum();
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

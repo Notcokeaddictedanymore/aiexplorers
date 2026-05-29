@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M6-1 暴雨预警背后的 AI · The AI Behind Storm Warnings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#1E40AF,#0F172A);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(30,64,175,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(30,64,175,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(30,64,175,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Storm theme */
+  .storm-hero{background:linear-gradient(135deg,#1E293B 0%,#0F172A 50%,#1E40AF 100%);color:#fff;border-radius:18px;padding:1.5rem;position:relative;overflow:hidden}
+  .storm-hero::before{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0,rgba(255,255,255,0.05) 1px,transparent 1px,transparent 12px);pointer-events:none}
+  @keyframes rain{0%{transform:translateY(-20px);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(120px);opacity:0}}
+  .raindrop{position:absolute;width:2px;height:14px;background:rgba(147,197,253,0.6);border-radius:1px;animation:rain 1.2s linear infinite}
+
+  /* Stat card */
+  .stat-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1.1rem;text-align:center}
+  .stat-num{font-size:2.5rem;font-weight:900;line-height:1}
+
+  /* Source card */
+  .src-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .25s;position:relative}
+  .src-card:hover{transform:translateY(-2px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15)}
+  .src-card.read{border-color:#10B981}
+  .src-card.read::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  /* Butterfly effect */
+  .chaos-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;background:#0F172A;padding:1rem;border-radius:12px}
+  .chaos-panel{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:.8rem;text-align:center;color:#fff;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  @keyframes flutter{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+  .butterfly{font-size:3rem;animation:flutter 1s ease-in-out infinite}
+
+  /* Scale comparison */
+  .scale-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.2rem;cursor:pointer;transition:all .2s}
+  .scale-card:hover{border-color:#94A3B8;transform:translateY(-2px)}
+  .scale-card.read{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(30,64,175,.08),0 0 0 12px rgba(30,64,175,.04),0 18px 40px -12px rgba(30,64,175,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">M6-1 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-800 text-white px-2 py-1 rounded-full">Ch.6 · 暴雨中的 AI / AI in the Storm</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>热身 · 20 min</span><span data-en>Warm-up · 20 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>暴雨预警背后的 AI：你不知道的"看不见"系统</span>
+      <span data-en>The AI Behind Storm Warnings: The Invisible System</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="storm-hero mb-5" id="hero-storm">
+      <div class="relative z-10">
+        <div class="text-xs uppercase tracking-widest text-blue-300 font-bold mb-1">2023.07.29 - 08.02</div>
+        <h2 class="text-2xl sm:text-3xl font-black mb-2"><span data-zh>北京"7·31"特大暴雨</span><span data-en>Beijing "7·31" Mega-Storm</span></h2>
+        <p class="text-sm sm:text-base text-blue-100 leading-relaxed" data-zh>
+          台风"杜苏芮"残余环流移至华北。北京市平均降雨量 <strong>331 毫米</strong>，门头沟区局地降雨量 <strong>744.8 毫米</strong>——是历史 140 年中<strong>最大降雨</strong>。
+        </p>
+        <p class="text-sm sm:text-base text-blue-100 leading-relaxed" data-en>
+          Typhoon Doksuri remnants hit North China. Beijing averaged <strong>331mm rainfall</strong>; Mentougou local areas hit <strong>744.8mm</strong> — the <strong>largest in 140 years</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵 · 防汛模式</span><span data-en>Jingling · Flood mode</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-blue-900 font-bold" data-zh>
+            欢迎来到 <strong>第 6 章 · 暴雨中的 AI</strong>。
+          </p>
+          <p class="text-lg leading-relaxed text-blue-900 font-bold" data-en>
+            Welcome to <strong>Chapter 6 · AI in the Storm</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            前 5 章你学了 AI 的<strong>概念</strong>——感知、思考、学习、对话、社会影响。下一章你会做<strong>自己的</strong>毕业作品。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Across 5 chapters you\'ve learned AI <strong>concepts</strong> — perception, thinking, learning, talking, societal impact. Next chapter you\'ll build <strong>your own</strong> capstone.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            但<strong>中间</strong>，我想让你看一个东西——一个 AI 应用<strong>不是 demo、不是玩具</strong>，而是 <strong>2023 年真实救了北京几万人命</strong>的系统：<strong>暴雨预警 + 内涝预测 AI</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            But <strong>in between</strong>, I want you to see something — an AI application <strong>not a demo or toy</strong>, but a system that <strong>actually saved tens of thousands of lives in Beijing in 2023</strong>: <strong>storm warning + flood prediction AI</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed text-blue-700 font-semibold" data-zh>
+            这一章你不用动手做——<strong>你研究它</strong>。看一个专业级 AI 系统怎么<strong>从设计到部署到拯救生命</strong>。看完后，你做自己的项目会有完全不同的<strong>视野</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed text-blue-700 font-semibold" data-en>
+            This chapter you don\'t build — <strong>you research</strong>. Watch a pro-level AI system <strong>from design to deployment to saving lives</strong>. After this, your own project will have entirely different <strong>vision</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 3 个真实数字 →</span><span data-en>See 3 real numbers →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: DATA SHOCK ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>"7·31"暴雨的<strong>真实数字</strong>。读完这些再说"暴雨预测"重不重要：</p>
+      <p data-en>The <strong>real numbers</strong> from "7·31". Read these before debating whether flood prediction matters:</p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-4 mb-5">
+      <div class="stat-card border-red-300">
+        <div class="stat-num text-red-700">33</div>
+        <div class="text-sm font-bold mt-1" data-zh>人遇难</div>
+        <div class="text-sm font-bold mt-1" data-en>Lives lost</div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>北京市官方统计</span><span data-en>Beijing official tally</span></div>
+      </div>
+      <div class="stat-card border-amber-300">
+        <div class="stat-num text-amber-700">175<span class="text-base">万</span></div>
+        <div class="text-sm font-bold mt-1" data-zh>人受灾</div>
+        <div class="text-sm font-bold mt-1" data-en>People affected</div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>北京 + 河北</span><span data-en>Beijing + Hebei</span></div>
+      </div>
+      <div class="stat-card border-blue-300">
+        <div class="stat-num text-blue-700">1700<span class="text-base">亿</span></div>
+        <div class="text-sm font-bold mt-1" data-zh>元经济损失</div>
+        <div class="text-sm font-bold mt-1" data-en>RMB economic loss</div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>含基础设施破坏</span><span data-en>incl. infrastructure damage</span></div>
+      </div>
+    </div>
+
+    <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-4">
+      <div class="font-bold text-amber-900 mb-2">🤔 <span data-zh>关键问题</span><span data-en>Critical question</span></div>
+      <p class="text-sm" data-zh>北京市气象局<strong>提前 48 小时</strong>就发了红色预警。<strong>为什么</strong>还死了 33 个人？</p>
+      <p class="text-sm" data-en>Beijing Met Office issued red alert <strong>48 hours ahead</strong>. <strong>Why did 33 still die?</strong></p>
+      <p class="text-sm mt-2" data-zh>这一章你会看到：<strong>问题不在 AI 能不能预测</strong>——AI 已经预测到了。<strong>问题在哪里、谁会被淹、怎么撤、人愿不愿意撤、撤到哪</strong>——这些都是 AI<strong>之外</strong>的事。但 AI 是<strong>第一块多米诺骨牌</strong>。</p>
+      <p class="text-sm mt-2" data-en>This chapter you\'ll see: <strong>the problem isn\'t whether AI can predict</strong> — it did. <strong>Where exactly, who gets flooded, how to evacuate, will they go, where to</strong> — all outside AI. But AI is <strong>the first domino</strong>.</p>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(2)">
+        <span data-zh>下一关：AI 的 4 大"眼睛" →</span><span data-en>Next: AI\'s 4 "eyes" →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: 4 DATA SOURCES ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>暴雨预测 AI 不是<strong>盯着窗外看</strong>——它有 <strong>4 双"眼睛"</strong>，每秒钟在看不同的东西。点击每张卡片<strong>了解每只"眼睛"</strong>。</p>
+      <p data-en>Storm prediction AI doesn\'t <strong>look out the window</strong> — it has <strong>4 "eyes"</strong>, each watching different things every second. Click each card.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已查看：</span><span data-en>Visited:</span><span id="src-count">0</span> / 4</div>
+    </div>
+
+    <div id="src-grid" class="grid md:grid-cols-2 gap-4 mb-4"></div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+      <strong>🔄 <span data-zh>4 个数据源 = 1 个完整画面</span><span data-en>4 sources = 1 complete picture</span></strong>：
+      <span data-zh>单看任何一个都<strong>不准</strong>。AI 把 4 个数据源<strong>融合</strong>（这叫 <strong>"多模态数据融合"</strong>），才能算出"<strong>未来 6 小时哪里会下多少雨</strong>"。Ch.3 你学过<strong>数据多样性</strong>——在这里被推到极致。</span>
+      <span data-en>None alone is enough. AI <strong>fuses</strong> all 4 (called <strong>"multimodal data fusion"</strong>) to compute "<strong>where will it rain how much in next 6 hours</strong>". Ch.3\'s <strong>data diversity</strong> lesson — pushed to the extreme.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：为什么暴雨这么难预测 →</span><span data-en>Next: why storms are so hard →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: WHY HARD - CHAOS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>有了 4 大数据源 + 超级计算机 + 几十万亿参数模型——为什么暴雨还会<strong>预测错</strong>？答案：<strong>大气是混沌系统</strong>。</p>
+      <p data-en>With 4 data sources + supercomputers + trillion-parameter models — why are storms still <strong>misforecast</strong>? Answer: <strong>the atmosphere is a chaotic system</strong>.</p>
+    </div>
+
+    <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 mb-4">
+      <div class="text-center mb-4">
+        <div class="text-xl font-bold mb-2"><span data-zh>🦋 蝴蝶效应</span><span data-en>🦋 The Butterfly Effect</span></div>
+        <p class="text-sm text-slate-600 max-w-lg mx-auto" data-zh>1972 年气象学家 Lorenz 发现：<strong>巴西丛林一只蝴蝶扇动翅膀</strong>，3 周后可能引起<strong>德州的龙卷风</strong>。这听起来荒谬，但<strong>数学上是真的</strong>。</p>
+        <p class="text-sm text-slate-600 max-w-lg mx-auto" data-en>1972 meteorologist Lorenz found: <strong>a butterfly flapping in Brazil</strong> may trigger a <strong>tornado in Texas 3 weeks later</strong>. Sounds absurd — <strong>mathematically true</strong>.</p>
+      </div>
+
+      <div class="chaos-grid">
+        <div class="chaos-panel">
+          <div class="butterfly mb-1">🦋</div>
+          <div class="text-xs"><span data-zh>初始：风速 5.000000 m/s</span><span data-en>Start: wind 5.000000 m/s</span></div>
+          <div class="text-xs mt-2 text-blue-300"><span data-zh>↓ 模拟 24 小时</span><span data-en>↓ Simulate 24hr</span></div>
+          <div class="text-lg font-bold mt-1">⛅</div>
+          <div class="text-xs"><span data-zh>北京：晴天</span><span data-en>Beijing: sunny</span></div>
+        </div>
+        <div class="chaos-panel">
+          <div class="butterfly mb-1">🦋</div>
+          <div class="text-xs"><span data-zh>初始：风速 5.000001 m/s</span><span data-en>Start: wind 5.000001 m/s</span></div>
+          <div class="text-xs mt-2 text-red-300"><span data-zh>↓ 模拟 24 小时</span><span data-en>↓ Simulate 24hr</span></div>
+          <div class="text-lg font-bold mt-1">🌧️🌩️</div>
+          <div class="text-xs"><span data-zh>北京：暴雨</span><span data-en>Beijing: storm</span></div>
+        </div>
+      </div>
+      <div class="text-center text-xs text-slate-500 mt-2"><span data-zh>👆 初始条件差 0.000001——24 小时后结果完全不同</span><span data-en>👆 Initial diff: 0.000001 — 24h later, opposite results</span></div>
+    </div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm mb-4">
+      <strong>💡 <span data-zh>对 AI 意味着什么？</span><span data-en>What it means for AI</span></strong>
+      <ul class="mt-2 space-y-1 list-disc ml-5">
+        <li data-zh>AI 越往<strong>远</strong>预测越不准。<strong>6 小时</strong>预测 90% 准；<strong>3 天</strong>预测 60% 准；<strong>2 周</strong>预测 = 蒙</li>
+        <li data-en>AI gets worse the <strong>further out</strong>. <strong>6hr</strong>: 90% accurate; <strong>3 days</strong>: 60%; <strong>2 weeks</strong>: guessing</li>
+        <li data-zh>AI 不会给"<strong>100% 会下暴雨</strong>"——它会给"<strong>85% 概率</strong>"。这就是为什么气象预报都说"<strong>降水概率</strong>"</li>
+        <li data-en>AI doesn\'t say "<strong>will rain 100%</strong>" — it says "<strong>85% chance</strong>". That\'s why forecasts use "<strong>precipitation probability</strong>"</li>
+        <li data-zh>多个 AI 模型<strong>同时跑</strong>，结果不同时，气象员要<strong>人工判断</strong>——AI 不能完全替代人</li>
+        <li data-en>Multiple AI models <strong>run in parallel</strong>; when they disagree, humans judge — AI can\'t fully replace experts</li>
+      </ul>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>下一关：两种 AI 尺度 →</span><span data-en>Next: 2 AI scales →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: TWO AI SCALES ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>暴雨防汛实际上是<strong>两种 AI 在协作</strong>——它们<strong>看的尺度</strong>完全不同。<strong>2 张都看完</strong>才能继续。</p>
+      <p data-en>Storm response uses <strong>two AIs collaborating</strong> — at <strong>vastly different scales</strong>. <strong>Read both</strong> to continue.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="scale-count">0</span> / 2</div>
+    </div>
+
+    <div id="scale-grid" class="grid md:grid-cols-2 gap-4 mb-4"></div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+      <strong>🔗 <span data-zh>它们怎么协作</span><span data-en>How they cooperate</span></strong>：
+      <span data-zh>国家气象中心说"北京未来 6 小时降雨 100mm" → 北京市排水 AI 说"<strong>具体莲花桥下穿、广渠门桥</strong>会积水超 1m" → 防汛办决定派车去这些点。<strong>没有这条链条，宏观警报到不了具体位置</strong>。</span>
+      <span data-en>National Met says "Beijing 100mm in 6hr" → Beijing drainage AI says "<strong>specifically Lianhua Bridge underpass, Guangqumen</strong> will flood above 1m" → emergency office dispatches there. <strong>Without this chain, macro warnings can\'t reach specific spots</strong>.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这是<strong>研究型</strong>章节的第一关。下一关你会看到<strong>北京真实的内涝热点地图</strong>。在那之前——</p>
+      <p data-en>This is the first <strong>research-style</strong> mission. Next you\'ll see <strong>real Beijing flood hotspots on a map</strong>. Before that —</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① "7·31"那天你家有积水吗？爸妈是<strong>什么时候</strong>知道暴雨要来的？通过<strong>什么</strong>渠道？</span>
+        <span data-en>① Was your home flooded on 7·31? <strong>When</strong> did your parents learn it was coming? <strong>How</strong>?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 暴雨预测 AI 的<strong>4 个数据源</strong>里——哪个是<strong>北京自己</strong>能产生的？哪些必须靠<strong>合作</strong>（卫星 = 国家航天局；雷达 = 国家气象局）？</span>
+        <span data-en>② Of AI\'s <strong>4 data sources</strong> — which can <strong>Beijing</strong> produce alone? Which require <strong>partnership</strong> (satellites = National Space; radar = National Met)?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ "<strong>蝴蝶效应</strong>"告诉我们什么？为什么 AI 还是<strong>有价值</strong>，即使它不能 100% 准？</span>
+        <span data-en>③ What does the <strong>butterfly effect</strong> teach? Why is AI <strong>still valuable</strong> despite not being 100% accurate?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M6-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-700 to-blue-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#1E40AF" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🌧️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 1 关完成</span><span data-en>Mission #1 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"防汛系统观察员" 徽章已解锁</span><span data-en>"Flood System Observer" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>北京 2023 "7·31" 暴雨：<strong>33 人遇难、175 万受灾、1700 亿损失</strong></span><span data-en>Beijing 2023 "7·31" storm: <strong>33 lives lost, 1.75M affected, ¥170B loss</strong></span></li>
+          <li>✓ <span data-zh>暴雨预测 AI 有 <strong>4 双眼睛</strong>：雷达 / 卫星 / 地面站 / 历史</span><span data-en>Storm AI has <strong>4 eyes</strong>: radar / satellite / ground / history</span></li>
+          <li>✓ <span data-zh><strong>蝴蝶效应</strong>让长期预测<strong>本质上</strong>不可能 100% 准</span><span data-en><strong>Butterfly effect</strong> makes long-range prediction <strong>fundamentally</strong> impossible to perfect</span></li>
+          <li>✓ <span data-zh>国家级 AI（宏观降雨）+ 城市级 AI（具体内涝）<strong>协作</strong>才有用</span><span data-en>National AI (macro rain) + city AI (specific flood) <strong>collaborate</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m6-2-floodmap.html'">
+          <span data-zh>下一关：M6-2 北京内涝地图 →</span><span data-en>Next: M6-2 Flood Map →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M6-1 · 开发者：辜月晗 · 2026 · 数据：北京市政府新闻办、中国气象局公开</span>
+  <span data-en>AI Literacy Courses for Beginners · M6-1 · Dev: Gu Yuehan · 2026 · Data: Beijing gov press office, China Met Admin public</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+// Add raindrops to hero
+function addRain(){
+  const hero = document.getElementById('hero-storm');
+  for(let i=0;i<30;i++){
+    const d = document.createElement('div');
+    d.className = 'raindrop';
+    d.style.left = Math.random()*100 + '%';
+    d.style.animationDelay = Math.random()*1.2 + 's';
+    d.style.animationDuration = (0.8 + Math.random()*0.8) + 's';
+    hero.appendChild(d);
+  }
+}
+addRain();
+
+/* =====================================================
+   4 DATA SOURCES
+   ===================================================== */
+const SOURCES = [
+  {id:'radar', emoji:'📡',
+   name:{zh:'气象雷达',en:'Weather Radar'},
+   what:{zh:'地面安装的<strong>多普勒雷达</strong>发射电磁波，遇到云、雨滴反射回来。<strong>每 6 分钟扫一次</strong>全国，能看到云的密度、移动速度、降水强度。',
+         en:'Ground-mounted <strong>Doppler radar</strong> emits EM waves, reflects off clouds/raindrops. <strong>Scans nationwide every 6 min</strong>; tracks cloud density, speed, intensity.'},
+   scope:{zh:'<strong>看现在</strong>：未来 0-6 小时的<strong>短临预报</strong>',en:'<strong>Sees NOW</strong>: 0-6hr <strong>nowcasting</strong>'},
+   chinaExample:{zh:'中国气象局：全国 <strong>234 部</strong>新一代天气雷达组网',en:'China Met: <strong>234</strong> next-gen radars networked nationwide'}},
+  {id:'satellite', emoji:'🛰️',
+   name:{zh:'气象卫星',en:'Weather Satellite'},
+   what:{zh:'<strong>风云系列卫星</strong>在距地 36000 公里轨道<strong>24 小时盯着地球</strong>。看的不是雨，是<strong>云的红外辐射</strong>——温度低 = 云高 = 可能下雨。',
+         en:'<strong>Fengyun satellites</strong> stare at Earth from 36,000km orbit <strong>24/7</strong>. Sees not rain but <strong>cloud IR radiation</strong> — cold = tall = potential rain.'},
+   scope:{zh:'<strong>看大势</strong>：未来 1-3 天的<strong>中期预报</strong> + 全球云图',en:'<strong>Sees BIG PICTURE</strong>: 1-3 day <strong>mid-term forecast</strong> + global cloud map'},
+   chinaExample:{zh:'风云四号：<strong>每 5 分钟</strong>拍一张全国天气图',en:'Fengyun-4: <strong>every 5 min</strong> captures national weather map'}},
+  {id:'ground', emoji:'🌡️',
+   name:{zh:'地面观测站',en:'Ground Stations'},
+   what:{zh:'全国 <strong>7 万多个</strong>气象站，每分钟测<strong>温度、湿度、气压、风向、雨量</strong>。这是 AI 的"<strong>校准数据</strong>"——告诉它<strong>预测得准不准</strong>。',
+         en:'<strong>70,000+</strong> stations measure <strong>temp, humidity, pressure, wind, rainfall</strong> per minute. AI\'s <strong>calibration data</strong> — tells it <strong>how accurate forecasts are</strong>.'},
+   scope:{zh:'<strong>验真伪</strong>：实时验证 AI 预测准确度',en:'<strong>Truth check</strong>: real-time validation'},
+   chinaExample:{zh:'北京全市 <strong>1100+</strong>气象站，平均每 2.3 平方公里 1 个',en:'Beijing has <strong>1,100+</strong> stations, ~1 per 2.3 km²'}},
+  {id:'history', emoji:'📊',
+   name:{zh:'历史降雨记录',en:'Historical Records'},
+   what:{zh:'<strong>140 年</strong>的北京降雨数据库。AI 看"这次和历史上哪次像？" → 那次后果是什么？<strong>历史是 AI 的"经验"</strong>。',
+         en:'<strong>140 years</strong> of Beijing rain database. AI checks "what historical event resembles this?" → what happened then? <strong>History is AI\'s "experience"</strong>.'},
+   scope:{zh:'<strong>找规律</strong>：训练 AI 模型的基础数据',en:'<strong>Patterns</strong>: training data foundation'},
+   chinaExample:{zh:'中国气象数据网开放<strong>1951 年以来</strong>全国数据',en:'China Met opens nationwide data since <strong>1951</strong>'}},
+];
+
+const SCALES = [
+  {id:'national', emoji:'🇨🇳',
+   name:{zh:'国家气象中心 AI',en:'National Met Center AI'},
+   resolution:{zh:'<strong>9 公里</strong>×9 公里 网格',en:'<strong>9km</strong>×9km grid'},
+   horizon:{zh:'<strong>3-10 天</strong>',en:'<strong>3-10 days</strong>'},
+   tool:{zh:'CMA-GFS 全球预报系统',en:'CMA-GFS Global Forecast'},
+   computing:{zh:'<strong>"派 - 曙光"超级计算机</strong>，运算速度每秒 <strong>1.6 京次</strong>（1.6 × 10¹⁶）',
+              en:'<strong>"Pi-Dawn" supercomputer</strong>, <strong>1.6 quadrillion</strong> ops/sec (1.6×10¹⁶)'},
+   answers:{zh:'回答："<strong>北京未来 24 小时</strong>降雨量大约 200mm，集中在西部山区"',
+            en:'Answers: "<strong>Beijing next 24hr</strong> ~200mm rainfall, focused in western mountains"'}},
+  {id:'city', emoji:'🏙️',
+   name:{zh:'城市排水 AI（北京市水务局）',en:'City Drainage AI (Beijing Water Bureau)'},
+   resolution:{zh:'<strong>50 米</strong>×50 米 精细网格',en:'<strong>50m</strong>×50m fine grid'},
+   horizon:{zh:'<strong>1-6 小时</strong>',en:'<strong>1-6 hours</strong>'},
+   tool:{zh:'城市内涝预测模型 + 排水管网仿真',en:'Urban flood model + drainage simulation'},
+   computing:{zh:'读取<strong>国家气象中心的降雨输入</strong>，结合地形 DEM + 管网 GIS + 历史积水数据库',
+              en:'Reads <strong>National Met rainfall input</strong>, combines terrain DEM + pipe GIS + historic flood DB'},
+   answers:{zh:'回答："<strong>具体莲花桥下穿 + 上清桥</strong>在 6 小时后积水将超 1.2 米；广渠门桥东南角 0.8 米"',
+            en:'Answers: "<strong>Lianhua Bridge underpass + Shangqing Bridge</strong> in 6hr will flood &gt; 1.2m; Guangqumen SE corner 0.8m"'}},
+];
+
+const state = {phase:0, srcVisited:new Set(), scaleVisited:new Set(), reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   PHASE 2: SOURCES
+   ===================================================== */
+function renderSources(){
+  const host = document.getElementById('src-grid');
+  host.innerHTML = SOURCES.map(s=>`
+    <div class="src-card ${state.srcVisited.has(s.id)?'read':''}" data-id="${s.id}" onclick="visitSrc('${s.id}')">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-4xl">${s.emoji}</div>
+        <div class="font-bold"><span data-zh>${s.name.zh}</span><span data-en>${s.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700 mb-2"><span data-zh>${s.what.zh}</span><span data-en>${s.what.en}</span></p>
+      <div class="text-xs space-y-1">
+        <div class="bg-blue-50 rounded p-2"><strong>👁️ </strong><span data-zh>${s.scope.zh}</span><span data-en>${s.scope.en}</span></div>
+        <div class="bg-amber-50 rounded p-2"><strong>🇨🇳 <span data-zh>中国实例</span><span data-en>China example</span>：</strong><span data-zh>${s.chinaExample.zh}</span><span data-en>${s.chinaExample.en}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+function visitSrc(id){
+  state.srcVisited.add(id);
+  renderSources();
+  document.getElementById('src-count').textContent = state.srcVisited.size;
+  if(state.srcVisited.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 4: SCALES
+   ===================================================== */
+function renderScales(){
+  const host = document.getElementById('scale-grid');
+  host.innerHTML = SCALES.map(s=>`
+    <div class="scale-card ${state.scaleVisited.has(s.id)?'read':''}" data-id="${s.id}" onclick="visitScale('${s.id}')">
+      <div class="text-4xl mb-2">${s.emoji}</div>
+      <div class="font-bold text-lg"><span data-zh>${s.name.zh}</span><span data-en>${s.name.en}</span></div>
+      <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
+        <div class="bg-slate-50 rounded p-2">
+          <div class="font-bold text-slate-500"><span data-zh>分辨率</span><span data-en>Resolution</span></div>
+          <div><span data-zh>${s.resolution.zh}</span><span data-en>${s.resolution.en}</span></div>
+        </div>
+        <div class="bg-slate-50 rounded p-2">
+          <div class="font-bold text-slate-500"><span data-zh>时间</span><span data-en>Horizon</span></div>
+          <div><span data-zh>${s.horizon.zh}</span><span data-en>${s.horizon.en}</span></div>
+        </div>
+      </div>
+      <div class="mt-3 text-xs">
+        <div><strong><span data-zh>工具</span><span data-en>Tool</span>：</strong><span data-zh>${s.tool.zh}</span><span data-en>${s.tool.en}</span></div>
+        <div class="mt-1"><strong><span data-zh>算力</span><span data-en>Compute</span>：</strong><span data-zh>${s.computing.zh}</span><span data-en>${s.computing.en}</span></div>
+      </div>
+      <div class="mt-3 p-2 bg-blue-50 rounded text-xs">
+        <strong>💬 </strong><span data-zh>${s.answers.zh}</span><span data-en>${s.answers.en}</span>
+      </div>
+    </div>
+  `).join('');
+}
+function visitScale(id){
+  state.scaleVisited.add(id);
+  renderScales();
+  document.getElementById('scale-count').textContent = state.scaleVisited.size;
+  if(state.scaleVisited.size>=2) document.getElementById('p4-next').disabled = false;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M6-1',
+    srcVisited:state.srcVisited.size, scaleVisited:state.scaleVisited.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m6-1', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,7);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===2) renderSources();
+  if(n===4) renderScales();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.srcVisited=new Set();state.scaleVisited=new Set();state.reflectChoice=null;state.reflectText='';
+    document.getElementById('src-count').textContent='0';
+    document.getElementById('scale-count').textContent='0';
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p4-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

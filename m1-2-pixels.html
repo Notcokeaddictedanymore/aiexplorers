@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M1-2 像素与标签 · How AI Really Sees</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  /* Pixel grid */
+  .pixel-canvas{display:grid;gap:1px;background:#fff;padding:6px;border-radius:12px;border:1px solid #E2E8F0;width:100%;max-width:400px;aspect-ratio:1;margin:0 auto}
+  .pixel{border-radius:2px}
+  /* Feature chip */
+  .feat-chip{display:flex;align-items:center;gap:.5rem;background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.6rem .8rem;cursor:pointer;transition:all .2s;text-align:left;width:100%}
+  .feat-chip:hover{border-color:#94A3B8;background:#F8FAFC}
+  .feat-chip.on{border-color:#3B82F6;background:#EFF6FF}
+  .feat-checkbox{width:20px;height:20px;border:2px solid #CBD5E1;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px}
+  .feat-chip.on .feat-checkbox{background:#3B82F6;border-color:#3B82F6}
+  /* Label scheme toggles */
+  .scheme-btn{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.7rem 1rem;cursor:pointer;transition:all .2s;font-weight:600;font-size:.85rem}
+  .scheme-btn:hover{border-color:#94A3B8}
+  .scheme-btn.active{border-color:#DC2626;background:#FEF2F2;color:#DC2626}
+  /* animal card mini */
+  .acard{background:#fff;border-radius:12px;padding:.75rem;border:2px solid #E2E8F0;text-align:center;position:relative}
+  .acard-label{position:absolute;top:-8px;right:-8px;background:#3B82F6;color:#fff;padding:.15rem .5rem;border-radius:9999px;font-size:.65rem;font-weight:700;white-space:nowrap}
+  /* choice card */
+  .choice-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .choice-card:hover{border-color:#94A3B8;transform:translateY(-2px)}
+  .choice-card.selected{border-color:#DC2626;background:#FEF2F2}
+  .badge-glow{box-shadow:0 0 0 6px rgba(59,130,246,.08),0 0 0 12px rgba(59,130,246,.04),0 18px 40px -12px rgba(59,130,246,.4)}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M1-2 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.1 · 感知 / Perception</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full">探索 · 25 min</span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>像素与标签：AI 真正"看到"的是什么</span>
+      <span data-en>Pixels & Labels: What AI Really Sees</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            上一关你看到 AI 能做的事。今天我们<strong>打开它的脑袋</strong>——看看它"看到"什么。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Last time you saw what AI <em>does</em>. Today we crack open its brain — what does it actually <strong>see</strong>?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            剧透一下：它<strong>不是</strong>看到一只熊猫。它看到的是<strong>数字、特征、和你打的标签</strong>。这三样东西，决定了 AI 的一切。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Spoiler: it does <strong>not</strong> see a panda. It sees <strong>numbers, features, and the labels you gave it</strong>. These three things govern everything AI does.
+          </p>
+        </div>
+        <div class="mt-5 grid grid-cols-3 gap-3 text-center">
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">🟦</div><div class="text-xs font-bold">Pixels</div><div class="text-xs text-slate-500"><span data-zh>像素</span></div></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">📊</div><div class="text-xs font-bold">Features</div><div class="text-xs text-slate-500"><span data-zh>特征</span></div></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">🏷️</div><div class="text-xs font-bold">Labels</div><div class="text-xs text-slate-500"><span data-zh>标签</span></div></div>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>开始第 1 章：像素侦探 →</span><span data-en>Start: Pixel Detective →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: PIXEL DETECTIVE ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>图片在 AI 看来就是一个<strong>数字网格</strong>。这张图开始只有 <strong>8×8 = 64 个像素</strong>。你能猜出是什么吗？猜错没事，每次会变得更清晰。</p>
+      <p data-en>To AI, an image is just a <strong>grid of numbers</strong>. This one starts at <strong>8×8 = 64 pixels</strong>. Can you guess? It gets clearer each round.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 items-center">
+      <div>
+        <div id="pixel-canvas" class="pixel-canvas"></div>
+        <div class="text-center mt-3">
+          <span class="text-sm text-slate-500"><span data-zh>当前分辨率：</span><span data-en>Resolution: </span><strong id="pixel-res">8×8</strong></span>
+        </div>
+      </div>
+      <div>
+        <div class="text-sm font-semibold mb-2"><span data-zh>你的猜测：</span><span data-en>Your guess:</span></div>
+        <div id="pixel-choices" class="space-y-2"></div>
+        <div id="pixel-feedback" class="hidden mt-4 p-4 rounded-xl"></div>
+        <div class="mt-5 flex gap-2 flex-wrap">
+          <button class="btn-ghost" id="pixel-next" onclick="nextPixelLevel()" disabled>
+            <span data-zh>↗ 看更清楚</span><span data-en>↗ Sharpen</span>
+          </button>
+          <button class="btn-primary" id="pixel-continue" onclick="goTo(2)" style="display:none">
+            <span data-zh>下一关：特征清单 →</span><span data-en>Next: Feature Hunt →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+      <strong>💡 <span data-zh>关键发现</span><span data-en>Key insight</span>：</strong>
+      <span data-zh>同样的像素，看得越清楚你越能认出。但 AI 不会"恍然大悟"——它只是把每个像素的颜色数字相加、对比，找规律。<strong>它不需要"看清楚"也能识别</strong>，因为它处理的不是"图像"，是<strong>数字</strong>。</span>
+      <span data-en>Clearer = easier for you. But AI never has an "aha moment" — it just adds & compares color numbers. <strong>AI doesn't need clarity</strong> because it processes numbers, not "images."</span>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: FEATURE HUNT ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>把图片变成数字太难看了。AI 更喜欢一种简化版叫"<strong>特征</strong>"——比如"圆耳朵 ✓"、"黑眼斑 ✓"、"橘色毛 ✗"。给你 1 张图，请你勾选你看到的特征。</p>
+      <p data-en>Numbers are messy. AI prefers a shortcut called <strong>features</strong> — like "round ears ✓", "eye patches ✓", "orange fur ✗". Tick what you see in this picture.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
+        <div class="w-48 h-48 mx-auto" id="feat-image"></div>
+        <div class="mt-2 text-sm text-slate-600"><span data-zh>请仔细观察这张图</span><span data-en>Observe carefully</span></div>
+      </div>
+      <div>
+        <div class="text-sm font-semibold mb-2"><span data-zh>勾选所有你看到的特征：</span><span data-en>Tick all features you see:</span></div>
+        <div id="feat-list" class="space-y-2"></div>
+        <div class="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
+          <span data-zh>你已经选了 <strong id="feat-count">0</strong> 个特征。</span>
+          <span data-en>You picked <strong id="feat-count2">0</strong> features.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 hidden" id="feat-result">
+      <div class="bg-gradient-to-br from-blue-50 to-red-50 rounded-2xl p-5 border border-blue-200">
+        <div class="font-bold mb-2"><span data-zh>🎉 你刚才做的事，AI 也在做！</span><span data-en>🎉 You just did what AI does!</span></div>
+        <p class="text-sm mb-3" data-zh>你勾选的特征，AI 把它变成了一串 0 和 1。这就是 AI"看见"这张图的方式：</p>
+        <p class="text-sm mb-3" data-en>Your ticks become 0s and 1s for AI. That's literally how AI "sees" the image:</p>
+        <div class="bg-white p-3 rounded-lg font-mono text-xs sm:text-sm overflow-x-auto" id="feat-vector"></div>
+        <p class="mt-3 text-sm" data-zh>这就叫<strong>特征向量（Feature Vector）</strong>。所有现代图像 AI，看完图后都会得到这种"长串数字"，再用它来分类。</p>
+        <p class="mt-3 text-sm" data-en>That's a <strong>feature vector</strong>. Every modern image AI gets one of these after looking — then uses it to classify.</p>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：同一个东西，不同标签 →</span>
+        <span data-en>Next: One thing, many labels →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: SAME THING, DIFFERENT LABELS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 8 个动物，每个动物都可以被打<strong>不同的标签</strong>。试一试切换 3 种标签方案，看 AI 的"答案"怎么变。</p>
+      <p data-en>These 8 animals can be labeled in <strong>different ways</strong>. Switch between 3 schemes and watch AI's "answers" change.</p>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 border border-slate-200 mb-4">
+      <div class="text-sm font-semibold mb-2"><span data-zh>选择标签方案：</span><span data-en>Pick a labeling scheme:</span></div>
+      <div class="flex gap-2 flex-wrap" id="scheme-buttons">
+        <button class="scheme-btn active" data-scheme="species" onclick="setScheme('species')">
+          <span data-zh>🧬 按物种</span><span data-en>🧬 By species</span>
+        </button>
+        <button class="scheme-btn" data-scheme="color" onclick="setScheme('color')">
+          <span data-zh>🎨 按主要颜色</span><span data-en>🎨 By main color</span>
+        </button>
+        <button class="scheme-btn" data-scheme="cute" onclick="setScheme('cute')">
+          <span data-zh>💖 按"可爱程度"</span><span data-en>💖 By "cuteness"</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="label-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5"></div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <div class="font-bold mb-1">💡 <span data-zh>关键洞察</span><span data-en>Key insight</span></div>
+      <p class="text-sm" data-zh>同样的图片，可以被打成<strong>无数种不同标签</strong>。标签<strong>不是事实，是选择</strong>——你（或者公司、政府）选了哪种标签方式，AI 学到的世界就长那个样子。</p>
+      <p class="text-sm" data-en>The same image can wear <strong>countless labels</strong>. A label is <strong>not a fact, it's a choice</strong>. Whoever picks the labels (you, a company, a government) shapes the world AI learns.</p>
+      <p class="text-sm mt-2" data-zh>"可爱程度"标签<strong>没有客观答案</strong>——但如果 AI 学了它，就会把"不可爱"的动物打低分。这就是<strong>偏差的源头</strong>。</p>
+      <p class="text-sm mt-2" data-en>"Cuteness" has <strong>no objective answer</strong> — but if AI learns it, it'll downrank "uncute" animals. This is <strong>where bias begins</strong>.</p>
+    </div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>下一关：偏差预警 →</span><span data-en>Next: Bias warning →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: BIAS WARNING ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>想象一下：你训练了一个 "识别狗" 的 AI。但你<strong>不小心</strong>只给它看了<strong>金毛犬</strong>的照片，100 张全是金毛。现在新来一只<strong>哈士奇</strong>……</p>
+      <p data-en>Imagine: you train a "dog detector" AI but <strong>accidentally</strong> only feed it photos of <strong>golden retrievers</strong>, 100 of them. Now a <strong>husky</strong> walks in…</p>
+    </div>
+
+    <div class="grid md:grid-cols-[1fr_auto_1fr] gap-4 items-center mb-5">
+      <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+        <div class="text-xs font-bold uppercase text-amber-800 mb-2"><span data-zh>训练数据</span><span data-en>Training data</span></div>
+        <div class="grid grid-cols-5 gap-1 mb-2">
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+          <div class="aspect-square bg-yellow-400 rounded flex items-center justify-center text-2xl">🐕</div>
+        </div>
+        <p class="text-xs text-amber-900"><span data-zh>100 张全是金毛 🟡</span><span data-en>100 photos, all goldens 🟡</span></p>
+      </div>
+      <div class="text-4xl text-center">→</div>
+      <div class="bg-white border-2 border-slate-300 rounded-2xl p-4 text-center">
+        <div class="text-xs font-bold uppercase text-slate-600 mb-2"><span data-zh>新照片</span><span data-en>New photo</span></div>
+        <div class="text-7xl mb-2">🐺</div>
+        <p class="text-sm font-bold"><span data-zh>这是一只哈士奇</span><span data-en>It's a husky</span></p>
+        <p class="text-xs text-slate-500"><span data-zh>（白+灰，蓝眼睛，长嘴）</span><span data-en>(white+gray, blue eyes, long snout)</span></p>
+      </div>
+    </div>
+
+    <div id="bias-q">
+      <div class="font-semibold mb-3"><span data-zh>你预测 AI 会怎么回答？</span><span data-en>What will AI say?</span></div>
+      <div class="grid sm:grid-cols-3 gap-3">
+        <div class="choice-card" onclick="biasAns('a')">
+          <div class="font-bold mb-1">A</div>
+          <p class="text-sm" data-zh>"是狗 🐕" — AI 学过狗了，应该认得。</p>
+          <p class="text-sm" data-en>"It's a dog 🐕" — AI knows dogs.</p>
+        </div>
+        <div class="choice-card" onclick="biasAns('b')">
+          <div class="font-bold mb-1">B</div>
+          <p class="text-sm" data-zh>"不是狗 ❌" — 颜色不对、毛太短，不像它学过的金毛。</p>
+          <p class="text-sm" data-en>"Not a dog ❌" — wrong color, looks nothing like goldens.</p>
+        </div>
+        <div class="choice-card" onclick="biasAns('c')">
+          <div class="font-bold mb-1">C</div>
+          <p class="text-sm" data-zh>"不知道 🤔" — AI 没把握，会犹豫一下。</p>
+          <p class="text-sm" data-en>"Not sure 🤔" — AI hesitates.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="bias-result" class="hidden mt-5">
+      <div class="bg-red-50 border-2 border-red-300 rounded-2xl p-5">
+        <div class="font-bold text-red-700 mb-2">📌 <span data-zh>真实答案：B</span><span data-en>Real answer: B</span></div>
+        <p class="text-sm" data-zh>AI 大概率会说"<strong>不是狗</strong>"。因为它的"狗特征"被偏差<strong>缩窄</strong>了：金黄色 ✓、长毛 ✓、垂耳 ✓。哈士奇全不符合。AI<strong>不会反思</strong>"这可能是另一种狗"，它只会查相似度。</p>
+        <p class="text-sm" data-en>AI most likely says "<strong>not a dog</strong>". Its "dog features" got narrowed by bias: golden color ✓, long fur ✓, floppy ears ✓. Husky fails all 3. AI <strong>doesn't reason</strong> "maybe it's another breed" — it just checks similarity.</p>
+        <p class="text-sm mt-3" data-zh>这<strong>不是 AI 的错</strong>——是给它例子的人的错。这也是为什么"训练数据多样性"在 M1-3 那么重要。</p>
+        <p class="text-sm mt-3" data-en>This is <strong>not AI's fault</strong>. It's the trainer's. That's why "training-data diversity" matters so much in M1-3.</p>
+        <div class="mt-4 p-3 bg-white rounded-lg text-xs">
+          <strong>📚 <span data-zh>真实事件</span><span data-en>True story</span></strong>：
+          <span data-zh>谷歌的早期图像 AI 把肤色较深的人脸误识为"黑猩猩"。原因之一就是训练数据里深肤色样本太少。事件让谷歌道歉、关闭了部分功能。</span>
+          <span data-en>Google's early image AI labeled darker-skinned faces as "gorillas". Cause: underrepresented in training data. Google had to apologize and disable features.</span>
+        </div>
+      </div>
+      <div class="mt-5 text-right">
+        <button class="btn-primary" onclick="goTo(5)">
+          <span data-zh>最后一步：反思 →</span><span data-en>Final: Reflection →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>很好！现在你已经看到了 AI 视觉的"骨架"：<strong>像素 → 特征 → 标签</strong>。这一切都不是 AI 自己决定的——是<strong>人</strong>决定的。所以问题来了：</p>
+      <p data-en>You've seen AI vision's skeleton: <strong>pixels → features → labels</strong>. None of these are AI's choice — they're <strong>ours</strong>. So:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 如果你要为一个"美貌评分 AI"列特征清单，你会写什么？写完后，你担不担心这些特征会伤害谁？</span>
+        <span data-en>① If you had to list features for a "beauty score AI", what would you write? Then — who could those features hurt?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② "猫"和"不是猫"——这种二分类标签会漏掉什么？想 3 个例子。</span>
+        <span data-en>② "Cat" vs "not cat" — what does this binary labeling miss? Name 3 examples.</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 哈士奇的故事告诉我们什么？把它讲给一个 8 岁的小朋友听，你会怎么说？</span>
+        <span data-en>③ What does the husky story teach? Explain it to an 8-year-old.</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="在这里写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M1-2 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETE ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-blue-400 to-blue-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#60A5FA" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🏷️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 2 关完成</span><span data-en>Mission #2 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"特征猎人" 徽章已解锁</span><span data-en>"Feature Hunter" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 不"看"图片，它看<strong>像素的数字</strong></span><span data-en>AI doesn't "see" images — it sees <strong>pixel numbers</strong></span></li>
+          <li>✓ <span data-zh>AI 学到的是<strong>特征向量</strong>（一串 0/1）</span><span data-en>AI learns <strong>feature vectors</strong> (strings of 0/1)</span></li>
+          <li>✓ <span data-zh>标签<strong>不是事实，是人的选择</strong></span><span data-en>Labels are <strong>choices, not truths</strong></span></li>
+          <li>✓ <span data-zh>训练数据单一 → AI 学到狭窄的"世界"</span><span data-en>Narrow data → narrow AI worldview</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m1-3-panda.html'">
+          <span data-zh>下一关：M1-3 训练识别器 →</span><span data-en>Next: M1-3 Train classifier →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回 Ch.1 首页</span><span data-en>← Back to Ch.1</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M1-2 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M1-2 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* ---------- Pixel images: pre-rendered low-res patterns ---------- */
+// Each is a 16x16 array of color hex codes (low-res master). We downsample for 8 and 4.
+function pandaPattern(){
+  // 16x16 panda — black/white
+  const W='#FFFFFF', K='#0F172A', P='#EAB99E', G='#94A3B8';
+  return [
+    G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,
+    G,G,G,K,K,G,G,G,G,G,G,K,K,G,G,G,
+    G,G,K,K,K,K,G,G,G,G,K,K,K,K,G,G,
+    G,G,G,K,K,W,W,W,W,W,W,K,K,G,G,G,
+    G,G,W,W,W,W,W,W,W,W,W,W,W,W,G,G,
+    G,W,W,K,K,W,W,W,W,W,W,K,K,W,W,G,
+    G,W,W,K,K,W,W,W,W,W,W,K,K,W,W,G,
+    G,W,W,W,W,W,K,K,K,K,W,W,W,W,W,G,
+    G,W,W,W,W,W,W,K,K,W,W,W,W,W,W,G,
+    G,W,W,W,W,W,W,W,W,W,W,W,W,W,W,G,
+    G,W,W,W,W,W,W,W,W,W,W,W,W,W,W,G,
+    G,G,W,W,W,W,W,W,W,W,W,W,W,W,G,G,
+    G,K,K,W,W,W,W,W,W,W,W,W,W,K,K,G,
+    G,K,K,W,W,W,W,W,W,W,W,W,W,K,K,G,
+    G,G,K,W,W,W,W,W,W,W,W,W,W,K,G,G,
+    G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,
+  ];
+}
+function applePattern(){
+  const R='#DC2626',G='#10B981',S='#A16207',W='#FFFFFF',Bg='#FEF9F0';
+  return [
+    Bg,Bg,Bg,Bg,Bg,Bg,Bg,S,S,Bg,Bg,Bg,Bg,Bg,Bg,Bg,
+    Bg,Bg,Bg,Bg,Bg,Bg,Bg,S,S,Bg,Bg,Bg,Bg,Bg,Bg,Bg,
+    Bg,Bg,Bg,Bg,Bg,Bg,G,G,S,G,Bg,Bg,Bg,Bg,Bg,Bg,
+    Bg,Bg,Bg,Bg,G,G,G,R,R,G,G,G,Bg,Bg,Bg,Bg,
+    Bg,Bg,Bg,R,R,R,R,R,R,R,R,R,R,Bg,Bg,Bg,
+    Bg,Bg,R,R,R,R,R,W,R,R,R,R,R,R,Bg,Bg,
+    Bg,R,R,R,W,W,W,W,R,R,R,R,R,R,R,Bg,
+    Bg,R,R,W,W,W,R,R,R,R,R,R,R,R,R,Bg,
+    Bg,R,R,W,W,R,R,R,R,R,R,R,R,R,R,Bg,
+    Bg,R,R,R,R,R,R,R,R,R,R,R,R,R,R,Bg,
+    Bg,R,R,R,R,R,R,R,R,R,R,R,R,R,R,Bg,
+    Bg,R,R,R,R,R,R,R,R,R,R,R,R,R,R,Bg,
+    Bg,Bg,R,R,R,R,R,R,R,R,R,R,R,R,Bg,Bg,
+    Bg,Bg,Bg,R,R,R,R,R,R,R,R,R,R,Bg,Bg,Bg,
+    Bg,Bg,Bg,Bg,R,R,R,R,R,R,R,R,Bg,Bg,Bg,Bg,
+    Bg,Bg,Bg,Bg,Bg,Bg,Bg,R,R,Bg,Bg,Bg,Bg,Bg,Bg,Bg,
+  ];
+}
+function housePattern(){
+  const Sk='#BAE6FD',Wl='#FECACA',Rf='#7C2D12',Dr='#451A03',Wn='#FBBF24',Gr='#16A34A',Gd='#84CC16';
+  return [
+    Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,
+    Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,
+    Sk,Sk,Sk,Sk,Sk,Sk,Sk,Rf,Sk,Sk,Sk,Sk,Sk,Sk,Sk,Sk,
+    Sk,Sk,Sk,Sk,Sk,Sk,Rf,Rf,Rf,Sk,Sk,Sk,Sk,Sk,Sk,Sk,
+    Sk,Sk,Sk,Sk,Sk,Rf,Rf,Rf,Rf,Rf,Sk,Sk,Sk,Sk,Sk,Sk,
+    Sk,Sk,Sk,Sk,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Sk,Sk,Sk,Sk,Sk,
+    Sk,Sk,Sk,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Sk,Sk,Sk,Sk,
+    Sk,Sk,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Rf,Sk,Sk,Sk,
+    Sk,Sk,Wl,Wl,Wn,Wn,Wl,Wl,Wn,Wn,Wl,Wl,Wl,Sk,Sk,Sk,
+    Sk,Sk,Wl,Wl,Wn,Wn,Wl,Wl,Wn,Wn,Wl,Wl,Wl,Sk,Sk,Sk,
+    Sk,Sk,Wl,Wl,Wl,Wl,Dr,Dr,Wl,Wl,Wl,Wl,Wl,Sk,Sk,Sk,
+    Sk,Sk,Wl,Wl,Wl,Wl,Dr,Dr,Wl,Wl,Wl,Wl,Wl,Sk,Sk,Sk,
+    Sk,Sk,Wl,Wl,Wl,Wl,Dr,Dr,Wl,Wl,Wl,Wl,Wl,Sk,Sk,Sk,
+    Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,Gd,
+    Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,
+    Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,Gr,
+  ];
+}
+
+const PIXEL_ROUNDS = [
+  {pattern:pandaPattern(), truth:'panda', choices:[
+    {k:'panda', zh:'🐼 大熊猫', en:'🐼 Giant panda'},
+    {k:'cow',   zh:'🐮 奶牛',   en:'🐮 Cow'},
+    {k:'cat',   zh:'🐱 黑白猫', en:'🐱 Tuxedo cat'},
+    {k:'penguin', zh:'🐧 企鹅', en:'🐧 Penguin'},
+  ]},
+  {pattern:applePattern(), truth:'apple', choices:[
+    {k:'apple', zh:'🍎 苹果',   en:'🍎 Apple'},
+    {k:'tomato',zh:'🍅 西红柿', en:'🍅 Tomato'},
+    {k:'cherry',zh:'🍒 樱桃',   en:'🍒 Cherry'},
+    {k:'pomeg', zh:'🍷 石榴',   en:'🍷 Pomegranate'},
+  ]},
+  {pattern:housePattern(), truth:'house', choices:[
+    {k:'house', zh:'🏠 房子',   en:'🏠 House'},
+    {k:'tent',  zh:'⛺ 帐篷',   en:'⛺ Tent'},
+    {k:'church',zh:'⛪ 教堂',   en:'⛪ Church'},
+    {k:'castle',zh:'🏰 城堡',   en:'🏰 Castle'},
+  ]},
+];
+
+const state = {
+  phase:0,
+  pixelRound:0,
+  pixelLevel:0,  // 0=4x4, 1=8x8, 2=16x16
+  pixelGuesses:[],
+  features:{},
+  scheme:'species',
+  biasAnswer:null,
+  reflectChoice:null,
+  reflectText:'',
+};
+
+const PIXEL_LEVELS = [
+  {res:4, label:'4×4'},
+  {res:8, label:'8×8'},
+  {res:16, label:'16×16'},
+];
+
+function downsamplePattern(p16, targetRes){
+  // p16 is 16x16. Downsample by averaging blocks
+  const out = [];
+  const blockSize = 16/targetRes;
+  for(let y=0;y<targetRes;y++){
+    for(let x=0;x<targetRes;x++){
+      // take top-left pixel of block (simple, blocky look)
+      const sy = Math.floor(y*blockSize);
+      const sx = Math.floor(x*blockSize);
+      out.push(p16[sy*16+sx]);
+    }
+  }
+  return out;
+}
+
+function renderPixelGrid(){
+  const round = PIXEL_ROUNDS[state.pixelRound];
+  const level = PIXEL_LEVELS[state.pixelLevel];
+  const pixels = downsamplePattern(round.pattern, level.res);
+  const grid = document.getElementById('pixel-canvas');
+  grid.style.gridTemplateColumns = `repeat(${level.res}, 1fr)`;
+  grid.innerHTML = pixels.map(c=>`<div class="pixel" style="background:${c}"></div>`).join('');
+  document.getElementById('pixel-res').textContent = level.label;
+}
+
+function renderPixelChoices(){
+  const round = PIXEL_ROUNDS[state.pixelRound];
+  const host = document.getElementById('pixel-choices');
+  host.innerHTML = round.choices.map(c=>`
+    <button class="choice-card w-full" data-k="${c.k}" onclick="pixelGuess('${c.k}', this)">
+      <span data-zh>${c.zh}</span><span data-en>${c.en}</span>
+    </button>
+  `).join('');
+  document.getElementById('pixel-feedback').classList.add('hidden');
+  document.getElementById('pixel-feedback').className = 'hidden mt-4 p-4 rounded-xl';
+  document.getElementById('pixel-next').disabled = true;
+  document.getElementById('pixel-continue').style.display = 'none';
+}
+
+function pixelGuess(k, btn){
+  const round = PIXEL_ROUNDS[state.pixelRound];
+  document.querySelectorAll('#pixel-choices .choice-card').forEach(c=>c.classList.remove('selected'));
+  btn.classList.add('selected');
+  const ok = k===round.truth;
+  state.pixelGuesses[state.pixelRound] = state.pixelGuesses[state.pixelRound]||[];
+  state.pixelGuesses[state.pixelRound][state.pixelLevel] = ok;
+  const fb = document.getElementById('pixel-feedback');
+  fb.classList.remove('hidden');
+  fb.className = 'mt-4 p-4 rounded-xl ' + (ok?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  fb.innerHTML = ok
+    ? `<strong>✓ <span data-zh>对了！</span><span data-en>Correct!</span></strong>
+       <span data-zh> 在 ${PIXEL_LEVELS[state.pixelLevel].label} 分辨率下你就看出来了。</span>
+       <span data-en> at ${PIXEL_LEVELS[state.pixelLevel].label} resolution.</span>`
+    : `<strong>✗ <span data-zh>再看看？</span><span data-en>Not quite.</span></strong>
+       <span data-zh> 可以增加分辨率再猜一次。</span>
+       <span data-en> Sharpen the image and try again.</span>`;
+  if(state.pixelLevel<2){
+    document.getElementById('pixel-next').disabled=false;
+  } else {
+    // Last level — show answer + advance button
+    setTimeout(()=>{
+      if(state.pixelRound<2){
+        document.getElementById('pixel-next').disabled=false;
+      } else {
+        document.getElementById('pixel-continue').style.display='inline-block';
+      }
+    }, 600);
+  }
+}
+
+function nextPixelLevel(){
+  if(state.pixelLevel<2){
+    state.pixelLevel++;
+    renderPixelGrid();
+    renderPixelChoices();
+  } else {
+    // next round
+    state.pixelRound++;
+    state.pixelLevel=0;
+    renderPixelGrid();
+    renderPixelChoices();
+  }
+}
+
+/* ---------- Feature Hunt ---------- */
+const FEATURES = [
+  {id:'fur_bw',     zh:'黑白配色',   en:'Black-white fur',     correct:true},
+  {id:'eye_patch',  zh:'眼睛周围有黑斑', en:'Dark eye patches', correct:true},
+  {id:'round_ears', zh:'圆耳朵',     en:'Round ears',          correct:true},
+  {id:'chubby',     zh:'圆胖的身体', en:'Chubby body',         correct:true},
+  {id:'fur_orange', zh:'橘红色毛',   en:'Orange fur',          correct:false},
+  {id:'pointy_ears',zh:'尖耳朵',     en:'Pointy ears',         correct:false},
+  {id:'long_tail',  zh:'长尾巴',     en:'Long tail',           correct:false},
+  {id:'wings',      zh:'翅膀',       en:'Wings',               correct:false},
+];
+
+function renderFeatures(){
+  // Image
+  document.getElementById('feat-image').innerHTML = `
+    <svg viewBox="0 0 110 110" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <rect width="110" height="110" rx="12" fill="#FAFBFC"/>
+      <ellipse cx="55" cy="65" rx="34" ry="30" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+      <circle cx="32" cy="38" r="11" fill="#0F172A"/>
+      <circle cx="78" cy="38" r="11" fill="#0F172A"/>
+      <ellipse cx="40" cy="52" rx="8" ry="10" fill="#0F172A"/>
+      <ellipse cx="70" cy="52" rx="8" ry="10" fill="#0F172A"/>
+      <circle cx="41" cy="52" r="3" fill="#fff"/>
+      <circle cx="71" cy="52" r="3" fill="#fff"/>
+      <ellipse cx="55" cy="64" rx="4" ry="3" fill="#0F172A"/>
+      <path d="M50 70 Q55 76 60 70" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+      <ellipse cx="28" cy="85" rx="9" ry="6" fill="#0F172A"/>
+      <ellipse cx="82" cy="85" rx="9" ry="6" fill="#0F172A"/>
+    </svg>`;
+  // Features
+  const host = document.getElementById('feat-list');
+  host.innerHTML = FEATURES.map(f=>`
+    <button class="feat-chip" data-id="${f.id}" onclick="toggleFeature('${f.id}')">
+      <div class="feat-checkbox" data-cb></div>
+      <span class="text-sm"><span data-zh>${f.zh}</span><span data-en>${f.en}</span></span>
+    </button>
+  `).join('');
+}
+
+function toggleFeature(id){
+  state.features[id] = !state.features[id];
+  const chip = document.querySelector(`.feat-chip[data-id="${id}"]`);
+  const cb = chip.querySelector('[data-cb]');
+  if(state.features[id]){chip.classList.add('on');cb.textContent='✓'}
+  else{chip.classList.remove('on');cb.textContent=''}
+  const count = Object.values(state.features).filter(Boolean).length;
+  document.getElementById('feat-count').textContent = count;
+  document.getElementById('feat-count2').textContent = count;
+  // After picking some, show the result
+  if(count>=3){
+    showFeatureResult();
+  }
+}
+
+function showFeatureResult(){
+  const box = document.getElementById('feat-result');
+  box.classList.remove('hidden');
+  const vector = FEATURES.map(f=>{
+    const v = state.features[f.id]?1:0;
+    return `<span class="${v?'text-blue-600 font-bold':'text-slate-400'}">${v}</span>`;
+  }).join(' , ');
+  const labels = FEATURES.map(f=>`<span data-zh>${f.zh}</span><span data-en>${f.en}</span>`);
+  document.getElementById('feat-vector').innerHTML = `
+    <div class="text-slate-500 text-xs mb-2">[ <span data-zh>黑白</span><span data-en>BW</span>, <span data-zh>眼斑</span><span data-en>EyePtch</span>, <span data-zh>圆耳</span><span data-en>RndEar</span>, <span data-zh>圆胖</span><span data-en>Chub</span>, <span data-zh>橘毛</span><span data-en>Orange</span>, <span data-zh>尖耳</span><span data-en>PntyEar</span>, <span data-zh>长尾</span><span data-en>LngTail</span>, <span data-zh>翅膀</span><span data-en>Wings</span> ]</div>
+    <div class="text-base">[ ${vector} ]</div>
+  `;
+  document.getElementById('p2-next').disabled = false;
+}
+
+/* ---------- Same thing, many labels ---------- */
+const ANIMALS_LBL = [
+  {svg:'panda', species:{zh:'大熊猫',en:'Giant panda'}, color:{zh:'黑白',en:'B&W'}, cute:5},
+  {svg:'redpanda', species:{zh:'小熊猫',en:'Red panda'}, color:{zh:'橘红',en:'Orange'}, cute:5},
+  {svg:'raccoon', species:{zh:'浣熊',en:'Raccoon'}, color:{zh:'灰色',en:'Gray'}, cute:3},
+  {svg:'fox', species:{zh:'狐狸',en:'Fox'}, color:{zh:'橘红',en:'Orange'}, cute:4},
+  {svg:'bear', species:{zh:'棕熊',en:'Brown bear'}, color:{zh:'棕色',en:'Brown'}, cute:2},
+  {svg:'cat', species:{zh:'黑白猫',en:'Tuxedo cat'}, color:{zh:'黑白',en:'B&W'}, cute:4},
+  {svg:'skunk', species:{zh:'臭鼬',en:'Skunk'}, color:{zh:'黑白',en:'B&W'}, cute:1},
+  {svg:'polar', species:{zh:'北极熊',en:'Polar bear'}, color:{zh:'白色',en:'White'}, cute:4},
+];
+
+function svgMini(name){
+  const W=80, H=80;
+  const wrap = (inner, bg='#FAFBFC')=>`<svg viewBox="0 0 110 110" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect width="110" height="110" rx="10" fill="${bg}"/>${inner}</svg>`;
+  switch(name){
+    case 'panda':
+      return wrap(`<ellipse cx="55" cy="65" rx="34" ry="30" fill="#fff" stroke="#0F172A" stroke-width="1.5"/><circle cx="32" cy="38" r="11" fill="#0F172A"/><circle cx="78" cy="38" r="11" fill="#0F172A"/><ellipse cx="40" cy="52" rx="8" ry="10" fill="#0F172A"/><ellipse cx="70" cy="52" rx="8" ry="10" fill="#0F172A"/><circle cx="41" cy="52" r="3" fill="#fff"/><circle cx="71" cy="52" r="3" fill="#fff"/><ellipse cx="55" cy="64" rx="4" ry="3" fill="#0F172A"/>`);
+    case 'redpanda':
+      return wrap(`<ellipse cx="55" cy="68" rx="32" ry="28" fill="#EA580C"/><ellipse cx="55" cy="68" rx="22" ry="20" fill="#FED7AA"/><path d="M30 38 L40 18 L45 35 Z" fill="#EA580C"/><path d="M80 38 L70 18 L65 35 Z" fill="#EA580C"/><circle cx="42" cy="55" r="4" fill="#0F172A"/><circle cx="68" cy="55" r="4" fill="#0F172A"/><ellipse cx="55" cy="68" rx="3" ry="2" fill="#0F172A"/>`,'#FFF7ED');
+    case 'raccoon':
+      return wrap(`<ellipse cx="55" cy="68" rx="32" ry="28" fill="#94A3B8"/><rect x="28" y="50" width="55" height="14" rx="4" fill="#0F172A"/><circle cx="42" cy="57" r="4" fill="#fff"/><circle cx="68" cy="57" r="4" fill="#fff"/>`,'#F1F5F9');
+    case 'fox':
+      return wrap(`<path d="M55 30 L25 70 L40 80 L70 80 L85 70 Z" fill="#EA580C"/><ellipse cx="55" cy="65" rx="20" ry="16" fill="#FED7AA"/><circle cx="45" cy="52" r="3" fill="#0F172A"/><circle cx="65" cy="52" r="3" fill="#0F172A"/><path d="M55 60 L52 68 L58 68 Z" fill="#0F172A"/>`,'#FFF7ED');
+    case 'bear':
+      return wrap(`<ellipse cx="55" cy="68" rx="36" ry="30" fill="#92400E"/><circle cx="32" cy="40" r="9" fill="#92400E"/><circle cx="78" cy="40" r="9" fill="#92400E"/><ellipse cx="55" cy="72" rx="14" ry="10" fill="#D6A57C"/><circle cx="46" cy="58" r="3" fill="#0F172A"/><circle cx="64" cy="58" r="3" fill="#0F172A"/>`,'#FEF3C7');
+    case 'cat':
+      return wrap(`<ellipse cx="55" cy="72" rx="26" ry="22" fill="#0F172A"/><circle cx="55" cy="50" r="22" fill="#0F172A"/><ellipse cx="55" cy="60" rx="12" ry="10" fill="#fff"/><path d="M35 32 L40 18 L48 32 Z" fill="#0F172A"/><path d="M75 32 L70 18 L62 32 Z" fill="#0F172A"/><ellipse cx="47" cy="48" rx="3" ry="5" fill="#FBBF24"/><ellipse cx="63" cy="48" rx="3" ry="5" fill="#FBBF24"/>`);
+    case 'skunk':
+      return wrap(`<ellipse cx="50" cy="72" rx="30" ry="18" fill="#0F172A"/><rect x="48" y="55" width="6" height="35" fill="#fff"/><circle cx="32" cy="60" r="14" fill="#0F172A"/><circle cx="28" cy="60" r="2" fill="#fff"/>`,'#F1F5F9');
+    case 'polar':
+      return wrap(`<ellipse cx="55" cy="70" rx="38" ry="28" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/><circle cx="32" cy="44" r="9" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/><circle cx="78" cy="44" r="9" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/><circle cx="46" cy="60" r="3" fill="#0F172A"/><circle cx="64" cy="60" r="3" fill="#0F172A"/>`,'#E0F2FE');
+  }
+  return '';
+}
+
+function renderLabelGrid(){
+  const host = document.getElementById('label-grid');
+  host.innerHTML = ANIMALS_LBL.map((a,i)=>{
+    let label;
+    if(state.scheme==='species') label = `<span data-zh>${a.species.zh}</span><span data-en>${a.species.en}</span>`;
+    else if(state.scheme==='color') label = `<span data-zh>${a.color.zh}</span><span data-en>${a.color.en}</span>`;
+    else label = '⭐'.repeat(a.cute);
+    let bg;
+    if(state.scheme==='color'){
+      bg = a.color.en==='B&W'?'bg-slate-200':a.color.en==='Orange'?'bg-orange-200':a.color.en==='Gray'?'bg-gray-200':a.color.en==='Brown'?'bg-amber-200':a.color.en==='White'?'bg-blue-50':'bg-slate-200';
+    } else if(state.scheme==='cute'){
+      bg = a.cute>=4?'bg-pink-100':a.cute==3?'bg-pink-50':'bg-slate-100';
+    } else bg='bg-blue-50';
+    return `<div class="acard ${bg}">
+      <div class="aspect-square">${svgMini(a.svg)}</div>
+      <div class="acard-label">${label}</div>
+      <div class="text-xs mt-1 text-slate-600"><span data-zh>${a.species.zh}</span><span data-en>${a.species.en}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function setScheme(s){
+  state.scheme=s;
+  document.querySelectorAll('.scheme-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.scheme===s);
+  });
+  renderLabelGrid();
+}
+
+/* ---------- Bias ---------- */
+function biasAns(k){
+  state.biasAnswer = k;
+  document.querySelectorAll('#bias-q .choice-card').forEach(c=>c.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  setTimeout(()=>{
+    document.getElementById('bias-result').classList.remove('hidden');
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  }, 400);
+}
+
+/* ---------- Reflection ---------- */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M1-2',
+    pixelRounds:state.pixelGuesses.length,
+    featuresPicked:Object.values(state.features).filter(Boolean).length,
+    biasAnswer:state.biasAnswer,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m1-2', JSON.stringify(data));
+  goTo(6);
+}
+
+/* ---------- Navigation ---------- */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots = document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  if(n===1 && !document.getElementById('pixel-canvas').innerHTML){
+    renderPixelGrid();
+    renderPixelChoices();
+  }
+  if(n===2 && !document.getElementById('feat-list').innerHTML){
+    renderFeatures();
+  }
+  if(n===3 && !document.getElementById('label-grid').innerHTML){
+    renderLabelGrid();
+  }
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,pixelRound:0,pixelLevel:0,pixelGuesses:[],features:{},scheme:'species',biasAnswer:null,reflectChoice:null,reflectText:''});
+    document.getElementById('pixel-canvas').innerHTML='';
+    document.getElementById('pixel-choices').innerHTML='';
+    document.getElementById('feat-list').innerHTML='';
+    document.getElementById('feat-result').classList.add('hidden');
+    document.getElementById('label-grid').innerHTML='';
+    document.getElementById('bias-result').classList.add('hidden');
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

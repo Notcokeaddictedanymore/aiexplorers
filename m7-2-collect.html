@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M7-2 收数据 · Collect Your Data</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(168,85,247,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  .need-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem}
+  .src-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .src-card:hover{border-color:#94A3B8;transform:translateY(-1px)}
+  .src-card.picked{border-color:#10B981;background:#ECFDF5;box-shadow:0 0 0 4px rgba(16,185,129,.15)}
+  .bias-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .2s}
+  .bias-card.checked{border-color:#10B981;background:#ECFDF5}
+  .bias-card.warned{border-color:#F59E0B;background:#FFFBEB}
+  .ann-tile{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:3rem;cursor:pointer;transition:all .2s;border:3px solid #E2E8F0;background:#fff;position:relative}
+  .ann-tile:hover{transform:scale(1.05)}
+  .ann-tile.labeled-a{border-color:#3B82F6;background:#EFF6FF}
+  .ann-tile.labeled-b{border-color:#F59E0B;background:#FFFBEB}
+  .ann-tile.labeled-c{border-color:#10B981;background:#ECFDF5}
+  .ann-tile.labeled-d{border-color:#DC2626;background:#FEF2F2}
+  .b-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.6rem .9rem;width:100%;font-size:.9rem;transition:border .2s;font-family:inherit}
+  .b-input:focus{outline:none;border-color:#3B82F6}
+  .b-input.ok{border-color:#10B981;background:#F0FDF4}
+  .badge-glow{box-shadow:0 0 0 6px rgba(168,85,247,.08),0 0 0 12px rgba(168,85,247,.04),0 18px 40px -12px rgba(168,85,247,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M7-2 · Mission</span>
+      <span class="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Ch.7 · 毕业作品 / Capstone</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>采集 · 40 min</span><span data-en>Collect · 40 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>收数据：你的 AI 吃什么"粮食"？</span>
+      <span data-en>Collect Data: What Will Your AI Eat?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span><span class="step-dot"></span><span class="step-dot"></span><span class="step-dot"></span><span class="step-dot"></span><span class="step-dot"></span><span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label"><span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span></span>
+    </div>
+  </header>
+
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-purple-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>上一关你选了项目<strong>"<span class="text-purple-700" id="proj-name">—</span>"</strong>。今天的任务：<strong>给 AI 准备食物</strong>——也就是<strong>训练数据</strong>。</p>
+          <p class="text-lg leading-relaxed" data-en>Last mission you picked: <strong>"<span class="text-purple-700" id="proj-name-en">—</span>"</strong>. Today: <strong>prep AI\'s food</strong> — i.e., <strong>training data</strong>.</p>
+          <p class="mt-3 leading-relaxed" data-zh>Ch.3 你学了：数据有 4 大来源、收集过程藏着偏差、训练/测试要分开。<strong>今天你把这些原则用到自己的项目上</strong>——从"想做"变成"<strong>能做</strong>"。</p>
+          <p class="mt-3 leading-relaxed" data-en>Ch.3 taught: 4 data sources, hidden bias in collection, train/test split. <strong>Today apply all that to YOUR project</strong> — from "wanting" to <strong>"can"</strong>.</p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>完成本关后你会有：① 数据需求清单 ② 来源选择 + 计划 ③ 偏差自检 ④ 真实标注体验。</p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>After this mission you\'ll have: ① data needs list ② source plan ③ bias check ④ real labeling experience.</p>
+        </div>
+        <div class="mt-5"><button class="btn-primary" onclick="goTo(1)"><span data-zh>写你的数据需求清单 →</span><span data-en>Write your data needs →</span></button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你的 AI 要做<strong>分类</strong>。第一个问题：<strong>分几类</strong>？每类<strong>需要多少样本</strong>？</p>
+      <p data-en>Your AI does <strong>classification</strong>. First: <strong>how many classes</strong>? <strong>How many samples each</strong>?</p>
+    </div>
+    <div class="bg-white border-2 border-purple-200 rounded-2xl p-5">
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">① <span data-zh>你的 AI 要分成几类？</span><span data-en>How many classes will your AI distinguish?</span></label>
+          <input type="number" min="2" max="20" class="b-input" id="need-classes" placeholder="" data-zh-placeholder="一般 2-10 类，初学建议 3-5 类" data-en-placeholder="Usually 2-10, beginners 3-5" oninput="updateNeeds()"/>
+          <div class="text-xs text-slate-500 mt-1" data-zh>提示：类太多 = 数据需求暴增；类太少 = AI 不实用</div>
+          <div class="text-xs text-slate-500 mt-1" data-en>Tip: too many classes = explode data needs; too few = useless</div>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">② <span data-zh>每类至少几张样本？</span><span data-en>Min samples per class?</span></label>
+          <input type="number" min="10" max="500" class="b-input" id="need-perclass" placeholder="" data-zh-placeholder="建议 ≥30；Teachable Machine 起步 50-100" data-en-placeholder="≥30 recommended; Teachable Machine 50-100" oninput="updateNeeds()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">③ <span data-zh>多样性维度（至少 3 个）</span><span data-en>Diversity dimensions (≥3)</span></label>
+          <textarea class="b-input" id="need-diversity" placeholder="" data-zh-placeholder="例：① 光线（白天/夜晚/阴天）② 角度（正面/侧面/俯视）③ 背景（室内/室外）" data-en-placeholder="e.g. ① Lighting (day/night/cloudy) ② Angle (front/side/top) ③ Background (indoor/outdoor)" oninput="updateNeeds()"></textarea>
+          <div class="text-xs text-amber-700 mt-1 font-semibold" data-zh>⚠️ Ch.3 教训：只有"一种"维度的数据 → AI 偏差</div>
+          <div class="text-xs text-amber-700 mt-1 font-semibold" data-en>⚠️ Ch.3 lesson: only-one-dimension data → biased AI</div>
+        </div>
+        <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
+          <div class="text-xs uppercase text-purple-700 font-bold tracking-wide"><span data-zh>📊 数据总量估算</span><span data-en>📊 Estimated total</span></div>
+          <div class="text-3xl font-black text-purple-900 mt-1" id="need-total">— <span class="text-base font-normal text-purple-700"><span data-zh>张/段</span><span data-en>items</span></span></div>
+          <div class="text-xs text-slate-600 mt-1" id="need-total-note"><span data-zh>填上面的字段查看……</span><span data-en>Fill above to compute…</span></div>
+        </div>
+      </div>
+      <div class="mt-5 flex justify-end"><button class="btn-primary" id="p1-next" disabled onclick="goTo(2)"><span data-zh>下一关：选数据来源 →</span><span data-en>Next: pick sources →</span></button></div>
+    </div>
+  </section>
+
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你需要 <strong id="total-display">—</strong> 张数据。从 <strong>4 个来源</strong>选最适合你项目的（<strong>多选，建议 1-3 个</strong>）。</p>
+      <p data-en>You need <strong id="total-display-en">—</strong> items. Pick from <strong>4 sources</strong> best for your project (<strong>multi-select, 1-3 best</strong>).</p>
+    </div>
+    <div id="src-grid" class="grid sm:grid-cols-2 gap-4"></div>
+    <div class="mt-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+      <strong>💡 <span data-zh>专业建议</span><span data-en>Pro tip</span></strong>：
+      <span data-zh><strong>多源组合通常最好</strong>——自采保证质量、公开数据集快速启动、众包扩展规模。<strong>避开网络爬虫</strong>（版权风险）。</span>
+      <span data-en><strong>Multi-source usually wins</strong> — self-collect for quality, public for fast start, crowdsource for scale. <strong>Avoid web scraping</strong> (copyright risk).</span>
+    </div>
+    <div class="mt-5 flex items-center justify-between">
+      <div class="text-sm text-slate-600"><span data-zh>已选 </span><span data-en>Picked </span><strong id="src-picked-count">0</strong></div>
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)"><span data-zh>下一关：采集计划表 →</span><span data-en>Next: collection plan →</span></button>
+    </div>
+  </section>
+
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>"数据计划"不是"想想"——是<strong>有日期、有人、有设备</strong>的具体计划。写好这个，你<strong>2 周内</strong>就能完成数据采集。</p>
+      <p data-en>"Data plan" isn\'t "thinking" — it\'s a <strong>concrete plan with dates, people, equipment</strong>. Get this right, finish in <strong>2 weeks</strong>.</p>
+    </div>
+    <div class="bg-white border-2 border-purple-200 rounded-2xl p-5">
+      <div class="space-y-4">
+        <div><label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block"><span data-zh>📅 截止日期</span><span data-en>📅 Deadline</span></label><input type="text" class="b-input" id="plan-deadline" placeholder="" data-zh-placeholder="例：6 月 15 日完成全部采集 + 标注" data-en-placeholder="e.g. By June 15 — all collected + labeled" oninput="updatePlan()"/></div>
+        <div><label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block"><span data-zh>👥 谁来帮忙</span><span data-en>👥 Who helps</span></label><input type="text" class="b-input" id="plan-who" placeholder="" data-zh-placeholder="例：我 + 妹妹 + 同桌 + 妈妈每周抽 30 分钟" data-en-placeholder="e.g. Me + sister + deskmate + mom 30 min/week" oninput="updatePlan()"/></div>
+        <div><label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block"><span data-zh>📸 用什么设备</span><span data-en>📸 Equipment</span></label><input type="text" class="b-input" id="plan-gear" placeholder="" data-zh-placeholder="例：iPhone 13（妈妈）+ 我的 OPPO + 家里 iPad" data-en-placeholder="e.g. Mom\'s iPhone 13 + my OPPO + family iPad" oninput="updatePlan()"/></div>
+        <div><label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block"><span data-zh>📍 在哪儿采</span><span data-en>📍 Where</span></label><input type="text" class="b-input" id="plan-where" placeholder="" data-zh-placeholder="例：自家、学校食堂、外婆家、社区花园" data-en-placeholder="e.g. Home, school cafeteria, grandma\'s, community garden" oninput="updatePlan()"/></div>
+      </div>
+      <div class="mt-5 flex items-center justify-between"><div class="text-sm text-slate-600"><span id="plan-filled">0</span> / 4 <span data-zh>项完成</span><span data-en>filled</span></div><button class="btn-primary" id="p3-next" disabled onclick="goTo(4)"><span data-zh>下一关：偏差自检 →</span><span data-en>Next: bias self-check →</span></button></div>
+    </div>
+  </section>
+
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>M3-1 我教过你 4 种偏差。这次我们扩展到 <strong>5 种</strong>——让你<strong>逐一检查</strong>你的计划。<strong>每一项都要么打"✓ 没问题"，要么打"⚠️ 我会注意"</strong>。</p>
+      <p data-en>M3-1 covered 4 bias types. Now <strong>5 bias checks</strong> — <strong>review each</strong> against your plan. Mark "✓ OK" or "⚠️ I\'ll watch".</p>
+    </div>
+    <div class="flex items-center justify-between mb-3 text-sm"><div class="font-semibold text-slate-700"><span data-zh>已自检：</span><span data-en>Checked:</span><span id="bias-done">0</span> / 5</div></div>
+    <div id="bias-grid" class="space-y-3"></div>
+    <div class="mt-5 flex justify-end"><button class="btn-primary" id="p4-next" disabled onclick="goTo(5)"><span data-zh>下一关：体验数据标注 →</span><span data-en>Next: try labeling →</span></button></div>
+  </section>
+
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh><strong>数据标注</strong>是最累的环节——也是 AI 工程师<strong>从来不告诉你</strong>有多累的环节。亲身体验一下：12 张图，分 4 类。<strong>注意：有些图本身就模棱两可，你会理解"标注者主观判断"的难处</strong>。</p>
+      <p data-en><strong>Data labeling</strong> is the most tiring step — and the one engineers <strong>never tell you</strong> is so tiring. Try it: 12 images, 4 classes. <strong>Note: some are ambiguous — feel "labeler subjectivity" firsthand</strong>.</p>
+    </div>
+    <div class="bg-white border-2 border-purple-200 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3 text-sm flex-wrap gap-2">
+        <div class="font-semibold"><span data-zh>给每张图选一类：</span><span data-en>Label each image:</span></div>
+        <div class="flex gap-2 text-xs">
+          <span class="px-2 py-1 rounded bg-blue-100 text-blue-700 font-bold">A · <span data-zh>水果</span><span data-en>Fruit</span></span>
+          <span class="px-2 py-1 rounded bg-amber-100 text-amber-700 font-bold">B · <span data-zh>蔬菜</span><span data-en>Veggie</span></span>
+          <span class="px-2 py-1 rounded bg-green-100 text-green-700 font-bold">C · <span data-zh>谷物</span><span data-en>Grain</span></span>
+          <span class="px-2 py-1 rounded bg-red-100 text-red-700 font-bold">D · <span data-zh>不确定</span><span data-en>Unsure</span></span>
+        </div>
+      </div>
+      <div id="ann-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4"></div>
+      <div class="text-sm text-slate-600 mb-3"><span data-zh>已标：</span><span data-en>Labeled:</span><strong id="ann-count">0</strong> / 12</div>
+      <div id="ann-result" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm"></div>
+    </div>
+    <div class="mt-5 flex justify-end"><button class="btn-primary" id="p5-next" disabled onclick="goTo(6)"><span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span></button></div>
+  </section>
+
+  <section class="phase" id="p6">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>收数据是 AI 项目<strong>最不性感、最关键</strong>的环节。最后请你写下：</p>
+      <p data-en>Data collection is AI\'s <strong>least sexy, most critical</strong> phase. Reflect:</p>
+    </div>
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)"><input type="radio" name="reflect" class="mr-2"/><span data-zh>① 你刚才标的 12 张图里，<strong>有几张让你犹豫</strong>？人都犹豫的图，AI 怎么办？</span><span data-en>① Of the 12 images you labeled, <strong>how many made you hesitate</strong>? What does AI do with images even humans waver on?</span></label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)"><input type="radio" name="reflect" class="mr-2"/><span data-zh>② 如果<strong>另一个同学</strong>来标这 12 张，你猜结果会和你一样吗？这对 AI 训练有什么启示？</span><span data-en>② If <strong>another classmate</strong> labeled the same 12, would results match? What does this tell us about training?</span></label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)"><input type="radio" name="reflect" class="mr-2"/><span data-zh>③ 你的项目<strong>真实采集</strong>会有什么困难？你能<strong>找到帮手</strong>吗？</span><span data-en>③ What challenges in <strong>real collection</strong>? Can you <strong>find help</strong>?</span></label>
+    </div>
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition" placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2"><div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div><button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()"><span data-zh>提交并完成 M7-2 →</span><span data-en>Submit & finish →</span></button></div>
+  </section>
+
+  <section class="phase" id="p7">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-purple-500 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="46" fill="#a855f7" stroke="#fff" stroke-width="3"/><circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/><text x="50" y="62" font-size="38" text-anchor="middle">📥</text></svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 2 关完成</span><span data-en>Mission #2 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"数据架构师" 徽章已解锁</span><span data-en>"Data Architect" badge unlocked</span></p>
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-purple-50 border border-purple-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天做出了……</span><span data-en>You produced…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh><strong>数据需求清单</strong>：类数、每类样本、多样性维度、总量</span><span data-en><strong>Data needs list</strong>: classes, samples each, diversity, total</span></li>
+          <li>✓ <span data-zh><strong>数据来源组合</strong>（避开了爬虫陷阱）</span><span data-en><strong>Source combo</strong> (avoided web-scrape trap)</span></li>
+          <li>✓ <span data-zh><strong>采集计划表</strong>：截止日期、人员、设备、地点</span><span data-en><strong>Collection plan</strong>: deadline, people, gear, locations</span></li>
+          <li>✓ <span data-zh><strong>5 项偏差自检</strong>已通过</span><span data-en><strong>5-point bias check</strong> passed</span></li>
+          <li>✓ <span data-zh>体验了<strong>数据标注的真实工作量 + 主观性</strong></span><span data-en>Experienced <strong>real labeling work + subjectivity</strong></span></li>
+        </ul>
+      </div>
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m7-3-train.html'"><span data-zh>下一关：M7-3 训练 + 评估 →</span><span data-en>Next: M7-3 Train + Evaluate →</span></button>
+      </div>
+      <div class="mt-3"><a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a></div>
+    </div>
+  </section>
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400"><span data-zh>从0开始学AI · M7-2 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M7-2 · Dev: Gu Yuehan · 2026</span></footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){document.body.classList.toggle('lang-en');LANG=document.body.classList.contains('lang-en')?'en':'zh';localStorage.setItem(LANG_KEY,LANG);updatePlaceholders();}
+function updatePlaceholders(){document.querySelectorAll('.b-input').forEach(el=>{const ph=el.getAttribute(LANG==='en'?'data-en-placeholder':'data-zh-placeholder');if(ph)el.placeholder=ph;});}
+
+const m61 = JSON.parse(localStorage.getItem('lingxi-m7-1')||'null');
+const projectName = m61?.project?.name || '你的 AI 项目';
+document.getElementById('proj-name').textContent = projectName;
+document.getElementById('proj-name-en').textContent = projectName;
+
+const SOURCES = [
+  {id:'self', emoji:'📸', name:{zh:'自己采集',en:'Self-collect'}, pro:{zh:'质量最高、版权 100% 你的、贴合需求',en:'Top quality + 100% your copyright + perfect fit'}, con:{zh:'慢、规模小、容易有自己的偏见',en:'Slow + small scale + personal bias risk'}, best:{zh:'核心数据、最终验证、特殊场景',en:'Core data, final validation, special scenarios'}},
+  {id:'crowd', emoji:'👥', name:{zh:'众包（请同学/家人帮）',en:'Crowdsource (classmates/family)'}, pro:{zh:'多样性好、扩规模快',en:'Diverse + scales fast'}, con:{zh:'要培训他们怎么拍/标、质量不稳定',en:'Need to train them + uneven quality'}, best:{zh:'扩大规模、增加多样性',en:'Scale up + add diversity'}},
+  {id:'public', emoji:'📚', name:{zh:'公开数据集',en:'Public datasets'}, pro:{zh:'免费、已标注、快速启动',en:'Free + labeled + fast start'}, con:{zh:'可能不匹配你的具体场景、可能过时',en:'May not match your context + may be outdated'}, best:{zh:'类似项目启动、基础数据',en:'Bootstrap similar projects, baseline data'}},
+  {id:'crawl', emoji:'🕷️', name:{zh:'网络爬虫',en:'Web crawling'}, pro:{zh:'量大、覆盖广',en:'Huge volume + wide coverage'}, con:{zh:'⚠️ <strong>版权风险大</strong>、质量乱、还要自己标',en:'⚠️ <strong>Copyright risk</strong> + messy quality + needs labeling'}, best:{zh:'⚠️ <strong>初学者不推荐</strong>',en:'⚠️ <strong>Not recommended for beginners</strong>'}},
+];
+
+const BIASES = [
+  {id:'time', emoji:'☀️', q:{zh:'<strong>时间偏差</strong>：你的数据是不是<strong>只在某段时间</strong>采集？',en:'<strong>Time bias</strong>: data only from <strong>certain time</strong>?'}, warn:{zh:'⚠️ 解决：分散在<strong>不同时段</strong>采（晨/午/晚/不同周/不同月）',en:'⚠️ Fix: spread across <strong>different times</strong> (AM/noon/PM/diff weeks/months)'}},
+  {id:'place', emoji:'📍', q:{zh:'<strong>地点偏差</strong>：你的数据是不是<strong>只在 1-2 个地点</strong>采集？',en:'<strong>Place bias</strong>: data only from <strong>1-2 locations</strong>?'}, warn:{zh:'⚠️ 解决：去<strong>多个地点</strong>采（不同区域、不同光线、不同背景）',en:'⚠️ Fix: collect at <strong>multiple sites</strong> (regions, lighting, backgrounds)'}},
+  {id:'who', emoji:'🧑‍🤝‍🧑', q:{zh:'<strong>人群偏差</strong>：你的数据是不是<strong>只包含某一类人</strong>？（如全是同学、全是男生）',en:'<strong>Demographic bias</strong>: data only from <strong>certain people</strong>? (all classmates, all boys)'}, warn:{zh:'⚠️ 解决：邀请<strong>不同年龄、性别、背景</strong>的人参与',en:'⚠️ Fix: invite <strong>varied age, gender, background</strong>'}},
+  {id:'device', emoji:'📷', q:{zh:'<strong>设备偏差</strong>：你的数据是不是<strong>只用 1 部手机</strong>采的？',en:'<strong>Device bias</strong>: data only from <strong>1 phone</strong>?'}, warn:{zh:'⚠️ 解决：用<strong>多个设备</strong>采（不同手机、不同摄像头）',en:'⚠️ Fix: use <strong>multiple devices</strong> (diff phones/cameras)'}},
+  {id:'label', emoji:'🏷️', q:{zh:'<strong>标注偏差</strong>：所有标签<strong>只有你一个人打</strong>？',en:'<strong>Labeling bias</strong>: are all labels <strong>by you alone</strong>?'}, warn:{zh:'⚠️ 解决：至少 <strong>2 人独立标</strong>，对比差异处再决定',en:'⚠️ Fix: at least <strong>2 people label independently</strong>, then reconcile differences'}},
+];
+
+const ANN_ITEMS = [
+  {emoji:'🍎', correct:'a', name:{zh:'苹果',en:'Apple'}},
+  {emoji:'🥕', correct:'b', name:{zh:'胡萝卜',en:'Carrot'}},
+  {emoji:'🌽', correct:'c', name:{zh:'玉米',en:'Corn'}, note:{zh:'玉米算谷物还是蔬菜？争议！',en:'Corn = grain or veggie? Debated!'}},
+  {emoji:'🍅', correct:'a', name:{zh:'西红柿',en:'Tomato'}, note:{zh:'植物学上是水果，菜场归蔬菜',en:'Fruit botanically, veggie at market'}},
+  {emoji:'🍓', correct:'a', name:{zh:'草莓',en:'Strawberry'}},
+  {emoji:'🥔', correct:'b', name:{zh:'土豆',en:'Potato'}, note:{zh:'有人认为是谷物（淀粉多）',en:'Some call it grain (starchy)'}},
+  {emoji:'🌾', correct:'c', name:{zh:'水稻',en:'Rice'}},
+  {emoji:'🥑', correct:'a', name:{zh:'牛油果',en:'Avocado'}, note:{zh:'技术上是水果，常用作蔬菜',en:'Botanically fruit, used as veggie'}},
+  {emoji:'🫑', correct:'b', name:{zh:'青椒',en:'Bell pepper'}, note:{zh:'同上，又是争议',en:'Same controversy'}},
+  {emoji:'🌰', correct:'c', name:{zh:'板栗',en:'Chestnut'}, note:{zh:'坚果但通常归谷物类淀粉',en:'Nut but often grouped as grain-starch'}},
+  {emoji:'🍌', correct:'a', name:{zh:'香蕉',en:'Banana'}},
+  {emoji:'🥒', correct:'b', name:{zh:'黄瓜',en:'Cucumber'}, note:{zh:'又是植物学水果，菜场蔬菜',en:'Botanically fruit, veggie at market'}},
+];
+
+const state = {phase:0, needs:{classes:0,perclass:0,diversity:''}, sources:new Set(), plan:{deadline:'',who:'',gear:'',where:''}, biases:{}, annotations:{}, reflectChoice:null, reflectText:''};
+
+function updateNeeds(){
+  state.needs.classes = +document.getElementById('need-classes').value || 0;
+  state.needs.perclass = +document.getElementById('need-perclass').value || 0;
+  state.needs.diversity = document.getElementById('need-diversity').value;
+  document.getElementById('need-classes').classList.toggle('ok', state.needs.classes>=2);
+  document.getElementById('need-perclass').classList.toggle('ok', state.needs.perclass>=30);
+  const divOK = Array.from(state.needs.diversity).length>=15;
+  document.getElementById('need-diversity').classList.toggle('ok', divOK);
+  if(state.needs.classes>0 && state.needs.perclass>0){
+    const total = state.needs.classes * state.needs.perclass;
+    document.getElementById('need-total').innerHTML = total.toLocaleString() + ' <span class="text-base font-normal text-purple-700"><span data-zh>张/段</span><span data-en>items</span></span>';
+    let note;
+    if(total<100) note={zh:'起步少 — 适合 1 周采完',en:'Small start — finishable in 1 week'};
+    else if(total<500) note={zh:'中等 — 2 周内完成',en:'Medium — 2 weeks'};
+    else if(total<2000) note={zh:'较大 — 需要众包',en:'Large — needs crowdsourcing'};
+    else note={zh:'⚠️ 量太大 — 12 岁可能完成不了，考虑减少类数或样本数',en:'⚠️ Too much — consider fewer classes/samples'};
+    document.getElementById('need-total-note').innerHTML = `<span data-zh>${note.zh}</span><span data-en>${note.en}</span>`;
+  }
+  document.getElementById('p1-next').disabled = !(state.needs.classes>=2 && state.needs.perclass>=30 && divOK);
+}
+
+function renderSources(){
+  const total = state.needs.classes * state.needs.perclass;
+  document.getElementById('total-display').textContent = total>0?total.toLocaleString():'—';
+  document.getElementById('total-display-en').textContent = total>0?total.toLocaleString():'—';
+  const host = document.getElementById('src-grid');
+  host.innerHTML = SOURCES.map(s=>`
+    <div class="src-card ${state.sources.has(s.id)?'picked':''}" data-id="${s.id}" onclick="pickSource('${s.id}')">
+      <div class="flex items-center gap-2 mb-2"><div class="text-3xl">${s.emoji}</div><div class="font-bold text-sm"><span data-zh>${s.name.zh}</span><span data-en>${s.name.en}</span></div></div>
+      <div class="text-xs space-y-1">
+        <div><span class="text-green-700 font-bold">✓ </span><span data-zh>${s.pro.zh}</span><span data-en>${s.pro.en}</span></div>
+        <div><span class="text-red-700 font-bold">✗ </span><span data-zh>${s.con.zh}</span><span data-en>${s.con.en}</span></div>
+        <div class="mt-2 pt-2 border-t border-slate-100"><strong><span data-zh>最适合</span><span data-en>Best for</span>：</strong><span data-zh>${s.best.zh}</span><span data-en>${s.best.en}</span></div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('src-picked-count').textContent = state.sources.size;
+  document.getElementById('p2-next').disabled = state.sources.size<1;
+}
+function pickSource(id){if(state.sources.has(id))state.sources.delete(id);else state.sources.add(id);renderSources();}
+
+function updatePlan(){
+  state.plan.deadline=document.getElementById('plan-deadline').value;state.plan.who=document.getElementById('plan-who').value;state.plan.gear=document.getElementById('plan-gear').value;state.plan.where=document.getElementById('plan-where').value;
+  let filled=0;
+  ['plan-deadline','plan-who','plan-gear','plan-where'].forEach(id=>{const el=document.getElementById(id);const ok=Array.from(el.value).length>=5;el.classList.toggle('ok',ok);if(ok)filled++;});
+  document.getElementById('plan-filled').textContent=filled;
+  document.getElementById('p3-next').disabled=filled<4;
+}
+
+function renderBiases(){
+  const host = document.getElementById('bias-grid');
+  host.innerHTML = BIASES.map(b=>{
+    const ans=state.biases[b.id];
+    return `<div class="bias-card ${ans==='ok'?'checked':ans==='warn'?'warned':''}" data-id="${b.id}">
+      <div class="flex items-start gap-3 mb-2"><div class="text-3xl">${b.emoji}</div><p class="text-sm flex-1"><span data-zh>${b.q.zh}</span><span data-en>${b.q.en}</span></p></div>
+      ${ans?`<div class="text-xs p-2 rounded ${ans==='ok'?'bg-green-50 text-green-800':'bg-amber-50 text-amber-800'}">${ans==='ok'?'✓ '+(LANG==='en'?'OK':'没问题'):'⚠️ '+(LANG==='en'?'I\\'ll watch':'我会注意')}：<span data-zh>${b.warn.zh}</span><span data-en>${b.warn.en}</span></div>`:`<div class="flex gap-2"><button class="btn-ghost text-sm flex-1 border-green-300" onclick="biasAns('${b.id}','ok')">✓ <span data-zh>没问题</span><span data-en>OK</span></button><button class="btn-ghost text-sm flex-1 border-amber-300" onclick="biasAns('${b.id}','warn')">⚠️ <span data-zh>我会注意</span><span data-en>I\'ll watch</span></button></div>`}
+    </div>`;
+  }).join('');
+}
+function biasAns(id,ans){state.biases[id]=ans;renderBiases();const done=Object.keys(state.biases).length;document.getElementById('bias-done').textContent=done;if(done>=5)document.getElementById('p4-next').disabled=false;}
+
+function renderAnn(){
+  const host = document.getElementById('ann-grid');
+  host.innerHTML = ANN_ITEMS.map((it,i)=>{
+    const ans=state.annotations[i];
+    const lc=ans?'labeled-'+ans:'';
+    return `<div class="ann-tile ${lc}" data-idx="${i}" onclick="annClick(${i})">${it.emoji}${ans?`<div class="absolute bottom-1 right-1 bg-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold border-2 border-current">${ans.toUpperCase()}</div>`:''}</div>`;
+  }).join('');
+}
+function annClick(idx){
+  const cur=state.annotations[idx];
+  const next=cur==='a'?'b':cur==='b'?'c':cur==='c'?'d':cur==='d'?null:'a';
+  if(next===null)delete state.annotations[idx];else state.annotations[idx]=next;
+  renderAnn();
+  const count=Object.keys(state.annotations).length;
+  document.getElementById('ann-count').textContent=count;
+  if(count>=12){showAnnResult();document.getElementById('p5-next').disabled=false;}
+}
+function showAnnResult(){
+  let strict=0,ambig=0;
+  Object.entries(state.annotations).forEach(([i,a])=>{const it=ANN_ITEMS[+i];if(a===it.correct)strict++;if(it.note)ambig++;});
+  const box=document.getElementById('ann-result');box.classList.remove('hidden');
+  box.innerHTML=`<div class="font-bold mb-2">🤔 <span data-zh>结果分析</span><span data-en>Analysis</span></div>
+    <p data-zh>你的"标准"答案 <strong>${strict} / 12</strong>。但其中 <strong>${ambig}</strong> 张图本身就<strong>有争议</strong>——西红柿、玉米、黄瓜、青椒、牛油果……</p>
+    <p data-en>Your "correct" answers: <strong>${strict} / 12</strong>. But <strong>${ambig}</strong> are <strong>genuinely ambiguous</strong> — tomato, corn, cucumber, bell pepper, avocado…</p>
+    <div class="mt-3 p-3 bg-white rounded text-xs"><strong>💡 <span data-zh>这意味着</span><span data-en>This means</span></strong>：<span data-zh>真实数据标注中，<strong>10-20% 的样本</strong>本身就有争议。<strong>不同标注者给的标签不同</strong>——这就是为什么真实项目<strong>需要多人独立标 + 协商</strong>。你的项目也要这样。</span><span data-en>Real labeling: <strong>10-20% of samples</strong> are inherently ambiguous. <strong>Different labelers disagree</strong>. That\'s why real projects need <strong>multi-labeler + reconciliation</strong>. Yours should too.</span></div>`;
+}
+
+function selReflect(i){state.reflectChoice=i;document.querySelectorAll('input[name=reflect]')[i].checked=true;updateReflectCount();}
+function updateReflectCount(){const t=document.getElementById('reflect-text').value;state.reflectText=t;const len=Array.from(t).length;document.getElementById('reflect-count').textContent=len;document.getElementById('reflect-submit').disabled=!(len>=50&&state.reflectChoice!==null);}
+function submitReflect(){
+  const data={timestamp:Date.now(),mission:'M7-2',needs:state.needs,sources:[...state.sources],plan:state.plan,biases:state.biases,annotations:state.annotations,reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m7-2',JSON.stringify(data));goTo(7);
+}
+
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{d.classList.remove('done','current');if(i<n)d.classList.add('done');else if(i===n)d.classList.add('current');});
+  const lbl=document.getElementById('step-label');
+  if(lbl){const shown=Math.min(n+1,7);lbl.innerHTML=`<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;}
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1)updatePlaceholders();
+  if(n===2)renderSources();
+  if(n===3)updatePlaceholders();
+  if(n===4)renderBiases();
+  if(n===5)renderAnn();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.needs={classes:0,perclass:0,diversity:''};state.sources=new Set();state.plan={deadline:'',who:'',gear:'',where:''};state.biases={};state.annotations={};state.reflectChoice=null;state.reflectText='';
+    ['need-classes','need-perclass','need-diversity','plan-deadline','plan-who','plan-gear','plan-where','reflect-text'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('bias-done').textContent='0';document.getElementById('ann-count').textContent='0';document.getElementById('ann-result').classList.add('hidden');
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    ['p1','p2','p3','p4','p5'].forEach(p=>{const b=document.getElementById(p+'-next');if(b)b.disabled=true;});
+    goTo(0);
+  }
+}
+
+updatePlaceholders();
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+@media (max-width:640px){.save-toast{bottom:auto;top:72px;right:16px}}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

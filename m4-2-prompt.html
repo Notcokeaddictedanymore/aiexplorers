@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4-2 提示词工程 · How to Ask AI Like a Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Compare panel */
+  .compare-panel{background:#fff;border-radius:16px;overflow:hidden;border:2px solid #E2E8F0}
+  .compare-bad{background:#FEF2F2;border-left:6px solid #DC2626;padding:1rem}
+  .compare-good{background:#ECFDF5;border-left:6px solid #10B981;padding:1rem}
+  .compare-prompt{font-family:Menlo,Monaco,Consolas,monospace;font-size:.85rem;background:#fff;border-radius:8px;padding:.6rem;border:1px solid rgba(0,0,0,.08)}
+  .compare-response{font-size:.9rem;padding:.6rem;background:rgba(255,255,255,.6);border-radius:8px;margin-top:.5rem;border:1px solid rgba(0,0,0,.05)}
+
+  /* RCTF element cards */
+  .rctf-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1.1rem;transition:all .2s}
+  .rctf-card.role{border-top:5px solid #DC2626}
+  .rctf-card.context{border-top:5px solid #F59E0B}
+  .rctf-card.task{border-top:5px solid #10B981}
+  .rctf-card.format{border-top:5px solid #3B82F6}
+
+  /* Prompt builder inputs */
+  .builder-input{width:100%;padding:.6rem .9rem;background:#fff;border:2px solid #E2E8F0;border-radius:10px;font-size:.9rem;font-family:inherit;transition:border .2s}
+  .builder-input:focus{outline:none;border-color:#3B82F6}
+  .builder-input.ok{border-color:#10B981;background:#F0FDF4}
+
+  /* Live prompt preview */
+  .live-prompt{background:#0F172A;color:#94E5A4;border-radius:10px;padding:1rem;font-family:Menlo,Monaco,Consolas,monospace;font-size:.85rem;line-height:1.7;min-height:120px;white-space:pre-wrap}
+
+  /* Tip cards */
+  .tip-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .tip-card:hover{border-color:#94A3B8}
+  .tip-card.read{border-color:#10B981}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M4-2 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.4 · 对话 / Interaction</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>探索 · 25 min</span><span data-en>Explore · 25 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>提示词工程：怎么问，决定 AI 答得多好</span>
+      <span data-en>Prompt Engineering: How to Ask Determines What You Get</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            上一关你看到，<strong>同一个开头 + 不同身份</strong>能写出完全不同的诗。这就是<strong>提示词的力量</strong>。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Last mission: <strong>same opener + different persona = wildly different output</strong>. That's <strong>prompt power</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            你昨天问 AI"<strong>帮我写作文</strong>"，它给的烂得想哭——为什么？因为你给的<strong>太少</strong>。AI 不是读心术大师，它能给你的好坏，<strong>取决于你给的多准</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Yesterday you asked AI "<strong>write me an essay</strong>" and got garbage — why? You gave <strong>too little</strong>. AI isn't a mind reader. What you get depends on <strong>what you give</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            今天我教你<strong>专业的"问 AI"方法</strong>——业内叫"<strong>提示词工程（Prompt Engineering）</strong>"。学完这一关，你就比 90% 的 AI 用户更会用 AI。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Today: pro-level <strong>"asking AI"</strong> — called <strong>Prompt Engineering</strong>. Master this, and you'll out-ask 90% of AI users.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看烂提示 vs 好提示对比 →</span><span data-en>See bad vs good prompts →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: BAD VS GOOD ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 <strong>3 对</strong>提示词对比。<strong>烂提示</strong>在左（红边），<strong>好提示</strong>在右（绿边）——同一个 AI 给出的答案天差地别。看完 3 对再继续。</p>
+      <p data-en><strong>3 prompt pairs</strong> below. <strong>Bad</strong> on left (red), <strong>good</strong> on right (green). Same AI, wildly different answers. Read all 3.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="pair-count">0</span> / 3</div>
+    </div>
+
+    <div id="pair-list" class="space-y-5"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：提示词四要素 →</span><span data-en>Next: RCTF framework →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: RCTF FRAMEWORK ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>好提示有<strong>四要素</strong>，简称 <strong>R-C-T-F</strong>：<strong>角色（Role） · 背景（Context） · 任务（Task） · 格式（Format）</strong>。把这 4 件事说清楚，AI 立刻变聪明。</p>
+      <p data-en>Good prompts have <strong>4 elements</strong>, <strong>R-C-T-F</strong>: <strong>Role · Context · Task · Format</strong>. Spell them out and AI gets smart.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4 mb-5">
+      <div class="rctf-card role">
+        <div class="font-bold text-lg mb-1">🎭 R · <span data-zh>角色 Role</span><span data-en>Role</span></div>
+        <p class="text-sm text-slate-700 mb-2" data-zh>告诉 AI"<strong>你是谁</strong>"——它会进入这个角色的语料库。</p>
+        <p class="text-sm text-slate-700 mb-2" data-en>Tell AI <strong>who it is</strong> — it'll pull from that role's corpus.</p>
+        <div class="bg-slate-50 rounded p-2 text-xs font-mono">
+          <span data-zh>例：你是一位有 10 年经验的语文老师，擅长……</span>
+          <span data-en>e.g. You are a 10-year veteran Chinese teacher, expert at…</span>
+        </div>
+      </div>
+      <div class="rctf-card context">
+        <div class="font-bold text-lg mb-1">📚 C · <span data-zh>背景 Context</span><span data-en>Context</span></div>
+        <p class="text-sm text-slate-700 mb-2" data-zh>告诉 AI"<strong>我是谁、什么情况</strong>"——它能更精准。</p>
+        <p class="text-sm text-slate-700 mb-2" data-en>Tell AI <strong>who you are, the situation</strong> — pinpoint accuracy.</p>
+        <div class="bg-slate-50 rounded p-2 text-xs font-mono">
+          <span data-zh>例：我是初一学生，下周要交作文……</span>
+          <span data-en>e.g. I'm a 7th grader, essay due next week…</span>
+        </div>
+      </div>
+      <div class="rctf-card task">
+        <div class="font-bold text-lg mb-1">🎯 T · <span data-zh>任务 Task</span><span data-en>Task</span></div>
+        <p class="text-sm text-slate-700 mb-2" data-zh>告诉 AI"<strong>具体要做什么</strong>"——动词 + 名词 + 限定。</p>
+        <p class="text-sm text-slate-700 mb-2" data-en>Tell AI <strong>specifically what to do</strong> — verb + noun + constraints.</p>
+        <div class="bg-slate-50 rounded p-2 text-xs font-mono">
+          <span data-zh>例：写一篇 600 字记叙文，主题"我的母亲"，结构 3 段。</span>
+          <span data-en>e.g. Write a 600-word narrative about "my mother" in 3 paragraphs.</span>
+        </div>
+      </div>
+      <div class="rctf-card format">
+        <div class="font-bold text-lg mb-1">📐 F · <span data-zh>格式 Format</span><span data-en>Format</span></div>
+        <p class="text-sm text-slate-700 mb-2" data-zh>告诉 AI"<strong>用什么样子给我</strong>"——清单/表格/分点/JSON……</p>
+        <p class="text-sm text-slate-700 mb-2" data-en>Tell AI <strong>how to format</strong> — list / table / points / JSON…</p>
+        <div class="bg-slate-50 rounded p-2 text-xs font-mono">
+          <span data-zh>例：分 3 段，每段开头用括号标技巧。</span>
+          <span data-en>e.g. 3 paragraphs, each starting with technique in parentheses.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+      <strong>🧠 <span data-zh>记忆口诀</span><span data-en>Mnemonic</span></strong>：
+      <span data-zh><strong>"你是谁，我是谁，要干嘛，长啥样"</strong>——4 句话搞定 AI。</span>
+      <span data-en><strong>"Who are you, who am I, what to do, what shape"</strong> — 4 lines, AI solved.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(3)">
+        <span data-zh>下一关：你来改造烂提示 →</span><span data-en>Next: fix a bad prompt →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: BUILD YOUR PROMPT ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh><strong>任务</strong>：你想让 AI 帮你给数学老师写一封请假信——爷爷生病住院，你想请假 3 天去陪。</p>
+      <p data-en><strong>Task</strong>: get AI to write a 3-day sick-leave note to your math teacher — grandpa is hospitalized.</p>
+      <p class="text-red-700 font-bold mt-2" data-zh>烂提示版本：<span class="font-mono bg-red-50 px-2 py-1 rounded">"帮我写请假信"</span> ← AI 写出来的肯定不能用</p>
+      <p class="text-red-700 font-bold mt-2" data-en>Bad version: <span class="font-mono bg-red-50 px-2 py-1 rounded">"write me a leave note"</span> ← AI's output will be useless</p>
+      <p class="mt-2" data-zh><strong>请你填 4 个空</strong>，做一个专业级提示词。</p>
+      <p class="mt-2" data-en><strong>Fill 4 fields</strong> to build a pro prompt.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <!-- Builder -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 space-y-3">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wide text-red-700 mb-1">🎭 R · <span data-zh>角色 Role</span><span data-en>Role</span></label>
+          <input type="text" class="builder-input" id="b-role" placeholder="" data-zh-placeholder="例：你是一位温和、有同情心的中文老师" data-en-placeholder="e.g. You are a kind, empathetic Chinese teacher" oninput="updatePrompt()"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wide text-amber-700 mb-1">📚 C · <span data-zh>背景 Context</span><span data-en>Context</span></label>
+          <input type="text" class="builder-input" id="b-context" placeholder="" data-zh-placeholder="例：我是初一学生，爷爷生病住院，需要请假 3 天" data-en-placeholder="e.g. I'm a 7th grader, grandpa hospitalized, need 3 days off" oninput="updatePrompt()"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wide text-green-700 mb-1">🎯 T · <span data-zh>任务 Task</span><span data-en>Task</span></label>
+          <input type="text" class="builder-input" id="b-task" placeholder="" data-zh-placeholder="例：写一封请假信给数学老师，理由真实合理" data-en-placeholder="e.g. Write a leave note to my math teacher, sincere reason" oninput="updatePrompt()"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wide text-blue-700 mb-1">📐 F · <span data-zh>格式 Format</span><span data-en>Format</span></label>
+          <input type="text" class="builder-input" id="b-format" placeholder="" data-zh-placeholder="例：300 字以内，礼貌真诚，开头称呼老师，结尾签名" data-en-placeholder="e.g. Under 300 words, polite, with greeting + signature" oninput="updatePrompt()"/>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between text-sm">
+          <div class="text-slate-600"><span data-zh>已填：</span><span data-en>Filled:</span><strong id="filled-count">0</strong>/4</div>
+          <button class="btn-primary text-sm" id="ask-ai-btn" disabled onclick="askAI()">
+            🤖 <span data-zh>问 AI</span><span data-en>Ask AI</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="space-y-3">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-1"><span data-zh>你给 AI 的最终提示词</span><span data-en>Final prompt to AI</span></div>
+          <div class="live-prompt" id="live-prompt"><span data-zh>（边填边看……）</span><span data-en>(builds as you type…)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Response -->
+    <div id="ai-response" class="hidden mt-5">
+      <div class="text-xs font-bold uppercase tracking-wide text-green-700 mb-2">🤖 <span data-zh>AI 的回答（基于你的提示词）</span><span data-en>AI's response (based on your prompt)</span></div>
+      <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4 text-sm whitespace-pre-wrap" id="ai-resp-text"></div>
+      <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+        <strong>✨ <span data-zh>对比一下</span><span data-en>Compare</span></strong>
+        <span data-zh>：如果你只问"帮我写请假信"，AI 给你的是<strong>泛泛的模板</strong>。你刚加的 4 要素让它能写出<strong>专属于你的、真诚的、可以直接交</strong>的请假信。这就是提示词工程的力量。</span>
+        <span data-en>: "Write me a leave note" would give a <strong>generic template</strong>. Your 4 elements made it write something <strong>personal, sincere, ready-to-submit</strong>. That's prompt engineering.</span>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：进阶技巧 →</span><span data-en>Next: advanced tips →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: ADVANCED TIPS ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>掌握了 R-C-T-F，再学 <strong>3 个进阶技巧</strong>。这些是 AI 工程师才会用的小妙招——你提前学会，秒变高手。</p>
+      <p data-en>R-C-T-F mastered. Now <strong>3 advanced tricks</strong> — pro engineer tactics. Learn now, leap ahead.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="tip-count">0</span> / 3</div>
+    </div>
+
+    <div id="tip-grid" class="grid md:grid-cols-3 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>提示词工程是 2023 年后突然变重要的<strong>新技能</strong>。会的人 + AI = 10 倍效率。请你写下：</p>
+      <p data-en>Prompt engineering is the <strong>new skill</strong> post-2023. Knowing it + AI = 10× productivity. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你今天写过的一个"烂提示"是什么？现在你会怎么改？</span>
+        <span data-en>① What's a "bad prompt" you wrote recently? How would you fix it now?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 提示词工程是不是"新作文课"？它对未来的语文/英语教育有什么影响？</span>
+        <span data-en>② Is prompt engineering "the new composition class"? What does it mean for language education?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 学会"会问 AI"和"自己会做"，应该先学哪个？两个都重要吗？</span>
+        <span data-en>③ Learn "ask AI well" or "do it yourself" first? Are both important?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M4-2 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-blue-500 to-purple-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#60A5FA" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">💬</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 2 关完成</span><span data-en>Mission #2 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"提示词工程师" 徽章已解锁</span><span data-en>"Prompt Engineer" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>烂提示 → 烂回答；好提示 → <strong>10 倍</strong>好的回答</span><span data-en>Bad prompt → bad answer; good prompt → <strong>10×</strong> better</span></li>
+          <li>✓ <span data-zh>RCTF 四要素：<strong>角色 / 背景 / 任务 / 格式</strong></span><span data-en>RCTF: <strong>Role / Context / Task / Format</strong></span></li>
+          <li>✓ <span data-zh>进阶：<strong>给例子（Few-shot）/ 一步步思考 / 设定身份</strong></span><span data-en>Advanced: <strong>Few-shot / Chain-of-thought / Persona</strong></span></li>
+          <li>✓ <span data-zh>这是 2026 年最有用的"新语文"</span><span data-en>The most useful "new language skill" of 2026</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m4-3-hallucinate.html'">
+          <span data-zh>下一关：M4-3 幻觉狩猎 →</span><span data-en>Next: M4-3 Hallucination Hunt →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M4-2 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M4-2 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+  updatePlaceholders();
+}
+function updatePlaceholders(){
+  document.querySelectorAll('.builder-input').forEach(el=>{
+    const ph = el.getAttribute(LANG==='en'?'data-en-placeholder':'data-zh-placeholder');
+    if(ph) el.placeholder = ph;
+  });
+}
+
+/* =====================================================
+   PHASE 1: PROMPT PAIRS
+   ===================================================== */
+const PAIRS = [
+  {topic:{zh:'写作业', en:'Homework help'},
+   bad:{prompt:{zh:'帮我写作文。', en:'Write me an essay.'},
+        resp:{zh:'作文：春天来了。\n\n春天到了，万物复苏。小草绿了，花儿开了。蜜蜂在采蜜，蝴蝶在飞舞。我喜欢春天。\n\n（约 40 字，无主题、无结构、空洞）',
+              en:'Essay: Spring is here.\n\nSpring has arrived. Grass turns green, flowers bloom. Bees gather honey, butterflies dance. I love spring.\n\n(~40 words, no theme, no structure, empty)'}},
+   good:{prompt:{zh:'你是有 10 年经验的初中语文老师。我是初一学生，下周交一篇 600 字以《我的母亲》为题的记叙文。请写一篇范文，要求：① 用 3 个具体生活场景结构；② 每段开头用括号注明写作技巧；③ 中间一段必须有一个细节描写。',
+                  en:'You are a 10-yr veteran middle school Chinese teacher. I\'m a 7th grader. Due next week: 600-word narrative titled "My Mother". Write a model: ① structure 3 specific life scenes; ② each paragraph starts with technique in parens; ③ middle paragraph must have one detail description.'},
+         resp:{zh:'《我的母亲》\n\n（开篇·细节切入）她总是凌晨 5 点起床，黑暗中烧水的声音是我童年最早的闹钟。\n\n（中段·场景特写）那天发烧 39 度，她背着我在医院走廊跑。我感到她肩膀在颤抖——后来才知道她也烧着。她手里攥着的纸巾，已经被汗浸透。\n\n（中段·细节延展）她洗完头喜欢坐在阳台。湿头发滴在白衬衫上，留下一道道小水痕。我十二年来一直觉得，那是我见过最美的画面。\n\n（结尾·升华）现在我长高了，可以背她过马路。但我背她时，心里还是当年那个发烧的小孩——靠在母亲温暖的肩膀上。\n\n（约 580 字，3 个场景，技巧标注完整，含细节描写）',
+               en:'(Opening · detail) She rose at 5am. The sound of her boiling water in the dark was my childhood\'s first alarm.\n\n(Scene · close-up) The day I had a 39°C fever, she carried me down hospital corridors. I felt her shoulders shake. Only later did I learn she was burning too. The tissue in her hand was soaked.\n\n(Scene · extending detail) She liked to sit on the balcony after washing her hair. Water dripped onto her white shirt, leaving thin streaks. For 12 years, I\'ve thought that was the most beautiful sight I\'ve ever seen.\n\n(Closing · elevation) Now I\'m tall enough to carry her across the street. But I still feel like that fevered child against her warm shoulder.\n\n(~580 words, 3 scenes, full technique labels, with detail description)'}}},
+
+  {topic:{zh:'计划旅游', en:'Travel planning'},
+   bad:{prompt:{zh:'推荐旅游。', en:'Recommend travel.'},
+        resp:{zh:'推荐：1. 巴黎 2. 东京 3. 纽约 4. 罗马 5. 巴厘岛……\n\n（一堆全球景点，全是知名地标，对你完全没用）',
+              en:'Top picks: 1. Paris 2. Tokyo 3. NYC 4. Rome 5. Bali…\n\n(Generic landmarks, useless for you)'}},
+   good:{prompt:{zh:'你是熟悉北京周边的本地导游。我是初一学生，下周末和爸妈想 1 日游，预算 300 元/人，喜欢自然 + 小众。请推荐 3 个地方，每个给出：交通方式（公交/地铁/自驾）、看点、午餐建议（人均 50 元内）、注意事项。',
+                  en:'You are a Beijing local guide. I\'m a 7th grader. Want a 1-day trip next weekend with parents, ¥300/person budget, prefer nature + off-the-beaten-path. Recommend 3 spots; for each: transport, highlights, lunch (under ¥50/person), tips.'},
+         resp:{zh:'1. 妙峰山（地铁 6 号线 + 公交，¥10 来回）\n   看点：5 月山顶玫瑰盛开，远眺西山\n   午餐：山下"老李农家菜"，三人 120 元\n   注意：山上手机信号弱，备零食水\n\n2. 古崖居遗址（地铁 + 公交，¥30 来回）\n   看点：1500 年前山崖石窟，类似缩小版敦煌\n   午餐：自带便当，公园有桌椅\n   注意：石窟内部禁拍照\n\n3. 怀柔慕田峪长城非游客段（公交 916，¥20 来回）\n   看点：长城真正"野"的部分，没有人挤人\n   午餐：山下板栗烤鸡，人均 40 元\n   注意：穿运动鞋，下午 4 点前返回\n\n（3 个具体地点，预算内，自然小众，可执行）',
+               en:'1. Miaofeng Mountain (Subway 6 + bus, ¥10 RT)\n   Highlights: Rose-blooming summit in May, west-mountain views\n   Lunch: "Old Li\'s Farm Kitchen", ¥120 for 3\n   Tips: weak signal, bring snacks\n\n2. Guyaju Ancient Cliff Caves (Subway + bus, ¥30 RT)\n   Highlights: 1,500-yr-old cliff caves, mini Dunhuang\n   Lunch: bring boxed; park has tables\n   Tips: no photos inside caves\n\n3. Mutianyu Great Wall (wild section, bus 916, ¥20 RT)\n   Highlights: Untouristed Great Wall, no crowds\n   Lunch: chestnut-roasted chicken nearby, ¥40/person\n   Tips: sneakers, head back before 4pm\n\n(3 specific spots, budget-fit, niche, actionable)'}}},
+
+  {topic:{zh:'学新东西', en:'Learn something new'},
+   bad:{prompt:{zh:'教我编程。', en:'Teach me programming.'},
+        resp:{zh:'编程是一门让计算机执行任务的艺术。常见的语言有 Python、Java、JavaScript、C++……每种都有优缺点……\n\n（开始讲教科书，没有针对性，听完跟没听一样）',
+              en:'Programming is the art of instructing computers. Common languages: Python, Java, JavaScript, C++… each has pros and cons…\n\n(Textbook-y, no targeting, useless)'}},
+   good:{prompt:{zh:'你是耐心的少儿编程老师。我是 12 岁完全零基础。请用 5 分钟，通过一个"做饭"的比喻，让我理解什么是"变量"。最后给我一个用 Scratch 编程练习这个概念的小任务（不超过 5 步）。',
+                  en:'You are a patient kids-coding teacher. I\'m 12, zero base. In 5 min, use a "cooking" metaphor to explain "variable". End with a Scratch mini-task (≤5 steps).'},
+         resp:{zh:'比喻：变量就像厨房里的"碗"\n\n你做番茄炒蛋。"碗"是你装东西的容器：\n- 一个碗装"番茄"\n- 一个碗装"鸡蛋"\n- 一个碗装"盐"\n\n碗本身不重要，重要的是<strong>里面装的是什么</strong>。今天碗里是鸡蛋，明天换成豆腐——同一个碗。\n\n在编程里，"变量"就是这样的碗。你给它起个名字（如 myAge），里面装个值（如 12）。明天你过生日了——碗还是 myAge，里面变成 13。\n\nScratch 练习（5 步）：\n1. 打开 Scratch，建立角色"小猫"\n2. 创建变量 myAge\n3. 在"积木"区拖动 "set myAge to 12"\n4. 拖动 "if myAge > 10, say 我是小学高年级了"\n5. 点绿旗运行，看小猫说出来！\n\n（比喻具体，任务可执行，5 步完成）',
+               en:'Metaphor: a variable is like a "bowl" in your kitchen.\n\nMaking tomato eggs:\n- One bowl holds "tomato"\n- One bowl holds "eggs"\n- One bowl holds "salt"\n\nThe bowl itself doesn\'t matter. What matters is <strong>what\'s inside</strong>. Today: eggs. Tomorrow: tofu. Same bowl.\n\nIn coding, a "variable" is that bowl. You name it (myAge), put a value (12). Tomorrow you have a birthday — bowl is still myAge, content becomes 13.\n\nScratch mini-task (5 steps):\n1. Open Scratch, make a cat sprite\n2. Create variable myAge\n3. Drag "set myAge to 12"\n4. Drag "if myAge > 10, say I\'m in upper elementary"\n5. Click green flag, watch the cat say it!\n\n(concrete metaphor, executable task, 5 steps done)'}}},
+];
+
+/* =====================================================
+   TIPS
+   ===================================================== */
+const TIPS = [
+  {id:'fewshot', emoji:'📋', name:{zh:'技巧 1：给例子（Few-shot）', en:'Tip 1: Give Examples (Few-shot)'},
+   what:{zh:'不要光说"做什么"，<strong>给 1-3 个例子</strong>给 AI 看。它会跟着模仿。',
+         en:'Don\'t just say "do this" — <strong>show 1–3 examples</strong>. AI will mimic.'},
+   example:{zh:'❌ "把英文翻成中文。"\n✓ "把英文翻成中文，参考：\nHello → 你好\nThank you → 谢谢\n现在翻译：Good morning →"',
+            en:'❌ "Translate English to Chinese."\n✓ "Translate English to Chinese, like:\nHello → 你好\nThank you → 谢谢\nNow translate: Good morning →"'}},
+  {id:'cot', emoji:'🪜', name:{zh:'技巧 2：让它"一步步想"', en:'Tip 2: Make it think step-by-step'},
+   what:{zh:'数学/逻辑问题，<strong>加一句"一步步思考"</strong>，AI 准确率立刻提高 30%+。',
+         en:'For math/logic, <strong>add "think step by step"</strong> — accuracy jumps 30%+.'},
+   example:{zh:'❌ "小明有 12 个苹果，给了小红 3 个，又得到 5 个，他现在有几个？"\n✓ 同样问题加上："请一步一步思考再给答案。"\n（AI 会写：12-3=9，9+5=14。答案 14。比直接答更稳）',
+            en:'❌ "Mom has 12 apples, gives 3, gets 5 — how many?"\n✓ Same + "Think step by step."\n(AI writes: 12-3=9, 9+5=14. Answer 14. More reliable than direct.)'}},
+  {id:'persona', emoji:'🎭', name:{zh:'技巧 3：设定身份 + "如果不确定就说"', en:'Tip 3: Persona + "say if unsure"'},
+   what:{zh:'加一句"<strong>如果你不确定，请直接说不知道</strong>"——AI 胡说的概率立刻下降。',
+         en:'Add: "<strong>if uncertain, say so directly</strong>" — AI hallucination drops fast.'},
+   example:{zh:'❌ "牛顿什么时候发明的微信？"AI 可能编一个年份\n✓ 同样问题加："如果不知道或不存在，请直接说。"AI 会说"牛顿没发明微信，他是 1727 年去世的"',
+            en:'❌ "When did Newton invent WeChat?" AI may invent a date\n✓ + "If unknown or false, say so." AI: "Newton didn\'t invent WeChat; he died in 1727."'}},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {phase:0, pairsRead:new Set(), prompt:{role:'',context:'',task:'',format:''}, asked:false, tipsRead:new Set(), reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   PHASE 1: PAIRS
+   ===================================================== */
+function renderPairs(){
+  const host = document.getElementById('pair-list');
+  host.innerHTML = PAIRS.map((p,i)=>`
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 cursor-pointer" data-idx="${i}" onclick="readPair(${i})">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-bold"><span data-zh>场景 ${i+1}：${p.topic.zh}</span><span data-en>Scenario ${i+1}: ${p.topic.en}</span></div>
+        ${state.pairsRead.has(i)?'<span class="text-green-700 font-bold">✓</span>':'<span class="text-xs text-blue-700"><span data-zh>👆 点击展开</span><span data-en>👆 Click</span></span>'}
+      </div>
+      <div class="pair-detail ${state.pairsRead.has(i)?'':'hidden'}">
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="compare-bad">
+            <div class="text-xs font-bold text-red-700 uppercase mb-1">❌ <span data-zh>烂提示</span><span data-en>Bad prompt</span></div>
+            <div class="compare-prompt"><span data-zh>${p.bad.prompt.zh}</span><span data-en>${p.bad.prompt.en}</span></div>
+            <div class="text-xs font-bold text-slate-500 uppercase mt-2 mb-1"><span data-zh>AI 回答</span><span data-en>AI response</span></div>
+            <div class="compare-response whitespace-pre-line"><span data-zh>${p.bad.resp.zh}</span><span data-en>${p.bad.resp.en}</span></div>
+          </div>
+          <div class="compare-good">
+            <div class="text-xs font-bold text-green-700 uppercase mb-1">✓ <span data-zh>好提示</span><span data-en>Good prompt</span></div>
+            <div class="compare-prompt"><span data-zh>${p.good.prompt.zh}</span><span data-en>${p.good.prompt.en}</span></div>
+            <div class="text-xs font-bold text-slate-500 uppercase mt-2 mb-1"><span data-zh>AI 回答</span><span data-en>AI response</span></div>
+            <div class="compare-response whitespace-pre-line"><span data-zh>${p.good.resp.zh}</span><span data-en>${p.good.resp.en}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function readPair(i){
+  state.pairsRead.add(i);
+  renderPairs();
+  document.getElementById('pair-count').textContent = state.pairsRead.size;
+  if(state.pairsRead.size>=3) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 3: BUILDER
+   ===================================================== */
+function updatePrompt(){
+  state.prompt.role = document.getElementById('b-role').value;
+  state.prompt.context = document.getElementById('b-context').value;
+  state.prompt.task = document.getElementById('b-task').value;
+  state.prompt.format = document.getElementById('b-format').value;
+
+  // Mark filled inputs
+  let count=0;
+  ['role','context','task','format'].forEach(k=>{
+    const el = document.getElementById('b-'+k);
+    const ok = Array.from(state.prompt[k]).length>=8;
+    el.classList.toggle('ok', ok);
+    if(ok) count++;
+  });
+  document.getElementById('filled-count').textContent = count;
+  document.getElementById('ask-ai-btn').disabled = count<4;
+
+  // Build live prompt
+  const lines = [];
+  if(state.prompt.role) lines.push('🎭 ' + state.prompt.role);
+  if(state.prompt.context) lines.push('📚 ' + state.prompt.context);
+  if(state.prompt.task) lines.push('🎯 ' + state.prompt.task);
+  if(state.prompt.format) lines.push('📐 ' + state.prompt.format);
+  const lp = document.getElementById('live-prompt');
+  if(lines.length===0){
+    lp.innerHTML = `<span data-zh>（边填边看……）</span><span data-en>(builds as you type…)</span>`;
+  } else {
+    lp.textContent = lines.join('\n');
+  }
+}
+
+function askAI(){
+  state.asked = true;
+  document.getElementById('ai-response').classList.remove('hidden');
+  // Construct a simulated personalized response
+  const respZh = `尊敬的张老师：
+
+您好。我是初一(3)班的小明。
+
+写这封信时，我心里有些沉重——我的爷爷昨晚因突发心脏问题住进了医院。爸爸妈妈都在 ICU 外面陪护，家里需要我帮忙照应一些事情，比如给爷爷换洗衣物、跑跑医院手续。
+
+因此，特向您请假 3 天（${state.prompt.context.includes('日期')?'下周一至下周三':'本周三至周五'}），周一晚自习前我会回到学校。
+
+我会借同学的笔记，提前补上落下的数学课。请您放心。
+
+谢谢您的理解。
+
+学生 小明 敬上
+2026 年 5 月 28 日
+
+（约 280 字，称呼、原因、时长、补课承诺、署名俱全）`;
+
+  const respEn = `Dear Teacher Zhang,
+
+I'm writing this with a heavy heart — my grandfather was rushed to the hospital last night for a sudden heart issue. Both parents are at the ICU, and I'm needed at home to help with errands like bringing him clean clothes and managing hospital paperwork.
+
+I'd like to ask for 3 days off (${state.prompt.context.toLowerCase().includes('date')?'Mon-Wed':'Wed-Fri this week'}). I'll be back by Monday evening study hall.
+
+I'll borrow notes from classmates and catch up on missed math lessons. Please don't worry.
+
+Thank you for your understanding.
+
+Sincerely,
+Xiaoming
+May 28, 2026
+
+(~280 words; greeting, reason, duration, makeup promise, signature all included)`;
+
+  document.getElementById('ai-resp-text').textContent = LANG==='en' ? respEn : respZh;
+  document.getElementById('p3-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 4: TIPS
+   ===================================================== */
+function renderTips(){
+  const host = document.getElementById('tip-grid');
+  host.innerHTML = TIPS.map(t=>`
+    <button class="tip-card text-left ${state.tipsRead.has(t.id)?'read':''}" data-id="${t.id}" onclick="readTip('${t.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${t.emoji}</div>
+        <div class="font-bold"><span data-zh>${t.name.zh}</span><span data-en>${t.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700 mb-3"><span data-zh>${t.what.zh}</span><span data-en>${t.what.en}</span></p>
+      <div class="bg-slate-50 rounded p-2 text-xs whitespace-pre-line font-mono"><span data-zh>${t.example.zh}</span><span data-en>${t.example.en}</span></div>
+    </button>
+  `).join('');
+}
+
+function readTip(id){
+  state.tipsRead.add(id);
+  renderTips();
+  document.getElementById('tip-count').textContent = state.tipsRead.size;
+  if(state.tipsRead.size>=3) document.getElementById('p4-next').disabled = false;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M4-2',
+    pairsRead:state.pairsRead.size, asked:state.asked, tipsRead:state.tipsRead.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m4-2', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderPairs();
+  if(n===3) updatePlaceholders();
+  if(n===4) renderTips();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,pairsRead:new Set(),prompt:{role:'',context:'',task:'',format:''},asked:false,tipsRead:new Set(),reflectChoice:null,reflectText:''});
+    document.getElementById('pair-count').textContent='0';
+    document.getElementById('tip-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('p4-next').disabled=true;
+    document.getElementById('ai-response').classList.add('hidden');
+    ['role','context','task','format'].forEach(k=>document.getElementById('b-'+k).value='');
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+
+updatePlaceholders();
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+@media (max-width:640px){.save-toast{bottom:auto;top:72px;right:16px}}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

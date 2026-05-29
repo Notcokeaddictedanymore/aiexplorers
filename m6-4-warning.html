@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M6-4 让居民信你 · When AI Says Evacuate</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#1E40AF,#0F172A);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(30,64,175,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(30,64,175,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(30,64,175,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Role card */
+  .role-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem;transition:all .2s;cursor:pointer;position:relative}
+  .role-card:hover{transform:translateY(-2px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15)}
+  .role-card.read{border-color:#10B981}
+  .role-card.read::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  /* SMS preview */
+  .sms-frame{background:linear-gradient(180deg,#F1F5F9,#E2E8F0);border:6px solid #0F172A;border-radius:24px;padding:1rem;max-width:320px;margin:0 auto;font-family:system-ui}
+  .sms-screen{background:#fff;border-radius:14px;padding:.7rem;min-height:140px}
+  .sms-sender{font-size:.7rem;color:#64748B;font-weight:600;margin-bottom:.3rem}
+  .sms-bubble{background:#F1F5F9;border-radius:12px 12px 12px 4px;padding:.6rem .8rem;font-size:.85rem;line-height:1.5;max-width:95%;white-space:pre-wrap}
+
+  /* SMS check */
+  .sms-check{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;font-size:.8rem}
+  .sms-check.pass{background:#ECFDF5;border-color:#10B981;color:#047857}
+  .sms-check.fail{background:#FEF2F2;border-color:#FCA5A5;color:#B91C1C}
+
+  /* Trade-off slider */
+  .smart-slider{-webkit-appearance:none;width:100%;background:transparent}
+  .smart-slider::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);box-shadow:0 4px 10px rgba(59,130,246,.4);cursor:pointer;border:3px solid #fff;margin-top:-12px}
+  .smart-slider::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);cursor:pointer;border:3px solid #fff}
+  .smart-slider::-webkit-slider-runnable-track{background:linear-gradient(90deg,#10B981,#F59E0B,#DC2626);height:6px;border-radius:3px}
+
+  /* Principle input */
+  .principle-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.9rem;transition:border .2s;font-family:inherit}
+  .principle-input:focus{outline:none;border-color:#3B82F6}
+  .principle-input.ok{border-color:#10B981;background:#F0FDF4}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(30,64,175,.08),0 0 0 12px rgba(30,64,175,.04),0 18px 40px -12px rgba(30,64,175,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">M6-4 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-800 text-white px-2 py-1 rounded-full">Ch.6 · 暴雨中的 AI</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>反思 · 35 min</span><span data-en>Reflect · 35 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>当 AI 说"撤离"但居民不信</span>
+      <span data-en>When AI Says "Evacuate" — and People Don\'t Believe</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-zh>
+            <strong>2023 年 7 月 30 日 22:00。</strong>北京某小区收到撤离通知 1 小时后——<strong>40% 居民没走</strong>。
+          </p>
+          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-en>
+            <strong>July 30, 2023 · 22:00.</strong> 1 hour after a Beijing community got the evacuation notice — <strong>40% of residents didn\'t leave</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            一位 65 岁奶奶说："<strong>住这 30 年没事</strong>，他们就是吓唬人。" 4 小时后地下车库被淹，她家被困 18 小时才被救出来。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            One 65-yo grandma said: "<strong>30 years here, never anything</strong>. They\'re just scaring us." 4 hours later the underground garage flooded; her family was trapped 18 hours before rescue.
+          </p>
+          <p class="mt-3 leading-relaxed text-amber-700 font-semibold" data-zh>
+            <strong>这是 Ch.6 最难的问题</strong>：AI 预测得 95% 准了，<strong>怎么让人信</strong>？
+          </p>
+          <p class="mt-3 leading-relaxed text-amber-700 font-semibold" data-en>
+            <strong>This is Ch.6\'s hardest question</strong>: AI predicted with 95% accuracy — <strong>how do you make people believe</strong>?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            今天你会看 <strong>5 个角色</strong>（AI 工程师 / 气象专家 / 应急官员 / 媒体记者 / 居民）各自的<strong>困境</strong>，然后<strong>亲手写一条让你奶奶愿意撤离的预警短信</strong>，最后总结出<strong>你自己的防汛 AI 5 大原则</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Today: see <strong>5 roles</strong> (AI engineer / weather expert / emergency official / media / resident) and their <strong>dilemmas</strong>, then <strong>write an evacuation SMS your grandma would actually heed</strong>, finally distill <strong>your own 5 principles for flood AI</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>听 5 个人的故事 →</span><span data-en>Hear 5 stories →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: 5 ROLES ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这 <strong>5 个人</strong>同时在为同一场暴雨工作，但他们<strong>看到的、担心的、能做的</strong>完全不同。<strong>5 个全读完</strong>才能继续。</p>
+      <p data-en>These <strong>5 people</strong> all work on the same storm but <strong>see, worry, and act</strong> very differently. <strong>Read all 5</strong>.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="role-count">0</span> / 5</div>
+    </div>
+
+    <div id="role-grid" class="grid sm:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：写预警短信 →</span><span data-en>Next: write the SMS →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: WRITE WARNING SMS ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你是社区主任。10 分钟内要给小区 200 位老人<strong>群发一条预警短信</strong>。<strong>怎么写</strong>，决定他们会不会撤离。</p>
+      <p data-en>You\'re the community director. In 10 min, you must <strong>send a warning SMS</strong> to 200 elderly residents. <strong>How you write it</strong> decides whether they evacuate.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <!-- Writer -->
+      <div>
+        <div class="bg-white border-2 border-slate-200 rounded-2xl p-4">
+          <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">📝 <span data-zh>写你的短信</span><span data-en>Write your SMS</span> (50-200 <span data-zh>字</span><span data-en>chars</span>)</div>
+          <textarea id="sms-text" rows="6" class="principle-input" placeholder="" data-zh-placeholder="例：王奶奶，今晚 23 点-明天 5 点会有大暴雨，我们小区地下室历史上淹过。请您 22 点前到 3 号楼大厅集合，社区车送您去亲戚家。带身份证和药。我是社区主任老李。" data-en-placeholder="e.g. Grandma Wang, tonight 23:00-tomorrow 5:00 we expect mega-storm. Our basement has flooded before. Please come to Bldg 3 lobby by 22:00; community van will take you to relatives. Bring ID + meds. — Director Li" oninput="checkSMS()"></textarea>
+
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <div class="sms-check" id="check-when">⏰ <span data-zh>具体时间</span><span data-en>Time</span></div>
+            <div class="sms-check" id="check-where">📍 <span data-zh>具体地点</span><span data-en>Place</span></div>
+            <div class="sms-check" id="check-action">👉 <span data-zh>具体行动</span><span data-en>Action</span></div>
+            <div class="sms-check" id="check-consequence">⚠️ <span data-zh>后果说明</span><span data-en>Consequence</span></div>
+            <div class="sms-check" id="check-personal">💗 <span data-zh>人情味</span><span data-en>Human warmth</span></div>
+            <div class="sms-check" id="check-signature">✍️ <span data-zh>签名</span><span data-en>Sign-off</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div>
+        <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">👵 <span data-zh>奶奶的手机会看到：</span><span data-en>Grandma will see:</span></div>
+        <div class="sms-frame">
+          <div class="sms-screen">
+            <div class="sms-sender">📱 <span data-zh>社区紧急通知</span><span data-en>Community Alert</span> · 22:00</div>
+            <div class="sms-bubble" id="sms-preview"><span data-zh class="text-slate-400">在左边写预警短信……</span><span data-en class="text-slate-400">Write SMS on the left…</span></div>
+          </div>
+        </div>
+
+        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+          <strong>💡 <span data-zh>Ch.4 提示词工程的应用</span><span data-en>Apply Ch.4 prompts</span></strong>：
+          <span data-zh>好预警 = 好提示词 = <strong>具体 + 行动 + 后果 + 人情味</strong>。这是 RCTF 的反向应用。</span>
+          <span data-en>Good warning = good prompt = <strong>specific + action + consequence + warmth</strong>. Inverse RCTF.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex items-center justify-between">
+      <div class="text-sm text-slate-600"><span data-zh>已达标：</span><span data-en>Pass:</span><strong id="sms-pass">0</strong>/6</div>
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：假阳 vs 假阴 →</span><span data-en>Next: FP vs FN →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: FP/FN IN FLOODS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>Ch.1 M1-4 你学过<strong>假阳 vs 假阴</strong>。在防汛中，这<strong>不是抽象概念</strong>——是<strong>"狼来了" vs "没说"</strong>的两种灾难。<strong>拉滑杆</strong>看你的政策选择。</p>
+      <p data-en>From Ch.1 M1-4 you know <strong>FP vs FN</strong>. In flood ops, this is <strong>not abstract</strong> — it\'s <strong>"cry wolf" vs "silent"</strong>, two disasters. <strong>Slide</strong> to choose policy.</p>
+    </div>
+
+    <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 mb-4">
+      <div class="grid sm:grid-cols-2 gap-4 mb-4">
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+          <div class="text-xs uppercase font-bold text-amber-800">⚠️ <span data-zh>假阳（狼来了）</span><span data-en>FP (Cry wolf)</span></div>
+          <div class="mt-2 text-sm" data-zh>AI 说"暴雨"，结果<strong>没下</strong>。居民觉得"<strong>骗人</strong>"。下次再发警报，<strong>更多人不信</strong>。</div>
+          <div class="mt-2 text-sm" data-en>AI says "storm"; <strong>no storm</strong>. Residents feel <strong>tricked</strong>. Next alert, <strong>more ignore</strong>.</div>
+        </div>
+        <div class="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+          <div class="text-xs uppercase font-bold text-red-800">🚨 <span data-zh>假阴（没说）</span><span data-en>FN (Silent)</span></div>
+          <div class="mt-2 text-sm" data-zh>AI 说"<strong>没事</strong>"，但<strong>真下了</strong>。人<strong>来不及撤离</strong>。<strong>人命代价</strong>。</div>
+          <div class="mt-2 text-sm" data-en>AI says "<strong>safe</strong>"; <strong>storm hits</strong>. People <strong>can\'t evacuate</strong>. <strong>Lives lost</strong>.</div>
+        </div>
+      </div>
+
+      <div class="text-sm font-bold mb-2"><span data-zh>你的政策：AI 多保守 vs 多激进？</span><span data-en>Your policy: how conservative or aggressive?</span></div>
+      <input type="range" min="0" max="100" value="50" class="smart-slider" id="policy-slider" oninput="updatePolicy()"/>
+      <div class="flex justify-between text-xs text-slate-500 mt-1">
+        <span><span data-zh>← 极保守</span><span data-en>← Ultra-conservative</span></span>
+        <span><span data-zh>平衡</span><span data-en>Balanced</span></span>
+        <span><span data-zh>极激进 →</span><span data-en>Ultra-aggressive →</span></span>
+      </div>
+
+      <div class="mt-4 grid sm:grid-cols-3 gap-3">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+          <div class="text-xs uppercase text-amber-700 font-bold"><span data-zh>预计假阳</span><span data-en>Est. FP</span></div>
+          <div class="text-2xl font-black text-amber-700 mt-1"><span id="est-fp">15</span> <span class="text-base">/<span data-zh>年</span><span data-en>yr</span></span></div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+          <div class="text-xs uppercase text-red-700 font-bold"><span data-zh>预计假阴致死</span><span data-en>Est. FN deaths</span></div>
+          <div class="text-2xl font-black text-red-700 mt-1"><span id="est-fn">5</span> <span class="text-base">/<span data-zh>年</span><span data-en>yr</span></span></div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+          <div class="text-xs uppercase text-slate-700 font-bold"><span data-zh>居民信任度</span><span data-en>Public trust</span></div>
+          <div class="text-2xl font-black text-slate-700 mt-1"><span id="est-trust">70</span>%</div>
+        </div>
+      </div>
+
+      <div id="policy-msg" class="mt-4 p-3 rounded-lg text-sm"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>下一关：写你的 5 大原则 →</span><span data-en>Next: write your 5 principles →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: 5 PRINCIPLES ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>整理你的思考。写下<strong>你的"防汛 AI 5 大设计原则"</strong>——你希望未来的防汛系统遵循哪 5 条？<strong>每条 ≥ 15 字</strong>。</p>
+      <p data-en>Distill your thinking. Write <strong>your "5 Principles for Flood AI"</strong> — what 5 rules should future systems follow? <strong>≥15 chars each</strong>.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-blue-50 to-slate-50 border-2 border-blue-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-1 text-blue-900"><span data-zh>📜 我的防汛 AI 5 大原则</span><span data-en>📜 My 5 Principles for Flood AI</span></h3>
+      <p class="text-sm text-slate-600 mb-4"><span data-zh>这是你<strong>给未来工程师的建议</strong>。一年后回来看，看你的想法有没有变。</span><span data-en>This is <strong>your advice to future engineers</strong>. Come back in a year — see if your views changed.</span></p>
+
+      <div class="space-y-2" id="principles-grid"></div>
+
+      <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+        <strong>💡 <span data-zh>参考方向</span><span data-en>Inspiration</span></strong>：
+        <span data-zh>① 多渠道（短信+广播+喇叭）② 用本地方言 ③ 给具体行动而非抽象警告 ④ 引用历史灾害 ⑤ 让信任的人（村干部/老师）转告……</span>
+        <span data-en>① Multi-channel (SMS+radio+loudspeaker) ② Local dialect ③ Concrete actions not abstract warnings ④ Cite historical events ⑤ Use trusted intermediaries (community leaders, teachers)…</span>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pri-filled">0</span> / 5 <span data-zh>条完成</span><span data-en>filled</span></div>
+        <button class="btn-primary" id="pri-submit" disabled onclick="goTo(5)">
+          <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这一关你看到：<strong>AI 不能孤立工作</strong>。AI + 气象学家 + 应急官员 + 媒体 + 居民——<strong>5 个角色缺一不可</strong>。最后一段反思：</p>
+      <p data-en>You saw: <strong>AI doesn\'t work alone</strong>. AI + meteorologists + officials + media + residents — <strong>all 5 needed</strong>. Final reflection:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 那位拒绝撤离的奶奶——你会怎么<strong>说服她</strong>？（用你今天学到的）</span>
+        <span data-en>① The grandma who refused — how would <strong>you persuade her</strong>? (using today\'s lessons)</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 如果让你<strong>分析"7·31"33 个遇难者</strong>的原因——多少是 AI 错了？多少是<strong>沟通</strong>错了？多少是<strong>系统</strong>错了？</span>
+        <span data-en>② Analyze the 33 deaths of "7·31": how many were AI errors? <strong>Communication</strong> errors? <strong>System</strong> errors?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 看完 Ch.6——你想做的<strong>自己的 AI 项目</strong>有没有变？为什么？</span>
+        <span data-en>③ After Ch.6 — has the AI project <strong>you want to build</strong> changed? Why?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 Ch.6 →</span><span data-en>Submit & finish Ch.6 →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION + CHAPTER 6 ENDS ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-700 to-blue-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#1E40AF" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🤝</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>Ch.6 完成！</span><span data-en>Chapter 6 complete!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"沟通工程师" 徽章已解锁</span><span data-en>"Communication Engineer" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>整章你内化了……</span><span data-en>You internalized…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>M6-1：暴雨预测的 <strong>4 双眼睛</strong> + <strong>蝴蝶效应</strong></span><span data-en>M6-1: <strong>4 eyes</strong> of storm prediction + <strong>butterfly effect</strong></span></li>
+          <li>✓ <span data-zh>M6-2：北京 <strong>8 个真实内涝热点</strong>，AI 怎么从大数据到具体地点</span><span data-en>M6-2: <strong>8 real Beijing hotspots</strong>; AI from big data to specific spot</span></li>
+          <li>✓ <span data-zh>M6-3：你<strong>当过</strong>北京防汛办主任——感受了"没有完美方案"</span><span data-en>M6-3: You <strong>were</strong> Beijing flood director — felt "no perfect answer"</span></li>
+          <li>✓ <span data-zh>M6-4：<strong>AI ≠ 一切</strong>——沟通、信任、人情味同样重要</span><span data-en>M6-4: <strong>AI ≠ everything</strong> — comms, trust, warmth equally vital</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-purple-100 to-red-50 border-2 border-purple-300 rounded-2xl">
+        <div class="text-xl font-black mb-2 text-purple-900">🎓 <span data-zh>下一章：毕业作品（Ch.7）</span><span data-en>Next: Capstone (Ch.7)</span></div>
+        <p class="text-sm text-purple-800" data-zh>
+          你刚研究了一个<strong>真实的、专业级</strong>的 AI 系统——北京防汛 AI。<strong>50 个博士、千万级数据、千亿级预算</strong>。
+        </p>
+        <p class="text-sm text-purple-800" data-en>
+          You just researched a <strong>real, pro-level</strong> AI system. <strong>50 PhDs, millions of data points, billions in budget</strong>.
+        </p>
+        <p class="text-sm mt-2 text-purple-800 font-semibold" data-zh>
+          下一章——<strong>轮到你了</strong>。你 12 岁，不需要做那个尺度。但你能做一个<strong>在你的尺度上同样重要</strong>的项目。<strong>食堂菜识别 = 北京防汛 AI 的小版本</strong>。
+        </p>
+        <p class="text-sm mt-2 text-purple-800 font-semibold" data-en>
+          Next — <strong>your turn</strong>. At 12, you don\'t need that scale. But you can build something <strong>just as important at your scale</strong>. <strong>School cafeteria classifier = mini Beijing flood AI</strong>.
+        </p>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m7-1-pick.html'">
+          <span data-zh>开启 Ch.7 毕业作品 →</span><span data-en>Start Ch.7 Capstone →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M6-4 · 开发者：辜月晗 · 2026</span>
+  <span data-en>AI Literacy Courses for Beginners · M6-4 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+  const ta = document.getElementById('sms-text');
+  if(ta){
+    const ph = ta.getAttribute(LANG==='en'?'data-en-placeholder':'data-zh-placeholder');
+    if(ph) ta.placeholder = ph;
+  }
+}
+
+/* =====================================================
+   5 ROLES
+   ===================================================== */
+const ROLES = [
+  {id:'engineer', emoji:'👨‍💻',
+   name:{zh:'AI 工程师 · 张博士',en:'AI Engineer · Dr. Zhang'},
+   sees:{zh:'我的模型显示这场暴雨预测概率 95%，积水深度可达 1.8m',en:'My model: storm prob 95%, flood depth up to 1.8m'},
+   worries:{zh:'万一<strong>错了</strong>怎么办？每年我们误报 2-3 次，每次都被骂"狼来了"。',en:'What if <strong>wrong</strong>? 2-3 false alarms/year, blamed for "crying wolf" each time.'},
+   limit:{zh:'我能输出<strong>数字</strong>，但<strong>不能决定怎么说</strong>，不能决定是否撤离。',en:'I output <strong>numbers</strong>, can\'t decide <strong>how to communicate</strong> or whether to evacuate.'}},
+  {id:'meteo', emoji:'🌦️',
+   name:{zh:'气象专家 · 李研究员',en:'Weather Expert · Li'},
+   sees:{zh:'结合 30 年数据 + 卫星云图，这次<strong>极有可能</strong>是百年一遇',en:'30-yr data + satellite: this is <strong>very likely</strong> once-in-a-century'},
+   worries:{zh:'AI 给一个概率，<strong>但概率不是确定性</strong>。我要不要在新闻发布会上说"百分百"？',en:'AI gives probability, <strong>not certainty</strong>. Do I say "100%" on TV?'},
+   limit:{zh:'我用的是<strong>科学语言</strong>，但听众要的是<strong>"会不会下"</strong>。',en:'I speak <strong>science</strong>; audience wants <strong>"will it or not"</strong>.'}},
+  {id:'official', emoji:'🏛️',
+   name:{zh:'应急官员 · 王主任',en:'Emergency Official · Director Wang'},
+   sees:{zh:'气象局说"红色预警"，AI 说积水 1.8m。我手里有 200 人',en:'Met says red alert; AI says 1.8m flood. I have 200 personnel'},
+   worries:{zh:'<strong>强制撤离 = 违法</strong>。我能"劝"，但人不走我能怎么办？2012 撤离令<strong>被骂"扰民"</strong>。',en:'<strong>Mandatory evac = illegal</strong>. I can advise; if they refuse, what then? 2012 evac order was <strong>called "disturbance"</strong>.'},
+   limit:{zh:'我有<strong>权力但没有强制力</strong>，有<strong>责任但没有信任</strong>。',en:'I have <strong>authority without enforcement</strong>; <strong>responsibility without trust</strong>.'}},
+  {id:'media', emoji:'📰',
+   name:{zh:'媒体记者 · 陈记者',en:'Journalist · Reporter Chen'},
+   sees:{zh:'红色预警新闻 + AI 预测数据 + 应急动员',en:'Red alert news + AI data + emergency mobilization'},
+   worries:{zh:'写得<strong>太严重</strong>——读者觉得"<strong>制造恐慌</strong>"。写得<strong>太轻</strong>——读者不重视。',en:'Too <strong>dramatic</strong> — readers say "<strong>fearmongering</strong>". Too <strong>mild</strong> — they ignore.'},
+   limit:{zh:'我是<strong>放大器</strong>，但放大什么<strong>由我决定</strong>。',en:'I\'m an <strong>amplifier</strong>; <strong>I choose</strong> what to amplify.'}},
+  {id:'resident', emoji:'👵',
+   name:{zh:'居民 · 王奶奶 65 岁',en:'Resident · Grandma Wang, 65'},
+   sees:{zh:'手机短信"撤离"+ 楼下广播喇叭 + 邻居议论',en:'SMS "evacuate" + downstairs loudspeaker + neighbor gossip'},
+   worries:{zh:'<strong>住这 30 年没事</strong>。撤到哪？谁送？药怎么办？万一<strong>没事</strong>我跑出去多丢人。',en:'<strong>30 years here, nothing happened</strong>. Evacuate where? Who drives? My meds? If <strong>nothing happens</strong>, how embarrassing.'},
+   limit:{zh:'我<strong>只看眼前</strong>。AI 概率？我看不见。蝴蝶效应？听不懂。',en:'I only see <strong>now</strong>. AI probability? Invisible. Butterfly effect? Don\'t get it.'}},
+];
+
+const PRINCIPLE_PROMPTS = [
+  {zh:'① 关于<strong>沟通方式</strong>（怎么说）：',en:'① About <strong>communication</strong> (how to say):'},
+  {zh:'② 关于<strong>多渠道</strong>（用什么传播）：',en:'② About <strong>multi-channel</strong> (what mediums):'},
+  {zh:'③ 关于<strong>谁来说</strong>（信任源）：',en:'③ About <strong>who speaks</strong> (trust source):'},
+  {zh:'④ 关于<strong>AI 的角色</strong>（AI 该 / 不该做）：',en:'④ About <strong>AI\'s role</strong> (what AI should / shouldn\'t do):'},
+  {zh:'⑤ 关于<strong>历史和未来</strong>（学到了什么）：',en:'⑤ About <strong>history + future</strong> (lessons learned):'},
+];
+
+const state = {phase:0, rolesRead:new Set(), smsText:'', smsChecks:{}, policyVal:50, principles:['','','','',''], reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   PHASE 1: ROLES
+   ===================================================== */
+function renderRoles(){
+  const host = document.getElementById('role-grid');
+  host.innerHTML = ROLES.map(r=>`
+    <div class="role-card ${state.rolesRead.has(r.id)?'read':''}" data-id="${r.id}" onclick="readRole('${r.id}')">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="text-4xl">${r.emoji}</div>
+        <div class="font-bold"><span data-zh>${r.name.zh}</span><span data-en>${r.name.en}</span></div>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div class="bg-blue-50 rounded p-2">
+          <strong>👁️ <span data-zh>看到</span><span data-en>Sees</span>：</strong>
+          <span data-zh>${r.sees.zh}</span><span data-en>${r.sees.en}</span>
+        </div>
+        <div class="bg-amber-50 rounded p-2">
+          <strong>😟 <span data-zh>担心</span><span data-en>Worries</span>：</strong>
+          <span data-zh>${r.worries.zh}</span><span data-en>${r.worries.en}</span>
+        </div>
+        <div class="bg-red-50 rounded p-2">
+          <strong>🚫 <span data-zh>能力边界</span><span data-en>Limit</span>：</strong>
+          <span data-zh>${r.limit.zh}</span><span data-en>${r.limit.en}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function readRole(id){
+  state.rolesRead.add(id);
+  renderRoles();
+  document.getElementById('role-count').textContent = state.rolesRead.size;
+  if(state.rolesRead.size>=5) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 2: SMS WRITER
+   ===================================================== */
+function checkSMS(){
+  const t = document.getElementById('sms-text').value;
+  state.smsText = t;
+  document.getElementById('sms-preview').textContent = t || (LANG==='en'?'Write SMS on the left…':'在左边写预警短信……');
+
+  const text = t.toLowerCase();
+  const checks = {
+    when: /(\d+[点时:：]|\d+\s*(am|pm|:)|今晚|明天|凌晨|早晨|夜晚|hour|tonight|tomorrow|morning|night|am|pm)/.test(t),
+    where: /(到\s*\w|前往|集合|大厅|楼|号|社区|in front of|go to|meet at|lobby|building|bldg|community)/.test(text),
+    action: /(请\s*\w|带|去|集合|撤|撤离|please|bring|come|evacuate|go|meet)/.test(text),
+    consequence: /(淹|危险|损失|进水|被困|life|danger|flood|trap|risk|harm|drown|injur)/.test(text),
+    personal: /(奶奶|爷爷|阿姨|叔叔|您|大爷|大妈|grandm|grandp|aunt|uncle|dear|sister|brother)/.test(text),
+    signature: /(社区|主任|队长|我是|联系|—|--|致|chen|li|wang|zhang|director|chief|—\s*\w)/.test(text),
+  };
+  let pass = 0;
+  Object.entries(checks).forEach(([key,v])=>{
+    const el = document.getElementById('check-'+key);
+    if(v){el.classList.add('pass');el.classList.remove('fail');pass++}
+    else{el.classList.remove('pass');el.classList.remove('fail')}
+  });
+  state.smsChecks = checks;
+  document.getElementById('sms-pass').textContent = pass;
+  const len = Array.from(t).length;
+  document.getElementById('p2-next').disabled = !(pass>=4 && len>=50);
+}
+
+/* =====================================================
+   PHASE 3: POLICY SLIDER
+   ===================================================== */
+function updatePolicy(){
+  const v = +document.getElementById('policy-slider').value;
+  state.policyVal = v;
+  // FP increases with aggressiveness, FN decreases
+  const fp = Math.round(3 + (v/100)*30);
+  const fn = Math.round(15 - (v/100)*14);
+  // Trust decreases on both extremes
+  let trust;
+  if(v<30) trust = 60 - (30-v); // too cautious = miss warnings, people lose trust
+  else if(v>70) trust = 70 - (v-70)*1.5; // too aggressive = cry wolf, trust collapses
+  else trust = 80 - Math.abs(v-50)*0.2;
+  trust = Math.max(20, Math.min(90, Math.round(trust)));
+  document.getElementById('est-fp').textContent = fp;
+  document.getElementById('est-fn').textContent = fn;
+  document.getElementById('est-trust').textContent = trust;
+
+  const msg = document.getElementById('policy-msg');
+  let txt, cls;
+  if(v<20){
+    cls = 'bg-red-50 border border-red-200';
+    txt = {zh:'⚠️ 极保守：很少误报，但<strong>每年有人遇难</strong>。这是"<strong>放任主义</strong>"。',
+           en:'⚠️ Ultra-conservative: rare FP but <strong>annual deaths</strong>. This is "<strong>laissez-faire</strong>".'};
+  } else if(v<40){
+    cls = 'bg-amber-50 border border-amber-200';
+    txt = {zh:'🟡 偏保守：减少假阳，但偶有伤亡。中国 1990 年代的政策接近这个。',
+           en:'🟡 Mostly conservative: less FP, some casualties. China\'s 1990s policy was here.'};
+  } else if(v<70){
+    cls = 'bg-green-50 border border-green-200';
+    txt = {zh:'✓ <strong>当前最优区域</strong>：现代中国防汛办的政策大致在这里。<strong>没有完美方案</strong>。',
+           en:'✓ <strong>Current optimum</strong>: today\'s China flood policy roughly here. <strong>No perfect answer</strong>.'};
+  } else if(v<85){
+    cls = 'bg-amber-50 border border-amber-200';
+    txt = {zh:'🟡 偏激进：减少伤亡，但<strong>"狼来了"</strong>效应让长期信任下降。',
+           en:'🟡 Mostly aggressive: fewer casualties but <strong>"cry wolf"</strong> erodes long-term trust.'};
+  } else {
+    cls = 'bg-red-50 border border-red-200';
+    txt = {zh:'⚠️ 极激进：经常误报，<strong>居民开始拒绝撤离</strong>——下次真有事的时候<strong>更多人遇难</strong>。',
+           en:'⚠️ Ultra-aggressive: frequent FP — <strong>residents start refusing</strong>; <strong>more deaths</strong> next real event.'};
+  }
+  msg.className = 'mt-4 p-3 rounded-lg text-sm ' + cls;
+  msg.innerHTML = `<span data-zh>${txt.zh}</span><span data-en>${txt.en}</span>`;
+}
+
+/* =====================================================
+   PHASE 4: PRINCIPLES
+   ===================================================== */
+function renderPrinciples(){
+  const host = document.getElementById('principles-grid');
+  host.innerHTML = PRINCIPLE_PROMPTS.map((p,i)=>`
+    <div>
+      <label class="text-xs font-bold text-slate-600 mb-1 block"><span data-zh>${p.zh}</span><span data-en>${p.en}</span></label>
+      <input type="text" class="principle-input" id="pri-${i}" value="${state.principles[i]||''}" oninput="updatePrinciple(${i})"/>
+    </div>
+  `).join('');
+}
+
+function updatePrinciple(idx){
+  const el = document.getElementById('pri-'+idx);
+  state.principles[idx] = el.value;
+  const ok = Array.from(el.value).length>=15;
+  el.classList.toggle('ok', ok);
+  const count = state.principles.filter(p=>Array.from(p).length>=15).length;
+  document.getElementById('pri-filled').textContent = count;
+  document.getElementById('pri-submit').disabled = count<5;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M6-4',
+    rolesRead:state.rolesRead.size, smsText:state.smsText, smsChecks:state.smsChecks,
+    policyVal:state.policyVal, principles:state.principles,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m6-4', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,7);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderRoles();
+  if(n===2){
+    const ph = document.getElementById('sms-text').getAttribute(LANG==='en'?'data-en-placeholder':'data-zh-placeholder');
+    if(ph) document.getElementById('sms-text').placeholder = ph;
+  }
+  if(n===3) updatePolicy();
+  if(n===4) renderPrinciples();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.rolesRead=new Set();state.smsText='';state.smsChecks={};state.policyVal=50;state.principles=['','','','',''];state.reflectChoice=null;state.reflectText='';
+    document.getElementById('role-count').textContent='0';
+    document.getElementById('sms-text').value='';
+    document.getElementById('sms-pass').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('pri-submit').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

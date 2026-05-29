@@ -1,0 +1,37 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE / Editor
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+*.swo
+
+# Node / build artifacts (not used but defensive)
+node_modules/
+dist/
+build/
+
+# Claude Code / Cowork session artifacts (defensive)
+.claude/
+.cowork/
+session-*/
+*.session
+
+# Logs & temp
+*.log
+*.tmp
+tmp/
+
+# Avatar source files (keep the lingxi-avatar.png itself; ignore Photoshop/etc.)
+*.psd
+*.ai
+*.sketch

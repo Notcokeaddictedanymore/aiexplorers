@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智小灵 · AI素养互动课程地图 / Smart Lingxi AI Quest Map</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --ink:#0F172A; --paper:#FAF8F4; --blue:#3B82F6; --red:#DC2626;
+    --green:#10B981; --amber:#F59E0B; --slate:#64748B;
+  }
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:var(--paper);color:var(--ink)}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.03) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  .hero-grad{background:radial-gradient(1200px 600px at 20% 0%,#FEE2E2 0%,transparent 50%),radial-gradient(900px 500px at 90% 10%,#DBEAFE 0%,transparent 55%),linear-gradient(180deg,#FFF8F0 0%,#FAF8F4 100%)}
+  .chip{display:inline-flex;align-items:center;gap:.35rem;padding:.25rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:600}
+  .arrow-down{width:2px;height:32px;background:linear-gradient(180deg,#cbd5e1,transparent);margin:0 auto}
+  .ring-dot::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:.5rem;vertical-align:middle}
+  .ch-card{transition:transform .25s ease,box-shadow .25s ease;cursor:pointer}
+  .ch-card:hover{transform:translateY(-4px);box-shadow:0 18px 40px -16px rgba(15,23,42,.18)}
+  .mission-pill{font-size:.7rem;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:.2rem .45rem;display:inline-block;margin:.15rem .15rem 0 0;color:#334155}
+  .legend-dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:middle}
+  .glow{box-shadow:0 0 0 1px rgba(15,23,42,.04),0 30px 60px -30px rgba(220,38,38,.25),0 18px 36px -18px rgba(59,130,246,.25)}
+  .lang-toggle{position:fixed;right:20px;top:20px;z-index:50}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  body.lang-en [data-en="block"]{display:block}
+  .stage-card{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:1rem 1.1rem;position:relative;overflow:hidden}
+  .stage-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px}
+  .stage-p0::before{background:#94A3B8}
+  .stage-p1::before{background:#DC2626}
+  .stage-p2::before{background:#F59E0B}
+  .stage-p3::before{background:#3B82F6}
+  .stage-p4::before{background:#10B981}
+  .lingxi{filter:drop-shadow(0 8px 12px rgba(59,130,246,.25))}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="document.body.classList.toggle('lang-en')">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<!-- HERO -->
+<section class="hero-grad relative overflow-hidden">
+  <div class="max-w-6xl mx-auto px-6 py-14 relative z-10">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="chip bg-red-100 text-red-700">v1.0 · 2026.05.26</span>
+      <span class="chip bg-blue-100 text-blue-700">PRD 配套地图 / Map</span>
+      <span class="chip bg-amber-100 text-amber-800">12 岁产品经理出品</span>
+    </div>
+    <h1 class="text-5xl md:text-6xl font-black tracking-tight">
+      <span data-zh>智小灵 · AI 素养互动课程</span>
+      <span data-en>Smart Lingxi · AI Literacy Quest</span>
+    </h1>
+    <p class="text-xl md:text-2xl text-slate-700 mt-3 font-medium">
+      <span data-zh>受 Google AI Quests 启发 · 为中国中小学生量身定做 · 中英双语 · 完全零代码</span>
+      <span data-en>Inspired by Google AI Quests · Built for Chinese students · Bilingual · Code-free</span>
+    </p>
+
+    <div class="mt-8 grid md:grid-cols-3 gap-4">
+      <div class="bg-white/80 backdrop-blur rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wider">章节 / Chapters</div>
+        <div class="text-3xl font-bold mt-1">6</div>
+        <div class="text-sm text-slate-600 mt-1" data-zh>感知 · 推理 · 学习 · 对话 · 社会 · 自由创作</div>
+        <div class="text-sm text-slate-600 mt-1" data-en>Perceive · Reason · Learn · Talk · Society · Build</div>
+      </div>
+      <div class="bg-white/80 backdrop-blur rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wider">互动任务 / Missions</div>
+        <div class="text-3xl font-bold mt-1">24</div>
+        <div class="text-sm text-slate-600 mt-1" data-zh>每个 45 分钟单课时可完成</div>
+        <div class="text-sm text-slate-600 mt-1" data-en>Each in one 45-min class</div>
+      </div>
+      <div class="bg-white/80 backdrop-blur rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wider">对齐框架 / Frameworks</div>
+        <div class="text-3xl font-bold mt-1">3</div>
+        <div class="text-sm text-slate-600 mt-1">AI4K12 · 中国教育部 · UNESCO</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section class="max-w-6xl mx-auto px-6 py-12">
+  <h2 class="text-3xl font-bold mb-6">
+    <span data-zh>为什么要做这件事？</span>
+    <span data-en>Why we're building this</span>
+  </h2>
+  <div class="grid md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl p-5 border border-slate-200">
+      <div class="text-3xl">🧠</div>
+      <div class="font-bold mt-2" data-zh>缩小认知鸿沟</div>
+      <div class="font-bold mt-2" data-en>Close the gap</div>
+      <p class="text-sm text-slate-600 mt-2" data-zh>孩子每天用 AI，但不知道它怎么工作。</p>
+      <p class="text-sm text-slate-600 mt-2" data-en>Kids use AI daily—but don't understand it.</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-200">
+      <div class="text-3xl">🎮</div>
+      <div class="font-bold mt-2" data-zh>玩中学</div>
+      <div class="font-bold mt-2" data-en>Learn by playing</div>
+      <p class="text-sm text-slate-600 mt-2" data-zh>错了可以重来，反思胜过死记。</p>
+      <p class="text-sm text-slate-600 mt-2" data-en>Fail-safe play beats rote learning.</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-200">
+      <div class="text-3xl">⚖️</div>
+      <div class="font-bold mt-2" data-zh>伦理优先</div>
+      <div class="font-bold mt-2" data-en>Ethics first</div>
+      <p class="text-sm text-slate-600 mt-2" data-zh>负责任地构建 AI 是主线，不是附录。</p>
+      <p class="text-sm text-slate-600 mt-2" data-en>Responsible AI as backbone, not footnote.</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-slate-200">
+      <div class="text-3xl">🇨🇳</div>
+      <div class="font-bold mt-2" data-zh>中国语境</div>
+      <div class="font-bold mt-2" data-en>China-rooted</div>
+      <p class="text-sm text-slate-600 mt-2" data-zh>大熊猫、长江、敦煌、智慧农业。</p>
+      <p class="text-sm text-slate-600 mt-2" data-en>Pandas, Yangtze, Dunhuang, smart farming.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CHAPTERS -->
+<section class="max-w-6xl mx-auto px-6 py-12 border-t border-slate-200">
+  <div class="flex items-end justify-between mb-6">
+    <h2 class="text-3xl font-bold">
+      <span data-zh>6 章 · 24 个任务</span>
+      <span data-en>6 chapters · 24 missions</span>
+    </h2>
+    <div class="text-sm text-slate-500 hidden md:block">
+      <span data-zh>悬停查看任务清单</span>
+      <span data-en>Hover for missions</span>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <!-- CH1 -->
+    <div class="ch-card bg-white rounded-2xl p-5 border border-slate-200">
+      <div class="flex items-center justify-between">
+        <span class="chip bg-red-50 text-red-700">Ch.1 · Perception</span>
+        <span class="text-xs text-slate-500">入门</span>
+      </div>
+      <h3 class="text-2xl font-bold mt-3">
+        <span data-zh>AI 怎么看见世界</span>
+        <span data-en>How AI Sees</span>
+      </h3>
+      <p class="text-sm text-slate-600 mt-2">
+        <span data-zh>🐼 锚点：卧龙大熊猫识别</span>
+        <span data-en>🐼 Anchor: Wolong panda recognition</span>
+      </p>
+      <div class="mt-3">
+        <span class="mission-pill">M1-1 像素与图像</span>
+        <span class="mission-pill">M1-2 标签游戏</span>
+        <span class="mission-pill">M1-3 训练识别器</span>
+        <span class="mission-pill">M1-4 误识别的代价</span>
+      </div>
+    </div>
+
+    <!-- CH2 -->
+    <div class="ch-card bg-white rounded-2xl p-5 border border-slate-200">
+      <div class="flex items-center justify-between">
+        <span class="chip bg-amber-50 text-amber-700">Ch.2 · Reasoning</span>
+        <span class="text-xs text-slate-500">入门→进阶</span>
+      </div>
+      <h3 class="text-2xl font-bold mt-3">
+        <span data-zh>AI 怎么思考</span>
+        <span data-en>How AI Thinks</span>
+      </h3>
+      <p class="text-sm text-slate-600 mt-2">
+        <span data-zh>🏛️ 锚点：故宫文物分类</span>
+        <span data-en>🏛️ Anchor: Palace Museum artifacts</span>
+      </p>
+      <div class="mt-3">
+        <span class="mission-pill">M2-1 知识图谱</span>
+        <span class="mission-pill">M2-2 决策树</span>
+        <span class="mission-pill">M2-3 偏见如何编码</span>
+        <span class="mission-pill">M2-4 谁来定标签</span>
+      </div>
+    </div>
+
+    <!-- CH3 -->
+    <div class="ch-card bg-white rounded-2xl p-5 border border-slate-200">
+      <div class="flex items-center justify-between">
+        <span class="chip bg-green-50 text-green-700">Ch.3 · Learning</span>
+        <span class="text-xs text-slate-500">进阶</span>
+      </div>
+      <h3 class="text-2xl font-bold mt-3">
+        <span data-zh>AI 怎么学习</span>
+        <span data-en>How AI Learns</span>
+      </h3>
+      <p class="text-sm text-slate-600 mt-2">
+        <span data-zh>🌾 锚点：智慧农业病虫害预警</span>
+        <span data-en>🌾 Anchor: Smart-farm pest detection</span>
+      </p>
+      <div class="mt-3">
+        <span class="mission-pill">M3-1 数据从哪来</span>
+        <span class="mission-pill">M3-2 训练 vs 测试</span>
+        <span class="mission-pill">M3-3 过拟合陷阱</span>
+        <span class="mission-pill">M3-4 数据的主人</span>
+      </div>
+    </div>
+
+    <!-- CH4 -->
+    <div class="ch-card bg-white rounded-2xl p-5 border border-slate-200">
+      <div class="flex items-center justify-between">
+        <span class="chip bg-blue-50 text-blue-700">Ch.4 · Interaction</span>
+        <span class="text-xs text-slate-500">入门→进阶</span>
+      </div>
+      <h3 class="text-2xl font-bold mt-3">
+        <span data-zh>AI 怎么对话</span>
+        <span data-en>How AI Talks</span>
+      </h3>
+      <p class="text-sm text-slate-600 mt-2">
+        <span data-zh>📜 锚点：诗仙 GPT · 方言识别</span>
+        <span data-en>📜 Anchor: Poet GPT · dialect ASR</span>
+      </p>
+      <div class="mt-3">
+        <span class="mission-pill">M4-1 诗仙 GPT</span>
+        <span class="mission-pill">M4-2 提示词工程</span>
+        <span class="mission-pill">M4-3 幻觉狩猎</span>
+        <span class="mission-pill">M4-4 方言救援</span>
+      </div>
+    </div>
+
+    <!-- CH5 -->
+    <div class="ch-card bg-white rounded-2xl p-5 border border-slate-200">
+      <div class="flex items-center justify-between">
+        <span class="chip bg-slate-100 text-slate-700">Ch.5 · Society</span>
+        <span class="text-xs text-slate-500">进阶</span>
+      </div>
+      <h3 class="text-2xl font-bold mt-3">
+        <span data-zh>AI 与人类社会</span>
+        <span data-en>AI and Society</span>
+      </h3>
+      <p class="text-sm text-slate-600 mt-2">
+        <span data-zh>🔁 锚点：推荐算法 · 深度伪造</span>
+        <span data-en>🔁 Anchor: Recsys · deepfakes</span>
+      </p>
+      <div class="mt-3">
+        <span class="mission-pill">M5-1 谁在替我选</span>
+        <span class="mission-pill">M5-2 算法回音壁</span>
+        <span class="mission-pill">M5-3 真假难辨</span>
+        <span class="mission-pill">M5-4 我能做什么</span>
+      </div>
+    </div>
+
+    <!-- CH6 -->
+    <div class="ch-card bg-white rounded-2xl p-5 border border-red-200 glow">
+      <div class="flex items-center justify-between">
+        <span class="chip bg-red-100 text-red-700">Ch.6 · Capstone</span>
+        <span class="text-xs text-red-600">挑战 · Final</span>
+      </div>
+      <h3 class="text-2xl font-bold mt-3">
+        <span data-zh>训练我的第一个 AI</span>
+        <span data-en>Train Your Own AI</span>
+      </h3>
+      <p class="text-sm text-slate-600 mt-2">
+        <span data-zh>🎓 毕业作品 + 负责任发布清单</span>
+        <span data-en>🎓 Capstone + Responsible-release checklist</span>
+      </p>
+      <div class="mt-3">
+        <span class="mission-pill">M6-1 选问题</span>
+        <span class="mission-pill">M6-2 收数据</span>
+        <span class="mission-pill">M6-3 训练 + 评估</span>
+        <span class="mission-pill">M6-4 发布会</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MENTOR -->
+<section class="bg-gradient-to-br from-blue-50 to-red-50 py-12 border-t border-slate-200">
+  <div class="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-8 items-center">
+    <div>
+      <span class="chip bg-white text-slate-700 border border-slate-200">NPC 导师 · In-game Mentor</span>
+      <h2 class="text-4xl font-bold mt-3">
+        <span data-zh>认识智小灵 / Lingxi</span>
+        <span data-en>Meet Lingxi</span>
+      </h2>
+      <p class="text-slate-700 mt-3 leading-relaxed">
+        <span data-zh>一只蓝色全息小灵兽，会变形成放大镜、计算器、地球仪。它不卖萌、不说教，用<strong>苏格拉底式反问</strong>引导你自己想清楚。它会承认"我也不知道"，甚至偶尔露出 AI 的<strong>幻觉</strong>——让你学会质疑 AI。</span>
+        <span data-en>A blue holographic spirit-creature that morphs into magnifiers, calculators, globes. No cuteness, no preaching — Socratic questions only. It admits "I don't know" and even hallucinates on purpose so you learn to question AI.</span>
+      </p>
+      <div class="mt-4 bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 mb-1" data-zh>导师对白样本</div>
+        <div class="text-xs text-slate-500 mb-1" data-en>Sample dialogue</div>
+        <div class="text-slate-700" data-zh>"你刚才让我识别这张图，我说'是猫'，可它明明是只狗。我是不是哪里没学好？"</div>
+        <div class="text-slate-700" data-en>"You asked me what's in the picture and I said 'cat' — but it's clearly a dog. Did I learn something wrong?"</div>
+      </div>
+    </div>
+    <div class="text-center">
+      <!-- SVG mascot -->
+      <svg viewBox="0 0 360 360" class="mx-auto lingxi" width="320" height="320" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="bg" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#DBEAFE"/>
+            <stop offset="100%" stop-color="#F8FAFC" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="body" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#60A5FA"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+        </defs>
+        <circle cx="180" cy="180" r="170" fill="url(#bg)"/>
+        <!-- ears -->
+        <path d="M115 95 L130 165 L155 130 Z" fill="url(#body)"/>
+        <path d="M245 95 L230 165 L205 130 Z" fill="url(#body)"/>
+        <!-- head body -->
+        <ellipse cx="180" cy="200" rx="95" ry="100" fill="url(#body)"/>
+        <!-- belly -->
+        <ellipse cx="180" cy="225" rx="55" ry="60" fill="#BFDBFE" opacity="0.7"/>
+        <!-- eyes -->
+        <ellipse cx="148" cy="180" rx="14" ry="18" fill="#FFFFFF"/>
+        <ellipse cx="212" cy="180" rx="14" ry="18" fill="#FFFFFF"/>
+        <circle cx="151" cy="185" r="7" fill="#0F172A"/>
+        <circle cx="215" cy="185" r="7" fill="#0F172A"/>
+        <circle cx="153" cy="182" r="2.5" fill="#fff"/>
+        <circle cx="217" cy="182" r="2.5" fill="#fff"/>
+        <!-- nose -->
+        <ellipse cx="180" cy="215" rx="6" ry="4" fill="#0F172A"/>
+        <!-- mouth -->
+        <path d="M170 228 Q180 240 190 228" stroke="#0F172A" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- cheek -->
+        <circle cx="135" cy="215" r="8" fill="#FCA5A5" opacity="0.6"/>
+        <circle cx="225" cy="215" r="8" fill="#FCA5A5" opacity="0.6"/>
+        <!-- antenna / circuit -->
+        <line x1="180" y1="100" x2="180" y2="70" stroke="#3B82F6" stroke-width="2"/>
+        <circle cx="180" cy="65" r="6" fill="#DC2626"/>
+        <circle cx="180" cy="65" r="3" fill="#FCA5A5"/>
+        <!-- floating data dots -->
+        <circle cx="80" cy="140" r="4" fill="#DC2626" opacity="0.6"/>
+        <circle cx="290" cy="170" r="3" fill="#10B981" opacity="0.7"/>
+        <circle cx="70" cy="230" r="3" fill="#F59E0B" opacity="0.7"/>
+        <circle cx="300" cy="240" r="4" fill="#3B82F6" opacity="0.7"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- FRAMEWORK ALIGNMENT -->
+<section class="max-w-6xl mx-auto px-6 py-12">
+  <h2 class="text-3xl font-bold mb-6">
+    <span data-zh>三套权威框架，三重保障</span>
+    <span data-en>Three frameworks, triple-aligned</span>
+  </h2>
+  <div class="grid md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl p-5 border-t-4 border-blue-500 border border-slate-200">
+      <div class="font-bold text-lg">AI4K12</div>
+      <div class="text-sm text-slate-500 mb-2">Five Big Ideas (USA · AAAI+CSTA)</div>
+      <ul class="text-sm text-slate-700 space-y-1">
+        <li class="ring-dot text-red-500"><span class="text-slate-700">Perception 感知</span></li>
+        <li class="ring-dot text-amber-500"><span class="text-slate-700">Representation 表示</span></li>
+        <li class="ring-dot text-green-500"><span class="text-slate-700">Learning 学习</span></li>
+        <li class="ring-dot text-blue-500"><span class="text-slate-700">Interaction 交互</span></li>
+        <li class="ring-dot text-slate-500"><span class="text-slate-700">Societal Impact 社会影响</span></li>
+      </ul>
+    </div>
+    <div class="bg-white rounded-xl p-5 border-t-4 border-red-500 border border-slate-200">
+      <div class="font-bold text-lg">
+        <span data-zh>中国通识指南 2025</span>
+        <span data-en>China MoE Guideline 2025</span>
+      </div>
+      <div class="text-sm text-slate-500 mb-2">Knowledge–Skill–Thinking–Value</div>
+      <ul class="text-sm text-slate-700 space-y-1">
+        <li class="ring-dot text-red-500"><span class="text-slate-700"><span data-zh>知识：原理认知</span><span data-en>Knowledge</span></span></li>
+        <li class="ring-dot text-amber-500"><span class="text-slate-700"><span data-zh>技能：动手操作</span><span data-en>Skills</span></span></li>
+        <li class="ring-dot text-green-500"><span class="text-slate-700"><span data-zh>思维：批判反思</span><span data-en>Thinking</span></span></li>
+        <li class="ring-dot text-blue-500"><span class="text-slate-700"><span data-zh>价值观：责任意识</span><span data-en>Values</span></span></li>
+      </ul>
+    </div>
+    <div class="bg-white rounded-xl p-5 border-t-4 border-green-500 border border-slate-200">
+      <div class="font-bold text-lg">UNESCO</div>
+      <div class="text-sm text-slate-500 mb-2">AI Competency Framework</div>
+      <ul class="text-sm text-slate-700 space-y-1">
+        <li class="ring-dot text-red-500"><span class="text-slate-700">Human-centered mindset</span></li>
+        <li class="ring-dot text-amber-500"><span class="text-slate-700">Ethics of AI</span></li>
+        <li class="ring-dot text-green-500"><span class="text-slate-700">AI techniques</span></li>
+        <li class="ring-dot text-blue-500"><span class="text-slate-700">AI system design</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- TECH -->
+<section class="max-w-6xl mx-auto px-6 py-12 border-t border-slate-200">
+  <h2 class="text-3xl font-bold mb-6">
+    <span data-zh>零代码技术栈（推荐 MVP 方案）</span>
+    <span data-en>No-code stack (MVP)</span>
+  </h2>
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">代码生成 / Code</div>
+      <div class="font-bold mt-1">Claude · ChatGPT</div>
+      <div class="text-xs text-slate-600 mt-1">对话式生成 HTML/JS</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">托管 / Host</div>
+      <div class="font-bold mt-1">GitHub Pages</div>
+      <div class="text-xs text-slate-600 mt-1" data-zh>免费、5 分钟上线</div>
+      <div class="text-xs text-slate-600 mt-1" data-en>Free, 5-min deploy</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">模型训练 / ML</div>
+      <div class="font-bold mt-1">Teachable Machine</div>
+      <div class="text-xs text-slate-600 mt-1" data-zh>浏览器内训练分类器</div>
+      <div class="text-xs text-slate-600 mt-1" data-en>Train in browser</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">美术 / Art</div>
+      <div class="font-bold mt-1">Canva · Figma</div>
+      <div class="text-xs text-slate-600 mt-1">+ AI image gen</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">音频 / Audio</div>
+      <div class="font-bold mt-1" data-zh>剪映 · 阿里 TTS</div>
+      <div class="font-bold mt-1" data-en>CapCut · Cloud TTS</div>
+      <div class="text-xs text-slate-600 mt-1" data-zh>中文配音自然</div>
+      <div class="text-xs text-slate-600 mt-1" data-en>Native Chinese voice</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">LLM 调用 / API</div>
+      <div class="font-bold mt-1" data-zh>通义/文心/DeepSeek</div>
+      <div class="font-bold mt-1" data-en>Tongyi / DeepSeek</div>
+      <div class="text-xs text-slate-600 mt-1" data-zh>规避境外限制</div>
+      <div class="text-xs text-slate-600 mt-1" data-en>Bypass overseas limits</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">进度存储 / State</div>
+      <div class="font-bold mt-1">localStorage (MVP)</div>
+      <div class="text-xs text-slate-600 mt-1">→ Supabase (Beta)</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="text-xs text-slate-500 uppercase">协作 / Repo</div>
+      <div class="font-bold mt-1">GitHub</div>
+      <div class="text-xs text-slate-600 mt-1" data-zh>免费、易找帮手</div>
+      <div class="text-xs text-slate-600 mt-1" data-en>Free, easy for collaborators</div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="max-w-6xl mx-auto px-6 py-12 border-t border-slate-200">
+  <h2 class="text-3xl font-bold mb-6">
+    <span data-zh>从 0 到 1 · 12 个月路线图</span>
+    <span data-en>0-to-1 · 12-month roadmap</span>
+  </h2>
+  <div class="grid md:grid-cols-5 gap-3">
+    <div class="stage-card stage-p0">
+      <div class="text-xs font-semibold text-slate-500 uppercase">P0 · 2 wk</div>
+      <div class="font-bold mt-1" data-zh>立项</div>
+      <div class="font-bold mt-1" data-en>Kickoff</div>
+      <div class="text-sm text-slate-600 mt-2" data-zh>PRD 定稿、找 1 位老师顾问</div>
+      <div class="text-sm text-slate-600 mt-2" data-en>PRD final, find 1 teacher advisor</div>
+    </div>
+    <div class="stage-card stage-p1">
+      <div class="text-xs font-semibold text-red-600 uppercase">P1 · 6 wk</div>
+      <div class="font-bold mt-1">MVP</div>
+      <div class="text-sm text-slate-600 mt-2" data-zh>Ch.1 完整 4 任务 + 教师包</div>
+      <div class="text-sm text-slate-600 mt-2" data-en>1 chapter + 4 missions + teacher kit</div>
+    </div>
+    <div class="stage-card stage-p2">
+      <div class="text-xs font-semibold text-amber-600 uppercase">P2 · 8 wk</div>
+      <div class="font-bold mt-1">Alpha</div>
+      <div class="text-sm text-slate-600 mt-2" data-zh>前 3 章 + 双语 + 用户系统</div>
+      <div class="text-sm text-slate-600 mt-2" data-en>First 3 chs + bilingual + auth</div>
+    </div>
+    <div class="stage-card stage-p3">
+      <div class="text-xs font-semibold text-blue-600 uppercase">P3 · 12 wk</div>
+      <div class="font-bold mt-1">Beta</div>
+      <div class="text-sm text-slate-600 mt-2" data-zh>6 章全部 + 教师培训 + 5 校公测</div>
+      <div class="text-sm text-slate-600 mt-2" data-en>All 6 chs + teacher training + 5 schools</div>
+    </div>
+    <div class="stage-card stage-p4">
+      <div class="text-xs font-semibold text-green-600 uppercase">P4 · 8 wk</div>
+      <div class="font-bold mt-1">1.0</div>
+      <div class="text-sm text-slate-600 mt-2" data-zh>合规上线 + 社区 + 1000 月活</div>
+      <div class="text-sm text-slate-600 mt-2" data-en>Public launch + community + 1k MAU</div>
+    </div>
+  </div>
+</section>
+
+<!-- FIRST WEEK -->
+<section class="bg-gradient-to-r from-red-600 to-blue-600 text-white py-14">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="chip bg-white/20 text-white border border-white/30 mb-3">
+      <span data-zh>第一周 · 立刻行动</span>
+      <span data-en>Week one · take action</span>
+    </div>
+    <h2 class="text-4xl font-bold">
+      <span data-zh>你下一步要做的 3 件事</span>
+      <span data-en>3 things to do next</span>
+    </h2>
+    <div class="grid md:grid-cols-3 gap-5 mt-7">
+      <div class="bg-white/10 backdrop-blur rounded-xl p-5 border border-white/20">
+        <div class="text-3xl font-black">01</div>
+        <div class="font-bold mt-2" data-zh>把 PRD 打印出来</div>
+        <div class="font-bold mt-2" data-en>Print the PRD</div>
+        <p class="text-sm text-white/90 mt-2" data-zh>给爸爸妈妈看完，听他们的反馈。他们是你的第一支持者。</p>
+        <p class="text-sm text-white/90 mt-2" data-en>Share with parents. They're your first supporters.</p>
+      </div>
+      <div class="bg-white/10 backdrop-blur rounded-xl p-5 border border-white/20">
+        <div class="text-3xl font-black">02</div>
+        <div class="font-bold mt-2" data-zh>找信息科技老师</div>
+        <div class="font-bold mt-2" data-en>Find a CS teacher</div>
+        <p class="text-sm text-white/90 mt-2" data-zh>请他读第 5、7 节，提一条建议你就赢了。</p>
+        <p class="text-sm text-white/90 mt-2" data-en>Ask them to read §5, §7 and give one note.</p>
+      </div>
+      <div class="bg-white/10 backdrop-blur rounded-xl p-5 border border-white/20">
+        <div class="text-3xl font-black">03</div>
+        <div class="font-bold mt-2" data-zh>建项目记事本</div>
+        <div class="font-bold mt-2" data-en>Start a project log</div>
+        <p class="text-sm text-white/90 mt-2" data-zh>每天 5 行：做了什么、卡在哪、明天计划。</p>
+        <p class="text-sm text-white/90 mt-2" data-en>5 lines/day: did, stuck, tomorrow.</p>
+      </div>
+    </div>
+    <div class="mt-8 text-sm text-white/80">
+      <span data-zh>"Move fast and learn. 错也快，学也快。" — 致正在出发的你</span>
+      <span data-en>"Move fast and learn." — for the kid who's about to start</span>
+    </div>
+  </div>
+</section>
+
+<!-- LEGEND / FOOTER -->
+<footer class="max-w-6xl mx-auto px-6 py-10 text-sm text-slate-500 grid md:grid-cols-3 gap-4">
+  <div>
+    <div class="font-semibold text-slate-700">
+      <span data-zh>对齐 · Alignment</span>
+      <span data-en>Alignment</span>
+    </div>
+    <p class="mt-1">AI4K12 · 中国教育部《通识指南 2025》· UNESCO K-12 Framework</p>
+  </div>
+  <div>
+    <div class="font-semibold text-slate-700">
+      <span data-zh>合规 · Compliance</span>
+      <span data-en>Compliance</span>
+    </div>
+    <p class="mt-1" data-zh>个人信息保护法 · 未成年人保护法 · 生成式 AI 管理办法</p>
+    <p class="mt-1" data-en>PIPL · Minor Protection Law · GenAI Regulation</p>
+  </div>
+  <div>
+    <div class="font-semibold text-slate-700">
+      <span data-zh>致谢 · Credits</span>
+      <span data-en>Credits</span>
+    </div>
+    <p class="mt-1" data-zh>Notcokeaddicted · 12 岁 · 北京 / 与 Claude 共创</p>
+    <p class="mt-1" data-en>Notcokeaddicted (12, Beijing) co-built with Claude</p>
+  </div>
+</footer>
+
+</body>
+</html>

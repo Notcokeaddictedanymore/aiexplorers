@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4-4 方言救援 · Whose Language Survives in AI?</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Dialect card */
+  .dialect-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem;transition:all .2s;cursor:pointer;position:relative}
+  .dialect-card:hover{transform:translateY(-2px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15)}
+  .dialect-card.visited{border-color:#10B981}
+  .dialect-card.visited::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  .coverage-bar{height:8px;border-radius:4px;background:#F1F5F9;overflow:hidden;position:relative;margin:.5rem 0}
+  .coverage-fill{height:100%;border-radius:4px;transition:width .6s ease}
+  .cov-great{background:linear-gradient(90deg,#10B981,#059669)}
+  .cov-okay{background:linear-gradient(90deg,#F59E0B,#D97706)}
+  .cov-poor{background:linear-gradient(90deg,#DC2626,#B91C1C)}
+
+  /* Cause/Action card */
+  .info-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .info-card:hover{border-color:#94A3B8}
+  .info-card.read{border-color:#10B981;background:#ECFDF5}
+
+  /* Pledge */
+  .pledge-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s}
+  .pledge-input:focus{outline:none;border-color:#3B82F6}
+  .pledge-input.ok{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M4-4 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.4 · 对话 / Interaction</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>反思 · 30 min</span><span data-en>Reflect · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>方言救援：AI 时代谁的语言能活下去？</span>
+      <span data-en>Dialect Rescue: Whose Language Survives in the AI Era?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            最后一关——也是 Ch.4 最重要的一关。让我先问你：
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Final mission — and Ch.4's most important. Let me ask:
+          </p>
+          <p class="text-xl mt-3 text-center font-bold text-red-700" data-zh>
+            "你奶奶说的话，AI 听得懂吗？"
+          </p>
+          <p class="text-xl mt-3 text-center font-bold text-red-700" data-en>
+            "Can AI understand your grandma?"
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            中国有 <strong>80+ 种方言和少数民族语言</strong>。普通话是其中一种。但 ChatGPT/文心/豆包 这些 AI 受过训练的<strong>大部分中文数据</strong>，是<strong>普通话</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            China has <strong>80+ dialects and minority languages</strong>. Mandarin is one. But ChatGPT/Wenxin/Doubao were trained on <strong>mostly Mandarin</strong> Chinese data.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            后果：如果你只跟 AI 说普通话，AI 越来越懂你。如果你说<strong>上海话/客家话/晋语</strong>……AI 越来越听不懂。<strong>10 年后，你的方言可能没人会说了</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Consequence: speak Mandarin → AI knows you better. Speak <strong>Shanghainese/Hakka/Jin</strong>… AI falls behind. <strong>In 10 years, your dialect could be gone</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看中国方言 AI 覆盖地图 →</span><span data-en>See China's dialect map →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: DIALECT MAP ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 <strong>8 种中国方言</strong>。每张卡上有它的<strong>使用人数</strong>和<strong>AI 覆盖度</strong>（绿条=覆盖好，红条=几乎没覆盖）。点击查看——8 张都看完再继续。</p>
+      <p data-en>8 <strong>Chinese languages/dialects</strong>. Each card shows <strong>speaker count</strong> + <strong>AI coverage</strong> (green=good, red=poor). Visit all 8.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已看：</span><span data-en>Visited:</span><span id="dial-count">0</span> / 8</div>
+    </div>
+
+    <div id="dialect-grid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：让 AI 翻译方言 →</span><span data-en>Next: AI tries dialects →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: AI TRIES DIALECTS ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>让 AI 翻译 <strong>同一句话</strong>——奶奶问："<strong>你今天吃了吗？</strong>"——用 5 种方言说。看 AI 听得懂吗？</p>
+      <p data-en>Let's have AI translate the <strong>same sentence</strong> — Grandma asks "<strong>Did you eat today?</strong>" — in 5 dialects. See if AI gets it.</p>
+    </div>
+
+    <div id="trans-list" class="space-y-3 mb-4"></div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+      <strong>📊 <span data-zh>结果统计</span><span data-en>Tally</span></strong>：
+      <span data-zh>5 个方言版本，AI 真正"听懂"的只有 <strong class="text-green-700">2 个</strong>。剩下 3 个，<strong>它要么翻错，要么直接编</strong>。如果奶奶用客家话或闽南话问你，AI 可能比你还困惑。</span>
+      <span data-en>Of 5 dialects, AI truly "understands" only <strong class="text-green-700">2</strong>. The other 3, it <strong>mistranslates or invents</strong>. If grandma speaks Hakka or Hokkien, AI is more lost than you.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(3)">
+        <span data-zh>下一关：为什么会这样 →</span><span data-en>Next: why this happens →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: WHY THE IMBALANCE ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>不是 AI <strong>故意</strong>歧视方言。是<strong>数据失衡</strong>——它训练时见的方言数据，比普通话少 100-1000 倍。来看 <strong>3 个原因</strong>。</p>
+      <p data-en>AI isn't <strong>deliberately</strong> discriminating. <strong>Data imbalance</strong> — it saw 100–1000× less dialect data. 3 reasons.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="cause-count">0</span> / 3</div>
+    </div>
+
+    <div id="cause-grid" class="grid md:grid-cols-3 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：你能做什么 →</span><span data-en>Next: what you can do →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: WHAT YOU CAN DO ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>"AI 不会方言"不是无解的问题——是<strong>选择</strong>问题。<strong>你 12 岁能做的 4 件事</strong>：</p>
+      <p data-en>"AI doesn't speak dialects" isn't unsolvable — it's a <strong>choice</strong>. <strong>4 things a 12-year-old can do</strong>:</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="action-count">0</span> / 4</div>
+    </div>
+
+    <div id="action-grid" class="grid md:grid-cols-2 gap-4 mb-4"></div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+      <strong>🌍 <span data-zh>真实案例</span><span data-en>Real story</span></strong>：
+      <span data-zh>2023 年起，一群<strong>香港初中生</strong>在 GitHub 上发起"<strong>粤语 AI 数据</strong>"项目，每人每天录 5 分钟粤语对话。2 年后，他们的开源数据集让多个 AI 公司的粤语支持从"听不懂"提升到"基本对话"。<strong>12 岁的人改变了 AI</strong>。</span>
+      <span data-en>Since 2023, a group of <strong>Hong Kong middle schoolers</strong> launched a "<strong>Cantonese AI Data</strong>" GitHub project — each records 5 min daily. 2 years later, their open dataset moved Cantonese AI from "broken" to "conversational" at major firms. <strong>12-year-olds changed AI</strong>.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>最后：方言保护宣言 →</span><span data-en>Final: dialect manifesto →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: MANIFESTO ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你已经看完了 AI 时代的语言生死局。最后，请你写下<strong>3 条方言宣言</strong>——你这一代要做的事。</p>
+      <p data-en>You've seen the language-life-and-death of the AI age. Write <strong>3 dialect pledges</strong> — your generation's task.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-red-50 to-blue-50 border-2 border-slate-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-1"><span data-zh>📜 我的方言宣言</span><span data-en>📜 My Dialect Manifesto</span></h3>
+      <p class="text-sm text-slate-600 mb-5"><span data-zh>每条 ≥ 15 字。这不只是关于 AI——是关于<strong>你的家庭、你的奶奶、你的根</strong>。</span><span data-en>≥ 15 chars each. Not just about AI — about <strong>your family, your grandma, your roots</strong>.</span></p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600">① <span data-zh>关于我家乡的方言，我会做的一件具体的事是……</span><span data-en>For my hometown's dialect, one concrete thing I'll do is…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl1" placeholder="" oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">② <span data-zh>当 AI 听不懂我奶奶说话时，我会……</span><span data-en>When AI can't understand my grandma, I will…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl2" placeholder="" oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">③ <span data-zh>我希望 10 年后中国的 AI 能够……</span><span data-en>10 years from now, I want China's AI to be able to…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl3" placeholder="" oninput="checkPledges()"/>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pl-progress">0</span> / 3 <span data-zh>条完成</span><span data-en>complete</span></div>
+        <button class="btn-primary" id="pledge-submit" disabled onclick="submitManifesto()">
+          <span data-zh>提交 + 完成 Ch.4 →</span><span data-en>Submit & finish Ch.4 →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-blue-500 to-purple-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#60A5FA" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🗣️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>Ch.4 全部完成！</span><span data-en>Chapter 4 complete!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"语言守护者" 徽章已解锁</span><span data-en>"Language Guardian" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>这一章你内化了……</span><span data-en>This chapter you internalized…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>LLM 是<strong>"猜下一个字"</strong>的统计大师——不是理解者</span><span data-en>LLMs are <strong>"next-word"</strong> statistical masters — not understanders</span></li>
+          <li>✓ <span data-zh><strong>RCTF 提示词</strong>能让 AI 给出 10× 好的回答</span><span data-en><strong>RCTF prompts</strong> make AI 10× more useful</span></li>
+          <li>✓ <span data-zh>AI 会<strong>一本正经胡说</strong>——必须用工具箱验证</span><span data-en>AI <strong>confidently bullshits</strong> — verify with toolkit</span></li>
+          <li>✓ <span data-zh>AI 的<strong>语言覆盖不均</strong>——方言/少数民族语言的命运在你手里</span><span data-en>AI's <strong>language coverage is uneven</strong> — dialect/minority survival is in your hands</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-amber-100 to-amber-50 border-2 border-amber-300 rounded-2xl">
+        <div class="text-xl font-black mb-2">🎓 <span data-zh>第四章结业 · 总进度 16/24</span><span data-en>Chapter 4 done · 16/24 total</span></div>
+        <p class="text-sm" data-zh>你完成了"AI 怎么对话"全部 4 关。Ch.1+2+3+4 = <strong>16 个徽章</strong>。还剩 2 章：AI 与人类社会 + 训练我的第一个 AI。</p>
+        <p class="text-sm" data-en>4 missions of "How AI Talks" complete. Ch.1+2+3+4 = <strong>16 badges</strong>. 2 chapters left: AI and Society + Train Your Own AI.</p>
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M4-1">📜</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M4-2">💬</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M4-3">🎭</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M4-4">🗣️</div>
+        </div>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="alert(LANG==='en'?'Chapter 5 coming soon!':'第 5 章即将开放！')">
+          <span data-zh>开启 Ch.5 →</span><span data-en>Start Ch.5 →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M4-4 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M4-4 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   8 DIALECTS / LANGUAGES
+   ===================================================== */
+const DIALECTS = [
+  {id:'mandarin', emoji:'🇨🇳',
+   name:{zh:'普通话', en:'Standard Mandarin'},
+   region:{zh:'全国通用', en:'Nationwide'},
+   speakers:'8 亿+ / 800M+',
+   coverage:95, level:'great',
+   sample:{phrase:'你好，今天吃了吗？',
+           note:{zh:'AI 完美理解。',en:'AI understands perfectly.'}}},
+  {id:'cantonese', emoji:'🏙️',
+   name:{zh:'粤语', en:'Cantonese'},
+   region:{zh:'广东、香港、海外华人', en:'Guangdong, HK, diaspora'},
+   speakers:'8000 万 / 80M',
+   coverage:60, level:'okay',
+   sample:{phrase:'你好，今日食咗未啊？',
+           note:{zh:'AI 大致懂——香港、广州学生的努力让它越来越好。',en:'AI mostly gets it — improving thanks to HK/Guangzhou student efforts.'}}},
+  {id:'wu', emoji:'🌊',
+   name:{zh:'上海话/吴语', en:'Shanghainese / Wu'},
+   region:{zh:'上海、江浙', en:'Shanghai, Jiangsu, Zhejiang'},
+   speakers:'8000 万 / 80M',
+   coverage:35, level:'okay',
+   sample:{phrase:'侬好，今朝吃过伐？',
+           note:{zh:'AI 能写但不太能"听"——大部分上海年轻人也只会几句。',en:'AI can read but barely "hear" — many young Shanghainese only know a few phrases.'}}},
+  {id:'hokkien', emoji:'🛕',
+   name:{zh:'闽南话', en:'Hokkien / Min Nan'},
+   region:{zh:'福建、台湾、东南亚', en:'Fujian, Taiwan, SE Asia'},
+   speakers:'5000 万 / 50M',
+   coverage:25, level:'poor',
+   sample:{phrase:'汝好，今仔日食饱未？',
+           note:{zh:'AI 几乎听不懂——字都不一定显示对。',en:'AI barely understands — even characters render wrong.'}}},
+  {id:'hakka', emoji:'⛰️',
+   name:{zh:'客家话', en:'Hakka'},
+   region:{zh:'广东、福建、台湾、海外', en:'Guangdong, Fujian, Taiwan, overseas'},
+   speakers:'4000 万 / 40M',
+   coverage:15, level:'poor',
+   sample:{phrase:'你好，今晡日食饭无？',
+           note:{zh:'AI 几乎零覆盖——客家文化危险中。',en:'Near-zero AI coverage — Hakka culture at risk.'}}},
+  {id:'jin', emoji:'⛏️',
+   name:{zh:'晋语（山西话）', en:'Jin / Shanxi'},
+   region:{zh:'山西、内蒙古一部分', en:'Shanxi, parts of Inner Mongolia'},
+   speakers:'6300 万 / 63M',
+   coverage:10, level:'poor',
+   sample:{phrase:'恁好，今儿个吃咾饭咾？',
+           note:{zh:'AI 几乎完全不懂——很多山西人自己写也写不出来。',en:'AI essentially blank — even Shanxi locals struggle to write it.'}}},
+  {id:'tibetan', emoji:'🏔️',
+   name:{zh:'藏语', en:'Tibetan'},
+   region:{zh:'西藏、青海、四川、甘肃', en:'Tibet, Qinghai, Sichuan, Gansu'},
+   speakers:'800 万 / 8M',
+   coverage:30, level:'okay',
+   sample:{phrase:'བདེ་མོ། ཁྱེད་རང་གིས་ཁ་ཟས་བཟས་སོང་ངམ།',
+           note:{zh:'近年中国 AI 公司专项投入——从极差到中等。',en:'Recent focused investment by Chinese AI firms — went from terrible to mid.'}}},
+  {id:'uyghur', emoji:'🌙',
+   name:{zh:'维吾尔语', en:'Uyghur'},
+   region:{zh:'新疆', en:'Xinjiang'},
+   speakers:'1100 万 / 11M',
+   coverage:30, level:'okay',
+   sample:{phrase:'سالامەتسىز، بۈگۈن تاماق يېدىڭىزمۇ؟',
+           note:{zh:'类似藏语——专项投入下从无到有。',en:'Like Tibetan — bootstrapped from zero via focused investment.'}}},
+];
+
+/* =====================================================
+   TRANSLATION EXAMPLES (Phase 2)
+   ===================================================== */
+const TRANS = [
+  {dialect:{zh:'普通话',en:'Mandarin'}, original:'你今天吃了吗？',
+   aiSays:{zh:'"你今天吃了吗？" → AI 完美理解，回答"你好！我没吃饭，我是 AI 不需要吃东西。"',
+           en:'"你今天吃了吗？" → AI fully gets it, replies "Hi! I haven\'t eaten; I\'m an AI."'},
+   ok:true},
+  {dialect:{zh:'粤语',en:'Cantonese'}, original:'你今日食咗未啊？',
+   aiSays:{zh:'AI 识别出粤语，正确翻译，回答"我冇食啊"（粤语：我没吃啊）',
+           en:'AI detects Cantonese, translates correctly, replies "I haven\'t eaten."'},
+   ok:true},
+  {dialect:{zh:'上海话',en:'Shanghainese'}, original:'侬今朝吃过伐？',
+   aiSays:{zh:'AI 看到"侬"可能猜出是上海话，但<strong>翻得磕磕巴巴</strong>——它把"吃过伐"翻成"吃过了吗"，意思对但<strong>不会用上海话回</strong>。',
+           en:'AI sees 侬, guesses Shanghainese, but <strong>stumbles</strong> — it translates the meaning but <strong>can\'t reply in Shanghainese</strong>.'},
+   ok:false},
+  {dialect:{zh:'闽南话',en:'Hokkien'}, original:'汝今仔日食饱未？',
+   aiSays:{zh:'AI <strong>完全不懂</strong>。它可能把"汝"理解为古汉语，回答<strong>古文风格的解释</strong>——风马牛不相及。',
+           en:'AI is <strong>completely lost</strong>. It interprets 汝 as classical Chinese, replies in <strong>classical-style explanation</strong> — totally off.'},
+   ok:false},
+  {dialect:{zh:'客家话',en:'Hakka'}, original:'你今晡日食饭无？',
+   aiSays:{zh:'AI <strong>几乎肯定编</strong>。它甚至可能把这句话误认为是<strong>错别字的普通话</strong>，要求你"重新输入"。',
+           en:'AI <strong>almost certainly fabricates</strong>. May even treat this as <strong>"typo Mandarin"</strong> and ask you to "rephrase".'},
+   ok:false},
+];
+
+/* =====================================================
+   3 CAUSES
+   ===================================================== */
+const CAUSES = [
+  {id:'web', emoji:'🌐',
+   name:{zh:'原因 1：互联网上没那么多方言', en:'Cause 1: Web has little dialect'},
+   why:{zh:'AI 训练数据 80%+ 来自互联网。网上几乎所有中文新闻、博客、电商页面都是<strong>普通话</strong>。方言<strong>主要靠"口头"传</strong>，不上网。',
+        en:'80%+ of training data comes from the web. Almost all Chinese news/blogs/e-commerce online are <strong>Mandarin</strong>. Dialects live <strong>orally</strong>, off-web.'}},
+  {id:'stigma', emoji:'🤐',
+   name:{zh:'原因 2：方言被"普通话化"了', en:'Cause 2: Dialects got Mandarinized'},
+   why:{zh:'过去 30 年的"<strong>推广普通话</strong>"政策让很多家庭<strong>在公开场合不说方言</strong>。学校教普通话，电视广播用普通话。方言<strong>悄悄退到家里</strong>——而 AI 看不到家里。',
+        en:'30 yrs of "<strong>promote Mandarin</strong>" policy made many families <strong>avoid dialect in public</strong>. Schools + TV use Mandarin. Dialect <strong>retreated home</strong> — and AI doesn\'t see home.'}},
+  {id:'incentive', emoji:'💰',
+   name:{zh:'原因 3：商业上不值得', en:'Cause 3: Not commercially worth it'},
+   why:{zh:'AI 公司投钱有<strong>商业回报</strong>逻辑——一个普通话模型覆盖 8 亿人，一个晋语模型覆盖 6000 万人。所以钱<strong>都投在普通话上</strong>。<strong>不写方言代码 = 不为方言用户买单 = 方言慢慢死掉</strong>。',
+        en:'AI firms follow <strong>ROI logic</strong> — Mandarin model serves 800M, Jin model serves 63M. So money <strong>flows to Mandarin</strong>. <strong>No code = no service = dialect slowly dies</strong>.'}},
+];
+
+/* =====================================================
+   4 ACTIONS
+   ===================================================== */
+const ACTIONS = [
+  {id:'a1', emoji:'🎙️',
+   name:{zh:'行动 1：录下家里老人的方言', en:'Action 1: Record family elders'},
+   how:{zh:'每周末让奶奶/爷爷用方言讲 <strong>1 个故事</strong>（如童年、地方传说），用手机录音。<strong>10 年后这些录音是数字遗产</strong>，也可以贡献给开源方言项目。',
+        en:'Each weekend, have grandparents tell <strong>1 dialect story</strong> (childhood, folk tale) on your phone. <strong>In 10 years these are digital heritage</strong> + can feed open dialect projects.'}},
+  {id:'a2', emoji:'⚠️',
+   name:{zh:'行动 2：给 AI 反馈"你听错了"', en:'Action 2: Tell AI when it\'s wrong'},
+   how:{zh:'当 AI 听不懂或误解你的方言，<strong>点"反馈"按钮</strong>，写下"这是 XX 话，意思是 YY"。这些反馈被工程师看到——<strong>你的一次反馈，影响下次的模型</strong>。',
+        en:'When AI misunderstands your dialect, <strong>hit "Feedback"</strong>, write "This is XX dialect, means YY". Engineers read these — <strong>your one feedback shapes next model</strong>.'}},
+  {id:'a3', emoji:'💻',
+   name:{zh:'行动 3：参与开源方言项目', en:'Action 3: Join open dialect projects'},
+   how:{zh:'GitHub 上搜"<strong>Chinese dialect dataset</strong>"——很多 12-15 岁中学生组织在做。每天 5 分钟录音上传，<strong>1 年就能贡献 30 小时数据</strong>。',
+        en:'Search "<strong>Chinese dialect dataset</strong>" on GitHub — many 12–15-yr-old student groups. 5 min/day = <strong>30 hours of data in a year</strong>.'}},
+  {id:'a4', emoji:'📣',
+   name:{zh:'行动 4：在学校开个"方言角"', en:'Action 4: Start a "dialect corner" at school'},
+   how:{zh:'每周一次，让同学<strong>用各自家乡方言</strong>说一句话——录下来。一学期下来，你的班级<strong>就是一个小型方言数据库</strong>，老师可以用它给信息课写真实案例。',
+        en:'Weekly: classmates speak <strong>one phrase in their home dialect</strong>, recorded. By semester end, your class is a <strong>mini dialect dataset</strong> — teachers can use it for CS class case studies.'}},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {phase:0, dialectVisited:new Set(), causesRead:new Set(), actionsRead:new Set(), manifesto:['','','']};
+
+/* =====================================================
+   PHASE 1: DIALECT MAP
+   ===================================================== */
+function renderDialects(){
+  const host = document.getElementById('dialect-grid');
+  host.innerHTML = DIALECTS.map(d=>`
+    <div class="dialect-card ${state.dialectVisited.has(d.id)?'visited':''}" data-id="${d.id}" onclick="visitDialect('${d.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${d.emoji}</div>
+        <div>
+          <div class="font-bold text-sm"><span data-zh>${d.name.zh}</span><span data-en>${d.name.en}</span></div>
+          <div class="text-xs text-slate-500"><span data-zh>${d.region.zh}</span><span data-en>${d.region.en}</span></div>
+        </div>
+      </div>
+      <div class="text-xs text-slate-600 mb-2"><strong>${d.speakers}</strong> <span data-zh>使用者</span><span data-en>speakers</span></div>
+      <div class="text-xs uppercase font-bold mb-1 text-slate-500"><span data-zh>AI 覆盖度</span><span data-en>AI coverage</span></div>
+      <div class="coverage-bar"><div class="coverage-fill cov-${d.level}" style="width:${d.coverage}%"></div></div>
+      <div class="text-xs font-bold ${d.level==='great'?'text-green-700':d.level==='okay'?'text-amber-700':'text-red-700'}">${d.coverage}%</div>
+      <div class="visited-detail ${state.dialectVisited.has(d.id)?'':'hidden'} mt-3 pt-3 border-t border-slate-200">
+        <div class="text-xs uppercase font-bold mb-1 text-slate-500"><span data-zh>样例</span><span data-en>Sample</span></div>
+        <div class="text-base font-medium mb-1" style="font-family:Songti SC,STSong,serif">"${d.sample.phrase}"</div>
+        <div class="text-xs text-slate-600"><span data-zh>${d.sample.note.zh}</span><span data-en>${d.sample.note.en}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function visitDialect(id){
+  state.dialectVisited.add(id);
+  renderDialects();
+  document.getElementById('dial-count').textContent = state.dialectVisited.size;
+  if(state.dialectVisited.size>=8) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 2: TRANSLATIONS
+   ===================================================== */
+function renderTrans(){
+  const host = document.getElementById('trans-list');
+  host.innerHTML = TRANS.map(t=>`
+    <div class="bg-white border-2 ${t.ok?'border-green-200':'border-red-200'} rounded-2xl p-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded-full"><span data-zh>${t.dialect.zh}</span><span data-en>${t.dialect.en}</span></span>
+        ${t.ok?'<span class="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">✓ AI 懂</span>':'<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-1 rounded-full">✗ AI 不懂</span>'}
+      </div>
+      <div class="text-lg font-medium mb-2" style="font-family:Songti SC,STSong,serif">"${t.original}"</div>
+      <p class="text-sm text-slate-700"><strong>🤖 </strong><span data-zh>${t.aiSays.zh}</span><span data-en>${t.aiSays.en}</span></p>
+    </div>
+  `).join('');
+}
+
+/* =====================================================
+   PHASE 3: CAUSES
+   ===================================================== */
+function renderCauses(){
+  const host = document.getElementById('cause-grid');
+  host.innerHTML = CAUSES.map(c=>`
+    <div class="info-card ${state.causesRead.has(c.id)?'read':''}" data-id="${c.id}" onclick="readCause('${c.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${c.emoji}</div>
+        <div class="font-bold text-sm"><span data-zh>${c.name.zh}</span><span data-en>${c.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700"><span data-zh>${c.why.zh}</span><span data-en>${c.why.en}</span></p>
+    </div>
+  `).join('');
+}
+
+function readCause(id){
+  state.causesRead.add(id);
+  renderCauses();
+  document.getElementById('cause-count').textContent = state.causesRead.size;
+  if(state.causesRead.size>=3) document.getElementById('p3-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 4: ACTIONS
+   ===================================================== */
+function renderActions(){
+  const host = document.getElementById('action-grid');
+  host.innerHTML = ACTIONS.map(a=>`
+    <div class="info-card ${state.actionsRead.has(a.id)?'read':''}" data-id="${a.id}" onclick="readAction('${a.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${a.emoji}</div>
+        <div class="font-bold"><span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700"><strong><span data-zh>具体怎么做</span><span data-en>How to do it</span>：</strong><span data-zh>${a.how.zh}</span><span data-en>${a.how.en}</span></p>
+    </div>
+  `).join('');
+}
+
+function readAction(id){
+  state.actionsRead.add(id);
+  renderActions();
+  document.getElementById('action-count').textContent = state.actionsRead.size;
+  if(state.actionsRead.size>=4) document.getElementById('p4-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 5: MANIFESTO
+   ===================================================== */
+function checkPledges(){
+  let count=0;
+  [1,2,3].forEach(n=>{
+    const el = document.getElementById('pl'+n);
+    const v = el.value;
+    state.manifesto[n-1] = v;
+    const ok = Array.from(v).length>=15;
+    el.classList.toggle('ok', ok);
+    if(ok) count++;
+  });
+  document.getElementById('pl-progress').textContent = count;
+  document.getElementById('pledge-submit').disabled = count<3;
+}
+
+function submitManifesto(){
+  const data = {timestamp:Date.now(),mission:'M4-4',
+    dialectsVisited:state.dialectVisited.size,
+    causesRead:state.causesRead.size,
+    actionsRead:state.actionsRead.size,
+    manifesto:state.manifesto};
+  localStorage.setItem('lingxi-m4-4', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderDialects();
+  if(n===2) renderTrans();
+  if(n===3) renderCauses();
+  if(n===4) renderActions();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,dialectVisited:new Set(),causesRead:new Set(),actionsRead:new Set(),manifesto:['','','']});
+    document.getElementById('dial-count').textContent='0';
+    document.getElementById('cause-count').textContent='0';
+    document.getElementById('action-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('p4-next').disabled=true;
+    [1,2,3].forEach(n=>document.getElementById('pl'+n).value='');
+    document.getElementById('pl-progress').textContent='0';
+    document.getElementById('pledge-submit').disabled=true;
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+@media (max-width:640px){.save-toast{bottom:auto;top:72px;right:16px}}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

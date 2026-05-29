@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5-3 深度伪造识别 · Real or Deepfake?</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Case card */
+  .case-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem;transition:all .2s;cursor:pointer;position:relative}
+  .case-card:hover{transform:translateY(-2px)}
+  .case-card.read{border-color:#10B981}
+  .case-card.read::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  /* Image scenario card */
+  .scn-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;overflow:hidden;transition:all .25s}
+  .scn-thumb{aspect-ratio:16/10;background:linear-gradient(135deg,var(--c1),var(--c2));position:relative;display:flex;align-items:center;justify-content:center}
+  .scn-card.answered-correct{border-color:#10B981}
+  .scn-card.answered-wrong{border-color:#DC2626}
+
+  /* Clue chip */
+  .clue{display:inline-block;background:#FEF3C7;color:#92400E;border:1px solid #FBBF24;border-radius:8px;padding:.2rem .5rem;font-size:.7rem;margin:.1rem;font-weight:600}
+
+  /* Telltale card */
+  .tell-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .tell-card:hover{border-color:#94A3B8}
+  .tell-card.read{border-color:#10B981;background:#ECFDF5}
+
+  /* Tool card */
+  .tool-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .tool-card:hover{border-color:#3B82F6}
+  .tool-card.read{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M5-3 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-200 text-slate-700 px-2 py-1 rounded-full">Ch.5 · 社会 / Society</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>挑战 · 25 min</span><span data-en>Challenge · 25 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>深度伪造识别：你看到的"视频"是真的吗？</span>
+      <span data-en>Real or Deepfake: Can You Trust That Video?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-zh>
+            ⚠️ 2024 年起，<strong>看视频"眼见为实"</strong>的时代已经结束。
+          </p>
+          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-en>
+            ⚠️ Since 2024, "seeing is believing" with video has <strong>ended</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            AI 现在能<strong>完美模仿</strong>：任何人的脸、任何人的声音、任何人的笔迹、任何人的表情。<strong>骗子</strong>用它打电话给你奶奶："我是你孙子，我被绑架了，快打钱"——你奶奶<strong>怎么分辨</strong>？
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            AI now <strong>perfectly mimics</strong>: anyone\'s face, voice, handwriting, expression. <strong>Scammers</strong> call your grandma: "I\'m your grandson, I\'ve been kidnapped, send money!" — how does she <strong>tell</strong>?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            今天我让你<strong>当侦探</strong>：先看 4 个真实事件，然后做"<strong>真假图片测试</strong>"，最后学会 5 个识破破绽和 4 件反伪造工具。<strong>这些技能，你妈妈和奶奶都需要你来教</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Today you\'re the <strong>detective</strong>: 4 real cases → "<strong>real or fake</strong>" test → 5 telltales + 4 tools. <strong>Your mom and grandma need you to teach them this</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 4 个真实案例 →</span><span data-en>See 4 real cases →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: REAL CASES ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 4 个都是<strong>真实发生</strong>的中国深度伪造事件（2024 年）。点开看故事——4 个都看完才能继续。</p>
+      <p data-en>4 <strong>real</strong> Chinese deepfake incidents (2024). Click to expand — visit all 4.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count">0</span> / 4</div>
+    </div>
+
+    <div id="case-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：真假图片测试 →</span><span data-en>Next: real or fake test →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: REAL/FAKE TEST ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>6 张图片场景，<strong>3 张是真照片，3 张是 AI 伪造</strong>。每张我会给你<strong>详细描述</strong>——你来判断。判断完每张会立刻告诉你对错和破绽。</p>
+      <p data-en>6 image scenarios — <strong>3 real, 3 AI-faked</strong>. I describe each in detail; you decide. Instant feedback with telltales.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已判断：</span><span data-en>Answered:</span><span id="test-count">0</span> / 6</div>
+      <div class="text-slate-500"><span data-zh>正确：</span><span data-en>Correct:</span><span id="test-correct">0</span></div>
+    </div>
+
+    <div id="test-grid" class="grid sm:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：5 个识别破绽 →</span><span data-en>Next: 5 telltales →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: 5 TELLTALES ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>2026 年的 AI 已经非常逼真——但还<strong>有 5 个"破绽"</strong>容易被你抓到。点开每个看清楚。</p>
+      <p data-en>2026\'s AI is super realistic — but still has <strong>5 telltales</strong> you can spot. Click each.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="tell-count">0</span> / 5</div>
+    </div>
+
+    <div id="tell-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：反伪造工具箱 →</span><span data-en>Next: anti-fake toolkit →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: TOOLKIT ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>看破绽只是<strong>第一步</strong>。要确认 = 用工具。<strong>4 件人人能用的反伪造工具</strong>。</p>
+      <p data-en>Spotting telltales is just <strong>step 1</strong>. To confirm = use tools. <strong>4 anti-fake tools anyone can use</strong>.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="tool-count">0</span> / 4</div>
+    </div>
+
+    <div id="tool-grid" class="grid sm:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>深度伪造是 AI 时代最尖锐的伦理挑战之一。看完今天的内容，写下：</p>
+      <p data-en>Deepfake is one of the AI era\'s sharpest ethical challenges. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 怎么<strong>教爷爷奶奶</strong>识别 AI 换脸/换声诈骗？写一个 3 句话的说明，<strong>具体可操作</strong>。</span>
+        <span data-en>① How to <strong>teach grandparents</strong> to spot face/voice scams? Write a 3-sentence guide, <strong>actionable</strong>.</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 深度伪造技术<strong>有没有正面用途</strong>？（如电影特效、复活亲人？）你支持还是反对？</span>
+        <span data-en>② Are there <strong>positive uses</strong> of deepfake? (film FX, "reviving" loved ones?) Pro or con?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 想象 2030 年——AI 伪造<strong>完美到看不出</strong>。我们靠什么相信视频？你能提出一个"<strong>视频认证</strong>"系统吗？</span>
+        <span data-en>③ Imagine 2030 — fakes <strong>indistinguishable from real</strong>. How do we trust video? Propose a "<strong>video auth</strong>" system.</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M5-3 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-500 to-slate-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#94A3B8" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🎭</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 3 关完成</span><span data-en>Mission #3 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"伪造侦探" 徽章已解锁</span><span data-en>"Fake Detective" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-slate-50 border border-slate-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>"<strong>眼见为实</strong>"时代已经结束——AI 能伪造任何人</span><span data-en>The "<strong>seeing is believing</strong>" era is over — AI fakes anyone</span></li>
+          <li>✓ <span data-zh>5 个识破破绽：<strong>手指/眼睛/光影/牙齿/背景</strong></span><span data-en>5 telltales: <strong>fingers / eyes / light / teeth / background</strong></span></li>
+          <li>✓ <span data-zh>4 件反伪造工具：<strong>反向搜图 / 查源头 / 看上下文 / 官方核实</strong></span><span data-en>4 anti-fake tools: <strong>reverse search / trace source / context / official verify</strong></span></li>
+          <li>✓ <span data-zh>奶奶和爷爷<strong>最容易被骗</strong>——你有责任教他们</span><span data-en>Grandparents <strong>most at risk</strong> — you must teach them</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m5-4-citizen.html'">
+          <span data-zh>下一关：M5-4 AI 公民身份 →</span><span data-en>Next: M5-4 AI Citizenship →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M5-3 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M5-3 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   4 REAL CASES (2024 China)
+   ===================================================== */
+const CASES = [
+  {id:'c1', emoji:'💼', loss:'¥2 亿 / ¥200M',
+   title:{zh:'香港跨国公司视频会议诈骗',en:'HK Multinational Video-Call Scam'},
+   summary:{zh:'2024 年 2 月，一家香港跨国公司财务收到 CFO"加急转账"邮件。他半信半疑发起视频会议——视频里 <strong>CFO + 5 个高管</strong>都跟他确认。他转了 <strong>2 亿港币</strong>。结果——<strong>整个视频会议都是 AI 换脸</strong>。骗子拿到了之前的会议录像，用 AI 实时合成。',
+            en:'Feb 2024: a HK multinational\'s finance staff got an "urgent transfer" email from "CFO". Skeptical, he started a video call — <strong>CFO + 5 execs</strong> all confirmed. He transferred <strong>HK$200M</strong>. Reality: <strong>entire video call was AI face-swapped</strong>. Scammers used prior meeting recordings + real-time AI sync.'},
+   lesson:{zh:'2026 年视频会议<strong>不能再"信脸"</strong>。必须用其他方式二次确认。',
+            en:'In 2026, you <strong>can\'t trust faces</strong> on video. Always second-channel verify.'}},
+  {id:'c2', emoji:'📞', loss:'¥80 万 / ¥800K',
+   title:{zh:'西安"儿子绑架"语音克隆诈骗',en:'Xi\'an "Kidnapped Son" Voice-Clone Scam'},
+   summary:{zh:'2024 年 5 月，西安一位 58 岁妈妈接到电话，传来儿子哭喊："妈，我被绑了，他们要 80 万！"声音<strong>百分百是儿子的</strong>。她惊慌中转账。其实——儿子在上班<strong>什么事也没有</strong>。骗子从短视频上下载了她儿子的 1 分钟讲话，用 AI 克隆了声音。',
+            en:'May 2024: a 58yo mom in Xi\'an got a call — her son crying: "Mom, I\'m kidnapped, they want ¥800K!" Voice was <strong>100% her son\'s</strong>. She panic-transferred. Reality: her son was at work, <strong>nothing wrong</strong>. Scammers downloaded 1 min of his social media audio + AI-cloned voice.'},
+   lesson:{zh:'AI 现在<strong>只需 30 秒</strong>音频就能克隆你的声音。<strong>家人之间应有"暗语"</strong>验证身份。',
+            en:'AI now needs <strong>30 sec of audio</strong> to clone your voice. <strong>Family members should have a "safeword"</strong> for verification.'}},
+  {id:'c3', emoji:'⭐', loss:'<span data-zh>名誉损害</span><span data-en>reputation</span>',
+   title:{zh:'明星被 AI 换脸到色情视频',en:'Celebrities Face-Swapped into Adult Videos'},
+   summary:{zh:'2024 年起，大量中国女明星（甚至普通女学生的同学）被恶意 AI 换脸到色情视频，在网上传播。<strong>受害者大部分是青少年</strong>。2024 年 6 月公安部专项打击此类犯罪，立案 <strong>500+</strong> 起。',
+            en:'Since 2024, many Chinese female celebs (and ordinary schoolgirls) have been maliciously face-swapped into porn videos circulating online. <strong>Most victims are teens</strong>. June 2024 China Public Security launched task force, <strong>500+ cases</strong> opened.'},
+   lesson:{zh:'⚠️ <strong>这种行为在中国是犯罪</strong>。即使是"<strong>开玩笑"地用同学的照片做 AI 换脸</strong>，也可能构成"侵犯公民个人信息罪"或"侮辱罪"。',
+            en:'⚠️ <strong>This is a crime in China</strong>. Even "joking" face-swaps using a classmate\'s photo can violate Personal Info Protection or Defamation laws.'}},
+  {id:'c4', emoji:'📰', loss:'<span data-zh>舆论混乱</span><span data-en>public confusion</span>',
+   title:{zh:'AI 伪造名人"政治言论"', en:'Fake "Political Statements" by Public Figures'},
+   summary:{zh:'2024 年多次出现"<strong>知名企业家发表敏感言论</strong>"的视频，引发股市波动 + 舆论争议。后经查证——<strong>都是 AI 伪造</strong>。被仿冒的本人立刻报警，但视频<strong>已在朋友圈传 10 万次</strong>。',
+            en:'2024 saw multiple "<strong>famous CEO making sensitive statement</strong>" videos triggering stock swings + outrage. Investigations confirmed — <strong>all AI fakes</strong>. Real CEOs reported to police, but videos had <strong>already spread to 100K viewers</strong>.'},
+   lesson:{zh:'<strong>不要转发"震惊"视频</strong>。先查源头。你转一次，可能让 1000 人被骗。',
+            en:'<strong>Don\'t forward "shocking" videos</strong>. Check the source first. One share could mislead 1000 more.'}},
+];
+
+/* =====================================================
+   6 IMAGE TEST SCENARIOS
+   ===================================================== */
+const TESTS = [
+  {id:'t1', emoji:'💼', color:['#dc2626','#7f1d1d'],
+   desc:{zh:'<strong>场景</strong>：一段视频会议，公司 CFO 在屏幕上跟你说话。他举起<strong>右手</strong>比"OK"手势——你仔细看那只手……',
+         en:'<strong>Scene</strong>: video call, company CFO speaking. He raises his <strong>right hand</strong> in "OK" sign — look closely…'},
+   hints:{zh:['手势 OK 的手指上有 <strong>6 根</strong>','背景虚化得"太完美"','眨眼频率<strong>极低</strong>（30 秒只眨 1 次）'],
+          en:['<strong>6 fingers</strong> in OK sign','Background blur is "too perfect"','Blinks <strong>extremely rarely</strong> (1 blink/30 sec)']},
+   isFake:true,
+   feedback:{zh:'是伪造！<strong>6 根手指</strong>是 AI 最经典的失误。AI 知道"手要有指头"但<strong>数不清几根</strong>。',
+              en:'FAKE! <strong>6 fingers</strong> is AI\'s classic blunder. AI knows "hand has fingers" but <strong>can\'t count them</strong>.'}},
+  {id:'t2', emoji:'👨‍👩‍👧', color:['#fbbf24','#f59e0b'],
+   desc:{zh:'<strong>场景</strong>：家庭聚会照片，一家四口在餐厅吃饭。爸爸笑得露出牙齿，妈妈在用筷子夹菜。光从右边斜射进来。',
+         en:'<strong>Scene</strong>: family dinner photo, 4 people at a restaurant. Dad smiling, mom using chopsticks. Light from right side.'},
+   hints:{zh:['每个人<strong>眼睛大小都不太一样</strong>（自然）','光影<strong>一致</strong>——都从右边来','妈妈的<strong>左手有指甲细节</strong>'],
+          en:['Each person\'s <strong>eyes differ slightly</strong> (natural)','Lighting <strong>consistent</strong> — all from right','Mom\'s <strong>left hand has nail detail</strong>']},
+   isFake:false,
+   feedback:{zh:'真照片！自然的不对称 + 一致的光影 + 真实的细节，是真实照片的标志。',
+              en:'REAL! Natural asymmetry + consistent lighting + true details signal authenticity.'}},
+  {id:'t3', emoji:'⭐', color:['#a855f7','#7c3aed'],
+   desc:{zh:'<strong>场景</strong>：明星 X 在舞台上跳舞，灯光打在他脸上。<strong>仔细看他的眼睛</strong>……',
+         en:'<strong>Scene</strong>: Celebrity X dancing on stage, lights on face. <strong>Look carefully at the eyes</strong>…'},
+   hints:{zh:['两只眼睛<strong>瞳孔反光位置完全一样</strong>（自然光下不可能）','耳垂<strong>形状有些扭曲</strong>','头发边缘有<strong>奇怪的"软"边</strong>'],
+          en:['Both pupils <strong>show identical reflection</strong> (impossible in natural light)','Earlobe <strong>slightly warped</strong>','Hair edge has <strong>strange "soft" boundary</strong>']},
+   isFake:true,
+   feedback:{zh:'是伪造！<strong>两眼反光完全一致</strong>是 AI 换脸的"指纹"——真人左右眼<strong>必然不同</strong>。',
+              en:'FAKE! <strong>Identical eye reflections</strong> is AI face-swap\'s "fingerprint" — real eyes <strong>must differ</strong>.'}},
+  {id:'t4', emoji:'👵', color:['#84cc16','#65a30d'],
+   desc:{zh:'<strong>场景</strong>：80 岁老人面部特写，正在笑。皱纹很深，皮肤有老年斑，眼角有泪光。',
+         en:'<strong>Scene</strong>: 80yo elder close-up, smiling. Deep wrinkles, age spots, tears at eye corners.'},
+   hints:{zh:['<strong>毛孔、汗毛清晰可见</strong>（AI 难做）','皱纹<strong>分布不对称</strong>但合理','眼角泪光<strong>反射出周围环境</strong>'],
+          en:['<strong>Pores, fine hair visible</strong> (AI struggles)','Wrinkles <strong>asymmetric but plausible</strong>','Tears reflect <strong>actual surroundings</strong>']},
+   isFake:false,
+   feedback:{zh:'真照片！细节越多越难伪造。<strong>毛孔 + 不对称皱纹 + 真实反光</strong>构成"真"的指纹。',
+              en:'REAL! Detail-rich = hard to fake. <strong>Pores + asymmetric wrinkles + real reflections</strong> = authenticity fingerprint.'}},
+  {id:'t5', emoji:'🌆', color:['#ec4899','#db2777'],
+   desc:{zh:'<strong>场景</strong>：城市街景，背景有"<strong>欢迎光临</strong>"霓虹灯。你仔细读那 4 个字……',
+         en:'<strong>Scene</strong>: city street, neon sign reading "<strong>Welcome</strong>" in Chinese. Look at those characters…'},
+   hints:{zh:['"欢"字的"又"<strong>有些扭曲</strong>','"光"字下面多了一笔','其他建筑招牌上的字<strong>都是乱码</strong>'],
+          en:['"欢" character has <strong>distorted radicals</strong>','"光" has <strong>extra stroke</strong>','Other signs are <strong>nonsense glyphs</strong>']},
+   isFake:true,
+   feedback:{zh:'是伪造！AI <strong>不会写汉字</strong>——它只会"画出像汉字的形状"。如果你看到背景汉字奇怪，<strong>几乎 100% 是 AI 生成</strong>。',
+              en:'FAKE! AI <strong>can\'t write Chinese characters</strong> — it draws "shapes that look like characters". Background Chinese gibberish = almost 100% AI-generated.'}},
+  {id:'t6', emoji:'🎤', color:['#06b6d4','#0891b2'],
+   desc:{zh:'<strong>场景</strong>：街头采访视频，记者拿话筒对着一位中年阿姨。阿姨说话时<strong>手势自然摆动</strong>，背景路人快速走过。',
+         en:'<strong>Scene</strong>: street interview, reporter holds mic to a middle-aged woman. She gestures naturally while speaking, passersby move briskly behind.'},
+   hints:{zh:['嘴型与声音<strong>完全同步</strong>','背景人物<strong>遮挡时合理变形</strong>','阿姨说话有<strong>口头禅</strong>和方言特征'],
+          en:['Lip-sync <strong>perfectly matches</strong> audio','Background people <strong>occlude naturally</strong>','Speaker has <strong>verbal tics + dialect</strong>']},
+   isFake:false,
+   feedback:{zh:'真视频！<strong>嘴型同步 + 自然遮挡 + 个人化语言</strong>是真实视频的关键标志。',
+              en:'REAL! <strong>Lip-sync + natural occlusion + idiosyncratic speech</strong> = authentic video markers.'}},
+];
+
+/* =====================================================
+   5 TELLTALES
+   ===================================================== */
+const TELLTALES = [
+  {id:'fingers', emoji:'✋',
+   name:{zh:'1. 手指数 / 形状', en:'1. Finger count / shape'},
+   tip:{zh:'AI 还<strong>数不清手指</strong>——经常出现 6 根、4 根、或扭曲的指节。看见手就<strong>数指头</strong>。',
+        en:'AI <strong>can\'t count fingers</strong> — often 6, 4, or twisted joints. See a hand → <strong>count fingers</strong>.'}},
+  {id:'eyes', emoji:'👁️',
+   name:{zh:'2. 眼睛对称 / 反光', en:'2. Eye symmetry / reflections'},
+   tip:{zh:'两只眼睛瞳孔反光<strong>不应该一样</strong>。AI 经常把两个反光做得完全相同。',
+        en:'Pupils <strong>shouldn\'t have identical reflections</strong>. AI often duplicates them perfectly.'}},
+  {id:'light', emoji:'💡',
+   name:{zh:'3. 光影是否一致', en:'3. Lighting consistency'},
+   tip:{zh:'人脸的光从左来 → 鼻子右侧<strong>应该有阴影</strong>。AI 经常忘了画阴影或方向错。',
+        en:'Light from left → right of nose <strong>should have shadow</strong>. AI often forgets or gets direction wrong.'}},
+  {id:'teeth', emoji:'🦷',
+   name:{zh:'4. 牙齿是否对齐', en:'4. Teeth alignment'},
+   tip:{zh:'AI 画牙齿经常<strong>每颗大小一样</strong>、太完美。真人牙齿<strong>必有不齐</strong>。也常看到 30+ 颗（正常 28-32）。',
+        en:'AI teeth <strong>all the same size</strong>, too perfect. Real teeth <strong>always uneven</strong>. Often shows 30+ (normal 28-32).'}},
+  {id:'bg', emoji:'🌆',
+   name:{zh:'5. 背景文字 / 物体', en:'5. Background text / objects'},
+   tip:{zh:'AI <strong>不会写汉字</strong>。背景招牌、书本、海报上的字<strong>都是乱码</strong>——这是最容易抓的破绽。',
+        en:'AI <strong>can\'t write Chinese</strong>. Background signs/books/posters show <strong>gibberish glyphs</strong> — easiest catch.'}},
+];
+
+/* =====================================================
+   4 TOOLS
+   ===================================================== */
+const TOOLS = [
+  {id:'reverse', emoji:'🔍',
+   name:{zh:'1. 反向搜图', en:'1. Reverse image search'},
+   how:{zh:'把图片<strong>上传百度识图/谷歌图片</strong>。如果搜到完全相同的图<strong>来自 AI 网站</strong>，就是伪造；如果来自<strong>真实新闻</strong>，是真的。',
+        en:'Upload to Baidu/Google reverse search. If <strong>identical image found on AI sites</strong> = fake; if from <strong>real news</strong> = real.'}},
+  {id:'source', emoji:'📌',
+   name:{zh:'2. 查源头', en:'2. Trace source'},
+   how:{zh:'看视频<strong>第一个发布者</strong>——是<strong>官方账号</strong>（如新华社）还是<strong>匿名小号</strong>？小号 + "震惊" = 警惕。',
+        en:'Check <strong>first publisher</strong> — <strong>official account</strong> (like Xinhua) or <strong>anonymous account</strong>? Anonymous + "shocking" = beware.'}},
+  {id:'context', emoji:'🧩',
+   name:{zh:'3. 看上下文', en:'3. Check context'},
+   how:{zh:'"<strong>这个人会说这种话吗</strong>？"——如果一个谨慎的 CEO 突然说激烈言论，<strong>大概率是假</strong>。结合"<strong>这件事其他渠道有报道吗</strong>？"',
+        en:'"<strong>Would this person say this</strong>?" — cautious CEO suddenly making bold claims = <strong>likely fake</strong>. Check: "Is this in <strong>other reliable sources</strong>?"'}},
+  {id:'verify', emoji:'🏛️',
+   name:{zh:'4. 官方核实', en:'4. Official verification'},
+   how:{zh:'重大事件 → 直接<strong>到当事人官方账号</strong>（微博认证号 V）查证。或致电警方反诈中心 96110。<strong>不要靠"我朋友说"</strong>。',
+        en:'Big events → check the <strong>person\'s official account</strong> (verified blue check). Or call anti-fraud 96110. <strong>Don\'t rely on "my friend said"</strong>.'}},
+];
+
+const state = {phase:0, casesRead:new Set(), testAnswers:{}, tellsRead:new Set(), toolsRead:new Set(), reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   PHASE 1: REAL CASES
+   ===================================================== */
+function renderCases(){
+  const host = document.getElementById('case-grid');
+  host.innerHTML = CASES.map(c=>`
+    <div class="case-card ${state.casesRead.has(c.id)?'read':''}" data-id="${c.id}" onclick="openCase('${c.id}')">
+      <div class="flex items-start justify-between mb-2 gap-2">
+        <div class="flex items-center gap-2">
+          <div class="text-3xl">${c.emoji}</div>
+          <div class="font-bold text-sm"><span data-zh>${c.title.zh}</span><span data-en>${c.title.en}</span></div>
+        </div>
+        <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">${c.loss}</span>
+      </div>
+      <div class="case-detail ${state.casesRead.has(c.id)?'':'hidden'}">
+        <p class="text-sm text-slate-700 mb-3"><span data-zh>${c.summary.zh}</span><span data-en>${c.summary.en}</span></p>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+          <strong>💡 <span data-zh>教训</span><span data-en>Lesson</span></strong>：
+          <span data-zh>${c.lesson.zh}</span><span data-en>${c.lesson.en}</span>
+        </div>
+      </div>
+      <div class="case-collapse text-xs text-blue-700 mt-2 ${state.casesRead.has(c.id)?'hidden':''}"><span data-zh>👆 点击展开</span><span data-en>👆 Click</span></div>
+    </div>
+  `).join('');
+}
+function openCase(id){
+  state.casesRead.add(id);
+  renderCases();
+  document.getElementById('case-count').textContent = state.casesRead.size;
+  if(state.casesRead.size>=4) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 2: REAL/FAKE TEST
+   ===================================================== */
+function renderTests(){
+  const host = document.getElementById('test-grid');
+  host.innerHTML = TESTS.map(t=>{
+    const ans = state.testAnswers[t.id];
+    const answered = ans!==undefined;
+    const correct = answered && ((ans==='fake')===t.isFake);
+    return `<div class="scn-card ${answered?(correct?'answered-correct':'answered-wrong'):''}" data-id="${t.id}">
+      <div class="scn-thumb" style="--c1:${t.color[0]};--c2:${t.color[1]}">
+        <div class="text-7xl">${t.emoji}</div>
+      </div>
+      <div class="p-4">
+        <p class="text-sm text-slate-700 mb-3"><span data-zh>${t.desc.zh}</span><span data-en>${t.desc.en}</span></p>
+        <div class="mb-3">
+          <div class="text-xs font-bold uppercase text-slate-500 mb-1">🔍 <span data-zh>仔细观察</span><span data-en>Look closely</span></div>
+          <div>${t.hints.zh.map((h,i)=>`<span class="clue"><span data-zh>${h}</span><span data-en>${t.hints.en[i]}</span></span>`).join('')}</div>
+        </div>
+        ${answered ? `
+          <div class="p-3 rounded-lg ${correct?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200'} text-sm">
+            <strong>${correct?'✓ ':'🤔 '}${t.isFake?'🎭 '+(LANG==='en'?'FAKE!':'伪造！'):'✅ '+(LANG==='en'?'REAL!':'真的！')}</strong>
+            <p class="mt-1"><span data-zh>${t.feedback.zh}</span><span data-en>${t.feedback.en}</span></p>
+          </div>
+        ` : `
+          <div class="flex gap-2">
+            <button class="btn-ghost text-sm flex-1 border-green-300" onclick="testAns('${t.id}','real')">✅ <span data-zh>真照片</span><span data-en>REAL</span></button>
+            <button class="btn-ghost text-sm flex-1 border-red-300" onclick="testAns('${t.id}','fake')">🎭 <span data-zh>伪造</span><span data-en>FAKE</span></button>
+          </div>
+        `}
+      </div>
+    </div>`;
+  }).join('');
+}
+function testAns(id, ans){
+  state.testAnswers[id] = ans;
+  renderTests();
+  const answered = Object.keys(state.testAnswers).length;
+  const correctCount = Object.entries(state.testAnswers).filter(([id,a])=>{
+    const t = TESTS.find(x=>x.id===id);
+    return (a==='fake')===t.isFake;
+  }).length;
+  document.getElementById('test-count').textContent = answered;
+  document.getElementById('test-correct').textContent = correctCount;
+  if(answered>=6) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 3: TELLTALES
+   ===================================================== */
+function renderTells(){
+  const host = document.getElementById('tell-grid');
+  host.innerHTML = TELLTALES.map(t=>`
+    <div class="tell-card ${state.tellsRead.has(t.id)?'read':''}" data-id="${t.id}" onclick="readTell('${t.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${t.emoji}</div>
+        <div class="font-bold text-sm"><span data-zh>${t.name.zh}</span><span data-en>${t.name.en}</span></div>
+      </div>
+      <p class="text-xs text-slate-700"><span data-zh>${t.tip.zh}</span><span data-en>${t.tip.en}</span></p>
+    </div>
+  `).join('');
+}
+function readTell(id){
+  state.tellsRead.add(id);
+  renderTells();
+  document.getElementById('tell-count').textContent = state.tellsRead.size;
+  if(state.tellsRead.size>=5) document.getElementById('p3-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 4: TOOLS
+   ===================================================== */
+function renderTools(){
+  const host = document.getElementById('tool-grid');
+  host.innerHTML = TOOLS.map(t=>`
+    <div class="tool-card ${state.toolsRead.has(t.id)?'read':''}" data-id="${t.id}" onclick="readTool('${t.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${t.emoji}</div>
+        <div class="font-bold"><span data-zh>${t.name.zh}</span><span data-en>${t.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700"><span data-zh>${t.how.zh}</span><span data-en>${t.how.en}</span></p>
+    </div>
+  `).join('');
+}
+function readTool(id){
+  state.toolsRead.add(id);
+  renderTools();
+  document.getElementById('tool-count').textContent = state.toolsRead.size;
+  if(state.toolsRead.size>=4) document.getElementById('p4-next').disabled = false;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const correctCount = Object.entries(state.testAnswers).filter(([id,a])=>{
+    const t = TESTS.find(x=>x.id===id);
+    return (a==='fake')===t.isFake;
+  }).length;
+  const data = {timestamp:Date.now(),mission:'M5-3',
+    casesRead:state.casesRead.size, testCorrect:correctCount, tellsRead:state.tellsRead.size, toolsRead:state.toolsRead.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m5-3', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderCases();
+  if(n===2) renderTests();
+  if(n===3) renderTells();
+  if(n===4) renderTools();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.casesRead=new Set();state.testAnswers={};state.tellsRead=new Set();state.toolsRead=new Set();state.reflectChoice=null;state.reflectText='';
+    document.getElementById('case-count').textContent='0';
+    document.getElementById('test-count').textContent='0';
+    document.getElementById('test-correct').textContent='0';
+    document.getElementById('tell-count').textContent='0';
+    document.getElementById('tool-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('p4-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

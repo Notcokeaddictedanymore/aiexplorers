@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M2-1 文物族谱 · The Artifact Family Tree</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .svg-wide-700{min-width:700px}
+  .svg-wide-680{min-width:680px}
+  @media (max-width:640px){.svg-wide-700,.svg-wide-680{min-width:0}}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  /* graph nodes */
+  .gnode{cursor:pointer;transition:all .2s}
+  .gnode:hover circle{stroke-width:4}
+  .gnode.dim{opacity:.25}
+  .gnode.active circle{stroke:#DC2626;stroke-width:4;filter:drop-shadow(0 4px 10px rgba(220,38,38,.4))}
+  .gedge{transition:all .3s;stroke:#CBD5E1;stroke-width:2}
+  .gedge.dim{opacity:.15}
+  .gedge.active{stroke:#DC2626;stroke-width:3}
+  .gedge-label{font-size:11px;fill:#64748B;font-weight:600;pointer-events:none}
+  .gedge-label.active{fill:#DC2626}
+  /* info card */
+  .info-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .25s}
+  .info-card.highlight{border-color:#DC2626;background:#FEF2F2}
+  /* pair pieces */
+  .pair-tile{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.75rem;cursor:pointer;transition:all .2s;text-align:left}
+  .pair-tile:hover{border-color:#94A3B8;transform:translateY(-1px)}
+  .pair-tile.selected{border-color:#3B82F6;background:#EFF6FF;box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+  .pair-tile.matched{border-color:#10B981;background:#ECFDF5;opacity:.7;cursor:default}
+  /* query */
+  .query-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .query-card:hover{border-color:#94A3B8}
+  .query-card.selected{border-color:#3B82F6;background:#EFF6FF}
+  .answer-chip{display:inline-block;padding:.3rem .65rem;border-radius:9999px;background:#F1F5F9;font-size:.75rem;font-weight:600;margin:.15rem;cursor:pointer;transition:all .15s;border:2px solid transparent}
+  .answer-chip:hover{background:#E2E8F0}
+  .answer-chip.picked{background:#3B82F6;color:#fff}
+  .answer-chip.correct{background:#10B981;color:#fff;border-color:#059669}
+  .answer-chip.wrong{background:#DC2626;color:#fff;border-color:#B91C1C}
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M2-1 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.2 · 推理 / Reasoning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>热身 · 20 min</span><span data-en>Warm-up · 20 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>文物族谱：AI 怎么把世界"存"进电脑</span>
+      <span data-en>Artifact Family Tree: How AI Stores the World</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 5 关</span><span data-en>Step 1 / 5</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            欢迎来到 <strong>第 2 章</strong>！上一章我们看 AI 怎么"<strong>看</strong>"——今天看它怎么"<strong>记</strong>"。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Welcome to <strong>Chapter 2</strong>! Last time we saw how AI <em>sees</em> — today, how it <em>remembers</em>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            故宫博物院有 <strong>186 万件</strong>文物。如果你是给故宫做 AI 导游的工程师，你怎么把这些文物"装"进 AI 的脑子里？
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            The Palace Museum holds <strong>1.86 million artifacts</strong>. If you were building its AI tour guide, how would you store them all in AI's "head"?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            AI 工程师常用一种结构叫 <strong>知识图谱（Knowledge Graph）</strong>——就像家谱一样，把"东西"和"关系"画成网。今天我们用 6 件代表文物，亲手做一个迷你版。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            AI engineers use a structure called a <strong>knowledge graph</strong> — like a family tree but for everything. Today, with 6 iconic artifacts, you'll build your own mini version.
+          </p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-3 gap-3 text-center">
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">⚫</div><div class="text-xs font-bold">Nodes</div><div class="text-xs text-slate-500"><span data-zh>节点（东西）</span></div></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">━</div><div class="text-xs font-bold">Edges</div><div class="text-xs text-slate-500"><span data-zh>边（关系）</span></div></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">🔍</div><div class="text-xs font-bold">Query</div><div class="text-xs text-slate-500"><span data-zh>查询</span></div></div>
+        </div>
+
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看一个真实的知识图谱 →</span><span data-en>See a real knowledge graph →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: EXPLORE PRE-BUILT GRAPH ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我先给你看 <strong>3 件</strong>文物的知识图谱。点任一个圆圈，看它连着谁。<strong>仔细看 3 个文物</strong>再继续。</p>
+      <p data-en>Here's a knowledge graph for <strong>3 artifacts</strong>. Tap any circle to see what it connects to. <strong>Inspect all 3 artifacts</strong> to continue.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-3 sm:p-5 overflow-x-auto">
+      <svg id="graph-svg" viewBox="0 0 800 480" class="w-full svg-wide-700" style="height:480px"></svg>
+    </div>
+
+    <div id="node-info" class="info-card mt-4">
+      <div class="text-sm text-slate-500"><span data-zh>👆 点上面的圆圈查看详情</span><span data-en>👆 Tap a node above</span></div>
+    </div>
+
+    <div class="mt-5 flex items-center justify-between">
+      <div class="text-sm text-slate-600"><span data-zh>已查看：</span><span data-en>Inspected:</span><strong id="inspected-count">0</strong> / 3</div>
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：你来连节点 →</span><span data-en>Next: You connect nodes →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: STUDENT CONNECTS NEW ARTIFACTS ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我刚收到 <strong>3 件新文物</strong>——你来帮我把它们连进图谱。每个文物，需要选 1 个朝代 + 1 种材质。</p>
+      <p data-en>3 <strong>new artifacts</strong> arrived. Help me link them: each needs 1 dynasty + 1 material.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-3" id="new-artifacts"></div>
+
+    <div class="mt-5 grid md:grid-cols-2 gap-4">
+      <div class="bg-white border border-slate-200 rounded-2xl p-4">
+        <div class="text-sm font-bold uppercase text-slate-500 mb-2"><span data-zh>朝代节点</span><span data-en>Dynasty nodes</span></div>
+        <div id="dynasty-pool" class="space-y-2"></div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-4">
+        <div class="text-sm font-bold uppercase text-slate-500 mb-2"><span data-zh>材质节点</span><span data-en>Material nodes</span></div>
+        <div id="material-pool" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm" id="connect-hint">
+      <span data-zh>💡 操作方法：<strong>① 点一个文物 → ② 点它的朝代 → ③ 再点一个材质</strong>。一旦完成，下一个文物自动激活。</span>
+      <span data-en>💡 How to use: <strong>① Tap an artifact → ② tap its dynasty → ③ tap its material</strong>. Then the next artifact lights up.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>查看完整图谱 →</span><span data-en>See the full graph →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: USE GRAPH TO ANSWER QUERIES ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>太好了！现在图谱有 <strong>6 件</strong>文物。AI 能用这个图谱<strong>回答问题</strong>了——通过"走"图上的边。<strong>请你选每个问题的正确答案</strong>。</p>
+      <p data-en>Now the graph has <strong>6 artifacts</strong>. AI can <strong>answer questions</strong> by walking the edges. <strong>Pick the right answer for each question</strong>.</p>
+    </div>
+
+    <!-- mini graph reference -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-3 mb-5 overflow-x-auto">
+      <div class="text-xs text-slate-500 mb-2 px-2"><span data-zh>参考图谱（缩略版）</span><span data-en>Reference graph (compact)</span></div>
+      <svg id="graph-svg-mini" viewBox="0 0 800 320" class="w-full svg-wide-700" style="height:280px"></svg>
+    </div>
+
+    <div id="queries" class="space-y-4"></div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: Reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: REFLECTION ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>知识图谱是 AI 推理的<strong>骨架</strong>——但它也有局限。想想看：</p>
+      <p data-en>Knowledge graphs are the <strong>skeleton</strong> of AI reasoning — but they have limits too. Think about it:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 如果让你给"<strong>你自己</strong>"做一个知识图谱（家人、爱好、学校），你会画什么节点和边？</span>
+        <span data-en>① If you made a knowledge graph of <strong>yourself</strong> (family, hobbies, school), what nodes and edges would you draw?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 一件文物的"<strong>情感价值</strong>"（如奶奶留下的瓷碗）很难放进图谱。AI 这种存法漏掉了什么？</span>
+        <span data-en>② An artifact's <strong>emotional value</strong> (e.g. grandma's old bowl) is hard to put in a graph. What does this storage miss?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 图谱里的关系（如 "made_of"）<strong>谁来定</strong>？换一个文化背景，会不会画出完全不同的图谱？</span>
+        <span data-en>③ Who decides graph relationships like "made_of"? Would a different culture draw a different graph?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="在这里写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M2-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-amber-500 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#FBBF24" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🗂️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 1 关完成！</span><span data-en>Mission #1 done!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"知识图谱学徒" 徽章已解锁</span><span data-en>"Knowledge Graph Apprentice" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-amber-50 border border-amber-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 用<strong>节点（东西）+ 边（关系）</strong>来存知识</span><span data-en>AI stores knowledge as <strong>nodes (things) + edges (relations)</strong></span></li>
+          <li>✓ <span data-zh>共享的属性（同一朝代/材质）会让多个文物"<strong>连成网</strong>"</span><span data-en>Shared attributes (same dynasty/material) <strong>weave artifacts into a web</strong></span></li>
+          <li>✓ <span data-zh>查询 = <strong>走图上的边</strong>。AI 推理就是走路</span><span data-en>Querying = <strong>walking edges</strong>. AI reasoning is path-finding</span></li>
+          <li>✓ <span data-zh>图谱有局限：<strong>情感、文化、变化</strong>都很难存进去</span><span data-en>Graphs miss <strong>emotion, culture, change</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m2-2-tree.html'">
+          <span data-zh>下一关：M2-2 鉴宝师的决策树 →</span><span data-en>Next: M2-2 Decision Tree →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M2-1 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M2-1 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* ===================================================
+   DATA MODEL: 6 artifacts + dynasties + materials
+   =================================================== */
+const ARTIFACTS = [
+  {id:'cabbage', emoji:'🥬', name:{zh:'翠玉白菜', en:'Jadeite Cabbage'},   dyn:'qing',    mat:'jade',    fun:'ornament',
+    desc:{zh:'清代宫廷玉雕，整块翡翠雕成白菜形，叶上还藏着两只小昆虫——寓意多子多福。', en:'Qing-dynasty palace jade carved into a cabbage. Two tiny insects hidden on its leaves symbolize fertility.'}},
+  {id:'scroll',  emoji:'📜', name:{zh:'清明上河图', en:'Along the River'},  dyn:'nsong',   mat:'silk',    fun:'painting',
+    desc:{zh:'北宋张择端绘，描绘汴京清明时节市井繁华，共 814 个人物。', en:'Northern Song painting by Zhang Zeduan showing 814 figures in Kaifeng during Qingming festival.'}},
+  {id:'ding',    emoji:'🏺', name:{zh:'司母戊鼎', en:'Houmuwu Ding'},      dyn:'shang',   mat:'bronze',  fun:'ritual',
+    desc:{zh:'商代青铜方鼎，重 832 公斤，为商王祭祀母亲所铸。', en:'Shang dynasty bronze ritual vessel, 832 kg, cast by a Shang king for his mother.'}},
+  // === Below 3 added by student in Phase 2 ===
+  {id:'lamp',    emoji:'💡', name:{zh:'长信宫灯', en:'Changxin Lamp'},     dyn:'whan',    mat:'gilt',    fun:'lamp',
+    desc:{zh:'西汉鎏金铜灯，宫女造型，烟通过手臂排入体内的水——古代环保设计。', en:'Western Han gilt-bronze lamp shaped like a palace maid — smoke channels into her arm into water. Ancient eco-design.'}},
+  {id:'horse',   emoji:'🐎', name:{zh:'唐三彩马', en:'Sancai Horse'},      dyn:'tang',    mat:'ceramic', fun:'burial',
+    desc:{zh:'唐代低温彩陶，多用于陪葬，色彩鲜亮，反映丝绸之路开放气象。', en:'Tang low-fire tricolor ceramic, burial item, reflecting the cosmopolitan Silk Road era.'}},
+  {id:'sword',   emoji:'⚔️', name:{zh:'越王勾践剑', en:'Goujian Sword'},   dyn:'springautumn', mat:'bronze', fun:'weapon',
+    desc:{zh:'春秋越王勾践随身佩剑，出土 2500 年不锈，剑身有"越王勾践自作用剑"鸟篆。', en:'Spring & Autumn era sword of King Goujian — unrusted after 2500 years, inscribed in seal script.'}},
+];
+
+const DYNASTIES = [
+  {id:'shang',        name:{zh:'商',     en:'Shang'},        years:'1600–1046 BC'},
+  {id:'springautumn', name:{zh:'春秋',   en:'Spring & Autumn'}, years:'770–476 BC'},
+  {id:'whan',         name:{zh:'西汉',   en:'W. Han'},        years:'206 BC–9 AD'},
+  {id:'tang',         name:{zh:'唐',     en:'Tang'},          years:'618–907'},
+  {id:'nsong',        name:{zh:'北宋',   en:'N. Song'},       years:'960–1127'},
+  {id:'qing',         name:{zh:'清',     en:'Qing'},          years:'1644–1912'},
+];
+const MATERIALS = [
+  {id:'bronze',  name:{zh:'青铜',   en:'Bronze'}},
+  {id:'jade',    name:{zh:'玉/翡翠', en:'Jade'}},
+  {id:'silk',    name:{zh:'绢',     en:'Silk'}},
+  {id:'gilt',    name:{zh:'鎏金',   en:'Gilt bronze'}},
+  {id:'ceramic', name:{zh:'陶瓷',   en:'Ceramic'}},
+];
+
+/* ===================================================
+   STATE
+   =================================================== */
+const state = {
+  phase:0,
+  inspected:new Set(),       // node ids inspected in p1
+  newConnections:{},         // artifactId -> {dyn,mat}
+  newArtifactSel:null,
+  queryAnswers:{},
+  reflectChoice:null,
+  reflectText:''
+};
+
+/* ===================================================
+   GRAPH LAYOUT (manual positioning for clarity)
+   =================================================== */
+// Positions designed for an 800x480 viewBox
+// Artifacts in TOP row, Dynasties in BOTTOM-LEFT, Materials in BOTTOM-RIGHT
+const NODE_POS = {
+  // First 3 artifacts visible in Phase 1
+  cabbage:{x:140, y:80},
+  scroll: {x:400, y:80},
+  ding:   {x:660, y:80},
+  // Phase 2 additions
+  lamp:   {x:140, y:200},
+  horse:  {x:400, y:200},
+  sword:  {x:660, y:200},
+  // Dynasties bottom-left
+  qing:        {x:80,  y:380},
+  nsong:       {x:200, y:380},
+  whan:        {x:320, y:380},
+  // Materials bottom-right
+  jade:        {x:480, y:380},
+  silk:        {x:600, y:380},
+  bronze:      {x:720, y:380},
+  // Extra dynasties/materials (used in Phase 2)
+  shang:       {x:80,  y:430},
+  tang:        {x:200, y:430},
+  springautumn:{x:320, y:430},
+  gilt:        {x:600, y:430},
+  ceramic:     {x:720, y:430},
+};
+
+// Initial edges (3 artifacts already connected)
+const INITIAL_EDGES = [
+  {from:'cabbage', to:'qing',  label:'清代'},
+  {from:'cabbage', to:'jade',  label:'玉'},
+  {from:'scroll',  to:'nsong', label:'北宋'},
+  {from:'scroll',  to:'silk',  label:'绢'},
+  {from:'ding',    to:'shang', label:'商代'},
+  {from:'ding',    to:'bronze',label:'青铜'},
+];
+
+let allEdges = [...INITIAL_EDGES];
+
+function nodeLabel(id){
+  if(ARTIFACTS.find(a=>a.id===id)){
+    const a = ARTIFACTS.find(x=>x.id===id);
+    return {emoji:a.emoji, name:a.name, type:'artifact'};
+  }
+  if(DYNASTIES.find(d=>d.id===id)){
+    const d = DYNASTIES.find(x=>x.id===id);
+    return {emoji:'⏳', name:d.name, type:'dynasty'};
+  }
+  if(MATERIALS.find(m=>m.id===id)){
+    const m = MATERIALS.find(x=>x.id===id);
+    return {emoji:'⚒️', name:m.name, type:'material'};
+  }
+}
+
+function renderGraph(svgId, phase){
+  // phase: 1 = show 3 artifacts; 3 = show all 6 (compact)
+  const svg = document.getElementById(svgId);
+  svg.innerHTML = '';
+  let visibleArtifacts = phase===1 ? ['cabbage','scroll','ding'] : ARTIFACTS.map(a=>a.id);
+  let visibleDyns = new Set(), visibleMats = new Set();
+  // Determine which dyns/mats are referenced
+  allEdges.forEach(e=>{
+    if(visibleArtifacts.includes(e.from)){
+      if(DYNASTIES.find(d=>d.id===e.to)) visibleDyns.add(e.to);
+      if(MATERIALS.find(m=>m.id===e.to)) visibleMats.add(e.to);
+    }
+  });
+
+  // adjust positions for compact mini graph in phase 3
+  const usePos = phase===3 ? compactPositions() : NODE_POS;
+
+  // Draw edges first
+  allEdges.forEach(e=>{
+    if(!visibleArtifacts.includes(e.from)) return;
+    const p1 = usePos[e.from], p2 = usePos[e.to];
+    if(!p1 || !p2) return;
+    const mid = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
+    svg.insertAdjacentHTML('beforeend', `
+      <line class="gedge" data-from="${e.from}" data-to="${e.to}" x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"/>
+      <text class="gedge-label" data-from="${e.from}" data-to="${e.to}" x="${mid.x}" y="${mid.y-4}" text-anchor="middle">${e.label}</text>
+    `);
+  });
+
+  // Draw artifact nodes
+  visibleArtifacts.forEach(id=>{
+    const p = usePos[id];
+    const a = ARTIFACTS.find(x=>x.id===id);
+    svg.insertAdjacentHTML('beforeend', `
+      <g class="gnode" data-id="${id}" data-type="artifact" onclick="onGraphClick('${id}','artifact','${svgId}')">
+        <circle cx="${p.x}" cy="${p.y}" r="34" fill="#FEF3C7" stroke="#F59E0B" stroke-width="3"/>
+        <text x="${p.x}" y="${p.y+8}" font-size="28" text-anchor="middle">${a.emoji}</text>
+        <text x="${p.x}" y="${p.y+58}" font-size="11" font-weight="700" text-anchor="middle" fill="#0F172A">${LANG==='en'?a.name.en:a.name.zh}</text>
+      </g>
+    `);
+  });
+
+  // Draw dynasty nodes
+  visibleDyns.forEach(id=>{
+    const p = usePos[id];
+    const d = DYNASTIES.find(x=>x.id===id);
+    svg.insertAdjacentHTML('beforeend', `
+      <g class="gnode" data-id="${id}" data-type="dynasty" onclick="onGraphClick('${id}','dynasty','${svgId}')">
+        <circle cx="${p.x}" cy="${p.y}" r="22" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2.5"/>
+        <text x="${p.x}" y="${p.y+5}" font-size="11" font-weight="700" text-anchor="middle" fill="#1E40AF">${LANG==='en'?d.name.en:d.name.zh}</text>
+      </g>
+    `);
+  });
+
+  // Draw material nodes
+  visibleMats.forEach(id=>{
+    const p = usePos[id];
+    const m = MATERIALS.find(x=>x.id===id);
+    svg.insertAdjacentHTML('beforeend', `
+      <g class="gnode" data-id="${id}" data-type="material" onclick="onGraphClick('${id}','material','${svgId}')">
+        <circle cx="${p.x}" cy="${p.y}" r="22" fill="#FEE2E2" stroke="#DC2626" stroke-width="2.5"/>
+        <text x="${p.x}" y="${p.y+5}" font-size="11" font-weight="700" text-anchor="middle" fill="#991B1B">${LANG==='en'?m.name.en:m.name.zh}</text>
+      </g>
+    `);
+  });
+}
+
+function compactPositions(){
+  // For phase 3 mini graph: 6 artifacts in a row at top, dynasties + materials at bottom
+  const pos = {};
+  ARTIFACTS.forEach((a,i)=>{
+    pos[a.id] = {x:80 + i*128, y:60};
+  });
+  const usedDyns = new Set();
+  const usedMats = new Set();
+  allEdges.forEach(e=>{
+    if(DYNASTIES.find(d=>d.id===e.to)) usedDyns.add(e.to);
+    if(MATERIALS.find(m=>m.id===e.to)) usedMats.add(e.to);
+  });
+  Array.from(usedDyns).forEach((id,i)=>{
+    pos[id] = {x:80 + i*120, y:230};
+  });
+  Array.from(usedMats).forEach((id,i)=>{
+    pos[id] = {x:80 + i*120, y:280};
+  });
+  return pos;
+}
+
+function onGraphClick(id, type, svgId){
+  // Highlight node + its connections
+  const svg = document.getElementById(svgId);
+  // Dim all
+  svg.querySelectorAll('.gnode').forEach(n=>n.classList.add('dim'));
+  svg.querySelectorAll('.gedge').forEach(e=>e.classList.add('dim'));
+  svg.querySelectorAll('.gedge-label').forEach(l=>l.classList.add('dim'));
+  // Activate clicked
+  const node = svg.querySelector(`.gnode[data-id="${id}"]`);
+  if(node){node.classList.remove('dim');node.classList.add('active')}
+  // Find connected nodes
+  const connected = new Set();
+  allEdges.forEach(e=>{
+    if(e.from===id || e.to===id){
+      const otherId = e.from===id ? e.to : e.from;
+      connected.add(otherId);
+      svg.querySelectorAll(`.gedge[data-from="${e.from}"][data-to="${e.to}"]`).forEach(el=>{
+        el.classList.remove('dim');el.classList.add('active');
+      });
+      svg.querySelectorAll(`.gedge-label[data-from="${e.from}"][data-to="${e.to}"]`).forEach(el=>{
+        el.classList.remove('dim');el.classList.add('active');
+      });
+    }
+  });
+  connected.forEach(cid=>{
+    const n = svg.querySelector(`.gnode[data-id="${cid}"]`);
+    if(n) n.classList.remove('dim');
+  });
+
+  // Show info card (only for Phase 1)
+  if(svgId==='graph-svg'){
+    const card = document.getElementById('node-info');
+    if(type==='artifact'){
+      const a = ARTIFACTS.find(x=>x.id===id);
+      const connList = [...connected].map(cid=>{
+        const lab = nodeLabel(cid);
+        return `<span class="answer-chip">${LANG==='en'?lab.name.en:lab.name.zh}</span>`;
+      }).join('');
+      card.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="text-5xl flex-shrink-0">${a.emoji}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-lg"><span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></div>
+            <p class="text-sm text-slate-600 mt-1"><span data-zh>${a.desc.zh}</span><span data-en>${a.desc.en}</span></p>
+            <div class="mt-2 text-xs text-slate-500"><span data-zh>连接：</span><span data-en>Connected to:</span> ${connList}</div>
+          </div>
+        </div>
+      `;
+      card.classList.add('highlight');
+      // mark inspected
+      state.inspected.add(id);
+      document.getElementById('inspected-count').textContent = state.inspected.size;
+      if(state.inspected.size>=3) document.getElementById('p1-next').disabled = false;
+    } else {
+      const lab = nodeLabel(id);
+      const linkedArts = [...connected].filter(cid=>ARTIFACTS.find(a=>a.id===cid)).map(cid=>{
+        const a = ARTIFACTS.find(x=>x.id===cid);
+        return `<span class="answer-chip">${a.emoji} ${LANG==='en'?a.name.en:a.name.zh}</span>`;
+      }).join('');
+      card.innerHTML = `
+        <div class="text-sm">
+          <div class="font-bold"><span data-zh>属性节点：</span><span data-en>Attribute node:</span> <span data-zh>${lab.name.zh}</span><span data-en>${lab.name.en}</span></div>
+          <div class="mt-2 text-slate-600"><span data-zh>有这个属性的文物：</span><span data-en>Artifacts with this attribute:</span></div>
+          <div class="mt-1">${linkedArts}</div>
+        </div>
+      `;
+    }
+  }
+}
+
+/* ===================================================
+   PHASE 2: Connect new artifacts
+   =================================================== */
+const NEW_ARTIFACTS = ['lamp','horse','sword'];
+const CORRECT = {
+  lamp:{dyn:'whan',mat:'gilt'},
+  horse:{dyn:'tang',mat:'ceramic'},
+  sword:{dyn:'springautumn',mat:'bronze'}
+};
+
+function renderPhase2(){
+  // Artifacts row
+  const ah = document.getElementById('new-artifacts');
+  ah.innerHTML = NEW_ARTIFACTS.map(id=>{
+    const a = ARTIFACTS.find(x=>x.id===id);
+    const conn = state.newConnections[id]||{};
+    const dynLabel = conn.dyn ? DYNASTIES.find(d=>d.id===conn.dyn) : null;
+    const matLabel = conn.mat ? MATERIALS.find(m=>m.id===conn.mat) : null;
+    return `<button class="pair-tile ${state.newArtifactSel===id?'selected':''} ${(conn.dyn&&conn.mat)?'matched':''}" data-id="${id}" onclick="pickNew('${id}')">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="text-3xl">${a.emoji}</div>
+        <div class="font-bold text-sm"><span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></div>
+      </div>
+      <p class="text-xs text-slate-600"><span data-zh>${a.desc.zh}</span><span data-en>${a.desc.en}</span></p>
+      <div class="mt-2 text-xs">
+        <div><span class="text-slate-500"><span data-zh>朝代:</span><span data-en>Dyn:</span></span> ${dynLabel?'<span class="text-green-700 font-bold">✓ '+(LANG==='en'?dynLabel.name.en:dynLabel.name.zh)+'</span>':'<span class="text-slate-400">?</span>'}</div>
+        <div><span class="text-slate-500"><span data-zh>材质:</span><span data-en>Mat:</span></span> ${matLabel?'<span class="text-green-700 font-bold">✓ '+(LANG==='en'?matLabel.name.en:matLabel.name.zh)+'</span>':'<span class="text-slate-400">?</span>'}</div>
+      </div>
+    </button>`;
+  }).join('');
+  // Dynasty pool
+  const dh = document.getElementById('dynasty-pool');
+  dh.innerHTML = DYNASTIES.map(d=>{
+    const used = Object.values(state.newConnections).some(c=>c.dyn===d.id);
+    return `<button class="pair-tile w-full ${used?'matched':''}" onclick="pickAttr('dyn','${d.id}')">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-semibold text-sm"><span data-zh>⏳ ${d.name.zh}</span><span data-en>⏳ ${d.name.en}</span></span>
+        <span class="text-xs text-slate-500">${d.years}</span>
+      </div>
+    </button>`;
+  }).join('');
+  // Material pool
+  const mh = document.getElementById('material-pool');
+  mh.innerHTML = MATERIALS.map(m=>{
+    const used = Object.values(state.newConnections).some(c=>c.mat===m.id);
+    return `<button class="pair-tile w-full ${used?'matched':''}" onclick="pickAttr('mat','${m.id}')">
+      <span class="font-semibold text-sm"><span data-zh>⚒️ ${m.name.zh}</span><span data-en>⚒️ ${m.name.en}</span></span>
+    </button>`;
+  }).join('');
+}
+
+function pickNew(id){
+  state.newArtifactSel = id;
+  document.getElementById('connect-hint').innerHTML = `<span data-zh>👆 已选中 <strong>${ARTIFACTS.find(a=>a.id===id).name.zh}</strong>。现在点它的朝代和材质。</span><span data-en>👆 Selected <strong>${ARTIFACTS.find(a=>a.id===id).name.en}</strong>. Now tap its dynasty and material.</span>`;
+  renderPhase2();
+}
+
+function pickAttr(kind, attrId){
+  if(!state.newArtifactSel){
+    alert(LANG==='en'?'Tap an artifact first':'请先点一个文物');
+    return;
+  }
+  const aid = state.newArtifactSel;
+  state.newConnections[aid] = state.newConnections[aid]||{};
+  state.newConnections[aid][kind] = attrId;
+  // Add edge
+  const a = ARTIFACTS.find(x=>x.id===aid);
+  const correct = CORRECT[aid];
+  const ok = attrId === correct[kind];
+  // For pedagogy, accept any choice but show feedback. For now, only accept correct.
+  // Better UX: accept the choice + show "✓ correct!" or "✗ try again — true answer is X"
+  const targetLabel = kind==='dyn' ? (DYNASTIES.find(d=>d.id===correct.dyn).name) : (MATERIALS.find(m=>m.id===correct.mat).name);
+  if(!ok){
+    document.getElementById('connect-hint').innerHTML = `<span class="text-red-700"><span data-zh>✗ 不对哦——${LANG==='en'?a.name.en:a.name.zh} 的${kind==='dyn'?'朝代':'材质'}应该是 <strong>${targetLabel.zh}</strong>。再试一次。</span><span data-en>✗ Not quite — ${a.name.en}'s ${kind==='dyn'?'dynasty':'material'} should be <strong>${targetLabel.en}</strong>. Try again.</span></span>`;
+    state.newConnections[aid][kind] = undefined;
+    renderPhase2();
+    return;
+  }
+  // Push edge
+  const edgeLabel = kind==='dyn' ? (LANG==='en'?targetLabel.en:targetLabel.zh) : (LANG==='en'?targetLabel.en:targetLabel.zh);
+  allEdges.push({from:aid, to:attrId, label:edgeLabel});
+  document.getElementById('connect-hint').innerHTML = `<span class="text-green-700"><span data-zh>✓ 正确！${kind==='dyn'?'朝代':'材质'}连上了。</span><span data-en>✓ Correct! ${kind==='dyn'?'Dynasty':'Material'} linked.</span></span>`;
+
+  // Check if this artifact is fully connected
+  const c = state.newConnections[aid];
+  if(c.dyn && c.mat){
+    // Auto-advance to next unfinished artifact
+    state.newArtifactSel = null;
+    const nextIdx = NEW_ARTIFACTS.findIndex(id=>{
+      const cc = state.newConnections[id] || {};
+      return !cc.dyn || !cc.mat;
+    });
+    if(nextIdx<0){
+      // All done
+      document.getElementById('p2-next').disabled = false;
+      document.getElementById('connect-hint').innerHTML = `<span class="text-green-700 font-bold"><span data-zh>🎉 全部连完！点击下方按钮查看完整图谱。</span><span data-en>🎉 All linked! Click below to see the full graph.</span></span>`;
+    } else {
+      state.newArtifactSel = NEW_ARTIFACTS[nextIdx];
+    }
+  }
+  renderPhase2();
+}
+
+/* ===================================================
+   PHASE 3: Queries
+   =================================================== */
+const QUERIES = [
+  {q:{zh:'哪些是<strong>青铜</strong>做的？', en:'Which are made of <strong>bronze</strong>?'},
+   correct:['ding','sword'],   // long信宫灯 is gilt-bronze but we filed it as gilt
+   options:['ding','sword','lamp','horse','scroll','cabbage'],
+   explain:{zh:'AI 沿"made_of"边走到"青铜"节点，再回到所有连这个节点的文物。', en:'AI walks the "made_of" edges to "Bronze" node, then back to all artifacts linked there.'}
+  },
+  {q:{zh:'哪些是<strong>清代之前</strong>的？', en:'Which are <strong>pre-Qing</strong>?'},
+   correct:['scroll','ding','lamp','horse','sword'],
+   options:['cabbage','scroll','ding','lamp','horse','sword'],
+   explain:{zh:'清是最晚的朝代，所以除了翠玉白菜（清），其他都早于清。AI 需要"知道"朝代的时间顺序。', en:'Qing is the latest dynasty, so all except Jadeite Cabbage are earlier. AI must "know" the time order.'}
+  },
+  {q:{zh:'<strong>唐代</strong>有<strong>陶瓷</strong>文物吗？', en:'Any <strong>Tang</strong> <strong>ceramic</strong> artifacts?'},
+   correct:['horse'],
+   options:['cabbage','scroll','ding','lamp','horse','sword'],
+   explain:{zh:'AI 找同时连"唐"和"陶瓷"两个节点的文物——交集只有唐三彩马。', en:'AI finds artifacts linked to BOTH "Tang" and "Ceramic" — only the Sancai Horse fits.'}
+  },
+];
+
+function renderQueries(){
+  const host = document.getElementById('queries');
+  host.innerHTML = QUERIES.map((q,i)=>`
+    <div class="bg-white border border-slate-200 rounded-2xl p-4" data-idx="${i}">
+      <div class="font-bold mb-2">${i+1}. <span data-zh>${q.q.zh}</span><span data-en>${q.q.en}</span></div>
+      <div class="text-xs text-slate-500 mb-2"><span data-zh>点你认为的正确答案（可多选），完成后点"提交"。</span><span data-en>Tap all correct answers, then submit.</span></div>
+      <div class="mb-3">
+        ${q.options.map(oid=>{
+          const a = ARTIFACTS.find(x=>x.id===oid);
+          return `<button class="answer-chip" data-oid="${oid}" onclick="toggleAns(${i},'${oid}',this)">${a.emoji} <span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></button>`;
+        }).join('')}
+      </div>
+      <button class="btn-ghost text-sm" onclick="submitQuery(${i})">
+        <span data-zh>✓ 提交答案</span><span data-en>✓ Submit</span>
+      </button>
+      <div class="qfeedback hidden mt-3 p-3 rounded-lg text-sm"></div>
+    </div>
+  `).join('');
+}
+
+function toggleAns(qi, oid, btn){
+  const f = document.querySelector(`#queries > div[data-idx="${qi}"]`);
+  if(f.dataset.submitted) return;
+  state.queryAnswers[qi] = state.queryAnswers[qi]||new Set();
+  if(state.queryAnswers[qi].has(oid)){
+    state.queryAnswers[qi].delete(oid);
+    btn.classList.remove('picked');
+  } else {
+    state.queryAnswers[qi].add(oid);
+    btn.classList.add('picked');
+  }
+}
+
+function submitQuery(qi){
+  const f = document.querySelector(`#queries > div[data-idx="${qi}"]`);
+  if(f.dataset.submitted) return;
+  f.dataset.submitted='1';
+  const q = QUERIES[qi];
+  const picks = state.queryAnswers[qi]||new Set();
+  // mark picks as correct/wrong
+  f.querySelectorAll('.answer-chip').forEach(c=>{
+    const oid = c.dataset.oid;
+    const isCorrect = q.correct.includes(oid);
+    const picked = picks.has(oid);
+    if(picked && isCorrect) c.classList.add('correct');
+    else if(picked && !isCorrect) c.classList.add('wrong');
+    else if(!picked && isCorrect) c.classList.add('correct');
+  });
+  const allCorrect = q.correct.every(c=>picks.has(c)) && [...picks].every(p=>q.correct.includes(p));
+  const fb = f.querySelector('.qfeedback');
+  fb.classList.remove('hidden');
+  fb.className = 'qfeedback mt-3 p-3 rounded-lg text-sm ' + (allCorrect?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  fb.innerHTML = `<div class="font-bold">${allCorrect?'✓ '+(LANG==='en'?'Perfect!':'完全正确！'):'🤔 '+(LANG==='en'?'Almost. Right answers shown in green.':'差一点，正确答案是绿色的。')}</div>
+    <p class="mt-1"><span data-zh>${q.explain.zh}</span><span data-en>${q.explain.en}</span></p>`;
+  // Check completion
+  const allSubmitted = document.querySelectorAll('#queries > div[data-submitted="1"]').length === QUERIES.length;
+  if(allSubmitted) document.getElementById('p3-next').disabled = false;
+}
+
+/* ===================================================
+   REFLECTION
+   =================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M2-1',
+    inspected:state.inspected.size,
+    newConnected:Object.keys(state.newConnections).filter(k=>state.newConnections[k].dyn&&state.newConnections[k].mat).length,
+    queryCorrect:Object.keys(state.queryAnswers).length,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m2-1', JSON.stringify(data));
+  goTo(5);
+}
+
+/* ===================================================
+   NAVIGATION
+   =================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,5);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 5 关</span><span data-en>Step ${shown} / 5</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderGraph('graph-svg', 1);
+  if(n===2){
+    state.newArtifactSel = NEW_ARTIFACTS[0];
+    renderPhase2();
+  }
+  if(n===3){
+    renderGraph('graph-svg-mini', 3);
+    if(!document.getElementById('queries').innerHTML) renderQueries();
+  }
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,inspected:new Set(),newConnections:{},newArtifactSel:null,queryAnswers:{},reflectChoice:null,reflectText:''});
+    allEdges = [...INITIAL_EDGES];
+    document.getElementById('queries').innerHTML='';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

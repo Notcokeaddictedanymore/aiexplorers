@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M7-1 选问题 · Pick Your AI Problem</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Decision card */
+  .dec-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .dec-card.good{border-left:5px solid #10B981}
+  .dec-card.bad{border-left:5px solid #DC2626}
+  .dec-card:hover{transform:translateY(-2px)}
+  .dec-card.read{background:#ECFDF5}
+  .dec-card.bad.read{background:#FEF2F2}
+
+  /* Inspiration card */
+  .insp-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem;transition:all .2s;cursor:pointer;position:relative;display:flex;flex-direction:column}
+  .insp-card:hover{transform:translateY(-2px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15)}
+  .insp-card.read{border-color:#10B981}
+  .insp-card.read::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  /* Builder input */
+  .b-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s;font-family:inherit}
+  .b-input:focus{outline:none;border-color:#3B82F6}
+  .b-input.ok{border-color:#10B981;background:#F0FDF4}
+  textarea.b-input{min-height:80px;resize:vertical}
+
+  /* Feedback card */
+  .fb-card{background:#fff;border-left:5px solid #3B82F6;border-radius:10px;padding:.9rem;margin-bottom:.7rem}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(168,85,247,.08),0 0 0 12px rgba(168,85,247,.04),0 18px 40px -12px rgba(168,85,247,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M7-1 · Mission</span>
+      <span class="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Ch.7 · 毕业作品 / Capstone</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>设计 · 30 min</span><span data-en>Design · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>选问题：你要为谁、做什么 AI？</span>
+      <span data-en>Pick Your Problem: For Whom, To Do What?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-purple-700 mt-1"><span data-zh>小京灵 · 戴学士帽版</span><span data-en>Jingling · Capstone mode</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-purple-700 font-semibold" data-zh>
+            🎉 <strong>欢迎来到第 7 章 · 毕业作品</strong>。
+          </p>
+          <p class="text-lg leading-relaxed text-purple-700 font-semibold" data-en>
+            🎉 <strong>Welcome to Chapter 7 · Capstone</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            过去 24 关你学了 AI 怎么<strong>看、想、学、说、影响社会，还研究了一个救命的真实系统（防汛 AI）</strong>。现在<strong>反过来</strong>了——<strong>你来做一个 AI</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Across 24 missions you\'ve seen AI <strong>see, think, learn, talk, impact society, plus a real life-saving system (flood AI)</strong>. Now the reverse — <strong>YOU build an AI</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            这一章 4 关——<strong>选问题 → 收数据 → 训练评估 → 发布会</strong>。完成后你会得到 Google AI Quests 也颁发的最终荣誉：<strong>"AI 少年研究员"证书</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            4 missions — <strong>pick problem → collect data → train+evaluate → launch</strong>. Finish to earn the highest honor Google AI Quests also awards: <strong>"AI Junior Researcher" certificate</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            今天的关键问题：你<strong>要做什么 AI</strong>？这<strong>不是随便选</strong>——好的项目能改变某人的生活，差的项目浪费时间或者造成伤害。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Today\'s key question: <strong>what AI to build</strong>? Not a random pick — good projects change someone\'s life; bad ones waste time or cause harm.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>开始：AI 适合做什么？ →</span><span data-en>Start: what suits AI? →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: AI SUITABILITY TEST ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>有些事 AI <strong>非常适合做</strong>（让你做就累死），有些事 AI <strong>很不适合做</strong>（让 AI 做就出事）。下面 8 张卡——<strong>4 个 AI 应该做的 + 4 个 AI 不该做的</strong>。逐一看完再继续。</p>
+      <p data-en>Some tasks <strong>fit AI perfectly</strong> (humans would die of exhaustion). Others <strong>don\'t suit AI</strong> (disaster waiting). 8 cards — <strong>4 should + 4 should NOT</strong>. Read all to continue.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="dec-count">0</span> / 8</div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4" id="dec-grid"></div>
+
+    <div class="mt-5 p-4 bg-purple-50 border border-purple-200 rounded-xl text-sm">
+      <strong>🧠 <span data-zh>判断口诀</span><span data-en>Heuristic</span></strong>：
+      <span data-zh>AI 适合做 <strong>"重复 + 大量 + 客观答案"</strong> 的事；AI 不适合做 <strong>"独特 + 主观判断 + 高代价"</strong> 的事。</span>
+      <span data-en>AI fits <strong>"repetitive + bulk + objective answer"</strong>; AI doesn\'t fit <strong>"unique + subjective + high-stakes"</strong>.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：灵感库 →</span><span data-en>Next: inspiration library →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: INSPIRATION LIBRARY ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这是<strong>灵感库</strong>——8 个真实的、12 岁中学生能做到的 AI 项目。<strong>5 个来自这门课的故事</strong>（你已经熟悉），<strong>3 个全新的</strong>。点开看，激发灵感。</p>
+      <p data-en>The <strong>inspiration library</strong> — 8 real AI projects a 12-yo can do. <strong>5 from this course</strong> (familiar), <strong>3 fresh</strong>. Click to expand.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已看：</span><span data-en>Visited:</span><span id="insp-count">0</span> / 8</div>
+    </div>
+
+    <div id="insp-grid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：写你的项目意图书 →</span><span data-en>Next: project intent doc →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: PROJECT INTENT DOCUMENT ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>现在轮到<strong>你</strong>。下面是<strong>项目意图书</strong>——产品经理设计任何 AI 项目前都必填的 5 个字段。<strong>每个 ≥ 20 字</strong>。可以参考灵感库，但要选你自己<strong>真正在意</strong>的问题。</p>
+      <p data-en>Your turn. The <strong>Project Intent Document</strong> — 5 fields every PM fills before building AI. <strong>≥ 20 chars each</strong>. Borrow from inspiration, but pick what you <strong>genuinely care about</strong>.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-4 text-purple-900"><span data-zh>📋 项目意图书</span><span data-en>📋 Project Intent Document</span></h3>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">① <span data-zh>项目名称</span><span data-en>Project name</span></label>
+          <input type="text" class="b-input" id="pi-name" placeholder="" data-zh-placeholder="例：奶奶方言守护者 / 帮阿宝叔识别果园害虫" data-en-placeholder="e.g. Grandma\'s Dialect Guardian / Uncle Abao\'s Pest Detector" oninput="updateProject()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">② <span data-zh>问题陈述（具体）</span><span data-en>Problem statement (specific)</span></label>
+          <textarea class="b-input" id="pi-problem" placeholder="" data-zh-placeholder="例：我奶奶说沪语，但她用智能音箱要重复 5 遍才能让 AI 听懂；这让她越来越不愿意用 AI 工具" data-en-placeholder="e.g. My grandma speaks Shanghainese; she has to repeat 5x for AI to understand; she\'s giving up on AI" oninput="updateProject()"></textarea>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">③ <span data-zh>谁会受益（具体的人）</span><span data-en>Who benefits (specific people)</span></label>
+          <input type="text" class="b-input" id="pi-who" placeholder="" data-zh-placeholder="例：我奶奶（68 岁，住上海）+ 同样会沪语的几百万老人" data-en-placeholder="e.g. My grandma (68, Shanghai) + millions of Shanghainese-speaking elders" oninput="updateProject()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-purple-700 mb-1 block">④ <span data-zh>为什么 AI 适合做这件事</span><span data-en>Why AI fits this</span></label>
+          <textarea class="b-input" id="pi-why-ai" placeholder="" data-zh-placeholder="例：要从大量沪语录音中找出共同特征，靠人是不可能的；但 AI 可以从 1000 段语音中学到沪语的发音规律" data-en-placeholder="e.g. Need to find patterns from huge audio data — humans can\'t, AI can learn from 1000 clips" oninput="updateProject()"></textarea>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wide text-red-700 mb-1 block">⑤ <span data-zh>可能的风险（M1-4 学到的 FP/FN）</span><span data-en>Possible risks (FP/FN from M1-4)</span></label>
+          <textarea class="b-input" id="pi-risk" placeholder="" data-zh-placeholder="例：假阳：AI 把别人的方言识别成沪语 → 错误回应；假阴：奶奶说话 AI 仍然识别不出 → 她更挫败" data-en-placeholder="e.g. FP: AI labels other dialect as Shanghainese; FN: still doesn\'t catch grandma\'s speech" oninput="updateProject()"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pi-filled">0</span> / 5 <span data-zh>项完成</span><span data-en>fields done</span></div>
+        <button class="btn-primary" id="pi-submit" disabled onclick="submitProject()">
+          <span data-zh>提交给小京灵评审 →</span><span data-en>Submit for Jingling review →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: LINGXI REVIEW ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵 · 资深产品经理模式</span><span data-en>Jingling · Senior PM mode</span></div>
+      <p data-zh>很好——你的<strong>"<span id="rv-name">—</span>"</strong>项目我已经读过了。让我用<strong>4 个"硬问题"</strong>挑战你——产品经理在审批 AI 项目时会问的。<strong>认真想，写下你的回答（≥ 30 字）</strong>。</p>
+      <p data-en>Good — I\'ve read your <strong>"<span id="rv-name-en">—</span>"</strong> project. Let me hit you with <strong>4 hard questions</strong> PMs ask when greenlighting AI. <strong>Think carefully, write ≥ 30 chars</strong>.</p>
+    </div>
+
+    <div id="qa-list" class="space-y-3 mb-5"></div>
+
+    <div class="mt-4 flex items-center justify-between text-sm">
+      <div class="text-slate-600"><span data-zh>已答：</span><span data-en>Answered:</span><strong id="qa-answered">0</strong> / 4</div>
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-purple-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>选问题是<strong>产品经理最重要的能力</strong>——比写代码更重要。今天你练习了。最后请你写一段反思：</p>
+      <p data-en>Picking the right problem is <strong>the PM\'s #1 skill</strong> — more important than coding. You practiced it today. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你刚才差点选的<strong>另一个项目</strong>是什么？为什么最后选了这个？</span>
+        <span data-en>① What other project did you almost pick? Why did you choose this one?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 如果你的项目失败了（10% 的可能），谁会受到伤害？你能<strong>提前预防</strong>吗？</span>
+        <span data-en>② If your project fails (10% risk), who gets hurt? Can you <strong>prevent it now</strong>?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ "选问题"和"做问题"哪个更难？你 12 岁能做到哪一步？</span>
+        <span data-en>③ Which is harder — picking the problem or solving it? What can a 12-yo realistically do?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M7-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-purple-500 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#a855f7" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">❓</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 1 关完成</span><span data-en>Mission #1 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"产品经理学徒" 徽章已解锁</span><span data-en>"PM Apprentice" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-purple-50 border border-purple-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天做出了……</span><span data-en>You produced…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>一份完整的<strong>项目意图书</strong>（5 项填完）</span><span data-en>A complete <strong>Project Intent Document</strong> (5 fields)</span></li>
+          <li>✓ <span data-zh>通过了<strong>4 个 PM 硬问题</strong>的评审</span><span data-en>Passed <strong>4 PM hard questions</strong> review</span></li>
+          <li>✓ <span data-zh>识别了 <strong>AI 适合 / 不适合</strong> 做的事</span><span data-en>Identified what <strong>AI fits / doesn\'t fit</strong></span></li>
+          <li>✓ <span data-zh>你的项目现在有了<strong>清晰的"为什么"</strong>——下一步收数据</span><span data-en>Your project has a clear <strong>"why"</strong> — next: collect data</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-300 rounded-2xl text-left">
+        <div class="font-bold mb-2">📋 <span data-zh>你的毕业项目</span><span data-en>Your capstone project</span></div>
+        <div class="text-base font-bold mb-1" id="final-name">—</div>
+        <div class="text-sm text-slate-700" id="final-problem">—</div>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m7-2-collect.html'">
+          <span data-zh>下一关：M7-2 收数据 →</span><span data-en>Next: M7-2 Collect Data →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M7-1 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M7-1 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+  updatePlaceholders();
+}
+function updatePlaceholders(){
+  document.querySelectorAll('.b-input').forEach(el=>{
+    const ph = el.getAttribute(LANG==='en'?'data-en-placeholder':'data-zh-placeholder');
+    if(ph) el.placeholder = ph;
+  });
+}
+
+const DECISIONS = [
+  {good:true, emoji:'📸',
+   task:{zh:'每天从 5000 张红外照片里找出大熊猫', en:'Find pandas in 5000 IR photos daily'},
+   why:{zh:'<strong>重复 + 大量 + 客观答案</strong>——AI 5 分钟搞定，人需要 8 小时',
+        en:'<strong>Repetitive + bulk + objective</strong> — AI: 5 min, human: 8 hrs'}},
+  {good:true, emoji:'🩺',
+   task:{zh:'分析 CT 影像找早期肺结节', en:'Find early lung nodules in CT scans'},
+   why:{zh:'<strong>需要看亿万张影像才能积累的经验</strong>——AI 可以"读完"所有；医生只能读过几千',
+        en:'<strong>Needs experience from billions of scans</strong> — AI can "read" all; doctors only thousands'}},
+  {good:true, emoji:'🌾',
+   task:{zh:'果农无人机扫田找病虫害', en:'Drone scan fields for pests'},
+   why:{zh:'<strong>面积大 + 早期信号难捕捉</strong>——AI 7 天前就能发现，节约 70% 损失',
+        en:'<strong>Large area + subtle signals</strong> — AI detects 7 days early, saves 70% loss'}},
+  {good:true, emoji:'🌐',
+   task:{zh:'翻译 100 种语言之间的实时对话', en:'Real-time translate 100 languages'},
+   why:{zh:'<strong>大量数据 + 客观映射 + 速度要求</strong>——AI 完美匹配',
+        en:'<strong>Bulk data + objective mapping + speed</strong> — AI shines'}},
+  {good:false, emoji:'⚖️',
+   task:{zh:'判决案件被告应该坐牢几年', en:'Sentence defendants to N years in prison'},
+   why:{zh:'⚠️ 每个案件<strong>独特</strong>、判决是<strong>主观价值判断</strong>、错了<strong>毁人一生</strong>。<strong>AI 绝对不能做</strong>',
+        en:'⚠️ Each case <strong>unique</strong>; verdict is <strong>subjective</strong>; errors <strong>ruin lives</strong>. AI <strong>must not do this</strong>'}},
+  {good:false, emoji:'💔',
+   task:{zh:'判断哪些孩子"可能"未来不孝顺', en:'Predict which kids "may" be unfilial'},
+   why:{zh:'⚠️ <strong>没有客观答案</strong>、判断本身就<strong>违背伦理</strong>、自我实现预言。<strong>AI 不应该有这种功能</strong>',
+        en:'⚠️ <strong>No objective answer</strong>; judgment itself <strong>violates ethics</strong>; self-fulfilling prophecy. AI <strong>shouldn\'t have this</strong>'}},
+  {good:false, emoji:'❤️',
+   task:{zh:'匹配你的"真爱"', en:'Match your "soulmate"'},
+   why:{zh:'⚠️ "真爱"是<strong>主观情感</strong>，AI 只能匹配<strong>外在特征</strong>。给学生用更糟——会形成扭曲的爱情观',
+        en:'⚠️ "Soulmate" is <strong>subjective emotion</strong>; AI only matches <strong>surface features</strong>. Worse for teens — distorts love views'}},
+  {good:false, emoji:'🎨',
+   task:{zh:'判断一个艺术作品"美不美"', en:'Judge if an artwork is "beautiful"'},
+   why:{zh:'⚠️ "<strong>美</strong>"是文化、个人、时代的<strong>综合判断</strong>，没有客观标准。AI 会用<strong>统计大多数</strong>掩盖多样性',
+        en:'⚠️ "<strong>Beautiful</strong>" is cultural, personal, era-bound. No objective standard. AI uses <strong>statistical majority</strong>, masking diversity'}},
+];
+
+const INSPIRATIONS = [
+  {id:'i1', emoji:'🐼', from:{zh:'Ch.1 课程项目',en:'Ch.1 course case'},
+   name:{zh:'卧龙熊猫识别', en:'Wolong Panda Recognition'},
+   desc:{zh:'帮自然保护区从红外相机照片中找大熊猫。已实施。',
+         en:'Help reserve find pandas from IR camera photos. Real deployment.'},
+   data:{zh:'200 张熊猫 + 200 张其他动物照片',en:'200 panda + 200 non-panda photos'}},
+  {id:'i2', emoji:'🏛️', from:{zh:'Ch.2 课程项目',en:'Ch.2 course case'},
+   name:{zh:'故宫文物分类', en:'Palace Museum Artifacts'},
+   desc:{zh:'按朝代/材质自动分类博物馆文物照片，帮研究员整理。',
+         en:'Auto-classify museum artifacts by dynasty/material. Helps researchers.'},
+   data:{zh:'50 件文物 × 5 张不同角度照',en:'50 artifacts × 5 angles each'}},
+  {id:'i3', emoji:'🌾', from:{zh:'Ch.3 课程项目',en:'Ch.3 course case'},
+   name:{zh:'阿宝叔果园害虫', en:'Uncle Abao\'s Pest Detector'},
+   desc:{zh:'识别果园里的 5 种常见害虫，让果农早 7 天预警。',
+         en:'Detect 5 common orchard pests. Gives farmers 7-day early warning.'},
+   data:{zh:'5 类 × 100 张害虫近距离照片',en:'5 classes × 100 close-up pest photos'}},
+  {id:'i4', emoji:'🗣️', from:{zh:'Ch.4 课程项目',en:'Ch.4 course case'},
+   name:{zh:'家乡方言守护者', en:'Hometown Dialect Guardian'},
+   desc:{zh:'录下奶奶/爷爷的家乡话，做一个能识别这种方言的 AI。',
+         en:'Record grandparents\' dialect; build an AI that recognizes it.'},
+   data:{zh:'30 句方言 × 5 个家人录音',en:'30 phrases × 5 family voice recordings'}},
+  {id:'i5', emoji:'🌧️', from:{zh:'Ch.6 课程项目',en:'Ch.6 course case'},
+   name:{zh:'小区内涝预警', en:'Neighborhood Flood Alert'},
+   desc:{zh:'参考 Ch.6 防汛 AI，做一个你家小区的内涝点识别器（简化版）。',
+         en:'Inspired by Ch.6 flood AI — flood spot detector for your neighborhood (mini).'},
+   data:{zh:'下雨前/中/后的同一地点照片各 30 张',en:'30 photos per: pre-rain / during / post for same spots'}},
+  {id:'i6', emoji:'🍱', from:{zh:'新',en:'NEW'},
+   name:{zh:'学校食堂菜识别', en:'School Cafeteria Dish ID'},
+   desc:{zh:'识别食堂常见的 8 种菜，帮过敏的同学避开危险食材（如花生、海鲜）。',
+         en:'ID 8 common cafeteria dishes — help allergic classmates avoid danger (peanuts, seafood).'},
+   data:{zh:'8 道菜 × 30 张照片（不同角度+光线）',en:'8 dishes × 30 photos (angles + lighting)'}},
+  {id:'i7', emoji:'📚', from:{zh:'新',en:'NEW'},
+   name:{zh:'书桌姿势监测', en:'Desk Posture Monitor'},
+   desc:{zh:'用手机摄像头，每 5 分钟检测一次你的坐姿是不是太弯——保护视力。',
+         en:'Phone camera checks your posture every 5 min — protects eyesight.'},
+   data:{zh:'好姿势 100 张 + 弯腰 100 张',en:'100 good + 100 slouching photos'}},
+  {id:'i8', emoji:'♻️', from:{zh:'新',en:'NEW'},
+   name:{zh:'家庭垃圾分类助手', en:'Home Recycling Assistant'},
+   desc:{zh:'拍一下垃圾照片，AI 告诉你属于哪一类（可回收/有害/厨余/其他）。',
+         en:'Photo of trash; AI says which bin (recyclable/hazard/food/other).'},
+   data:{zh:'4 类 × 50 张照片',en:'4 classes × 50 photos'}},
+];
+
+const state = {
+  phase:0, decRead:new Set(), inspRead:new Set(),
+  project:{name:'',problem:'',who:'',whyAi:'',risk:''},
+  qaAnswers:['','','',''], reflectChoice:null, reflectText:''
+};
+
+function renderDecisions(){
+  const host = document.getElementById('dec-grid');
+  host.innerHTML = DECISIONS.map((d,i)=>`
+    <div class="dec-card ${d.good?'good':'bad'} ${state.decRead.has(i)?'read':''}" data-idx="${i}" onclick="readDecision(${i})">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-3xl">${d.emoji}</div>
+        <div class="text-xs font-bold uppercase ${d.good?'text-green-700':'text-red-700'}">${d.good?'✓ AI 适合做':'⚠️ AI 不该做'}<br><span style="font-size:9px;text-transform:none">${d.good?'AI fits':'AI doesn\'t fit'}</span></div>
+      </div>
+      <p class="font-bold mb-2 text-sm"><span data-zh>${d.task.zh}</span><span data-en>${d.task.en}</span></p>
+      <p class="text-xs text-slate-700"><span data-zh>${d.why.zh}</span><span data-en>${d.why.en}</span></p>
+    </div>
+  `).join('');
+}
+function readDecision(i){
+  state.decRead.add(i); renderDecisions();
+  document.getElementById('dec-count').textContent = state.decRead.size;
+  if(state.decRead.size>=8) document.getElementById('p1-next').disabled = false;
+}
+
+function renderInspirations(){
+  const host = document.getElementById('insp-grid');
+  host.innerHTML = INSPIRATIONS.map(p=>`
+    <div class="insp-card ${state.inspRead.has(p.id)?'read':''}" data-id="${p.id}" onclick="readInsp('${p.id}')">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-3xl">${p.emoji}</div>
+        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold"><span data-zh>${p.from.zh}</span><span data-en>${p.from.en}</span></span>
+      </div>
+      <div class="font-bold text-sm"><span data-zh>${p.name.zh}</span><span data-en>${p.name.en}</span></div>
+      <p class="text-xs text-slate-600 mt-2 flex-1"><span data-zh>${p.desc.zh}</span><span data-en>${p.desc.en}</span></p>
+      <div class="mt-2 pt-2 border-t border-slate-100 text-xs">
+        <strong>📥 <span data-zh>需要数据</span><span data-en>Data needed</span></strong>：
+        <div class="text-slate-600 mt-1"><span data-zh>${p.data.zh}</span><span data-en>${p.data.en}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+function readInsp(id){
+  state.inspRead.add(id); renderInspirations();
+  document.getElementById('insp-count').textContent = state.inspRead.size;
+  if(state.inspRead.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+function updateProject(){
+  state.project.name = document.getElementById('pi-name').value;
+  state.project.problem = document.getElementById('pi-problem').value;
+  state.project.who = document.getElementById('pi-who').value;
+  state.project.whyAi = document.getElementById('pi-why-ai').value;
+  state.project.risk = document.getElementById('pi-risk').value;
+  let filled = 0;
+  const fields = [['name','pi-name',6],['problem','pi-problem',20],['who','pi-who',8],['whyAi','pi-why-ai',20],['risk','pi-risk',20]];
+  fields.forEach(([key,id,min])=>{
+    const el = document.getElementById(id);
+    const ok = Array.from(state.project[key]).length>=min;
+    el.classList.toggle('ok', ok);
+    if(ok) filled++;
+  });
+  document.getElementById('pi-filled').textContent = filled;
+  document.getElementById('pi-submit').disabled = filled<5;
+}
+
+function submitProject(){
+  document.getElementById('rv-name').textContent = state.project.name;
+  document.getElementById('rv-name-en').textContent = state.project.name;
+  renderQAs(); goTo(4);
+}
+
+const QA_QUESTIONS = [
+  {zh:'你说会帮 <strong>"<span class="hl-who"></span>"</strong>。但 <strong>3 年后</strong> 你毕业了/上大学了——这个 AI 谁来维护？谁继续帮你的用户？',
+   en:'You say it helps <strong>"<span class="hl-who"></span>"</strong>. But <strong>in 3 years</strong> you graduate — who maintains the AI? Who keeps helping users?'},
+  {zh:'如果 AI 错了 <span class="hl-risk"></span>——<strong>最坏的情况</strong>会发生什么？你能<strong>提前做什么</strong>预防？',
+   en:'If AI gets it wrong (<span class="hl-risk"></span>) — <strong>worst case scenario</strong>? What <strong>can you do now</strong> to prevent it?'},
+  {zh:'这件事<strong>没有 AI 就完全做不到吗</strong>？还是说人也能做，只是慢一点？如果人也能做，<strong>AI 真的必要吗</strong>？',
+   en:'Is this <strong>impossible without AI</strong>? Or could humans do it, just slower? If humans can — <strong>is AI really necessary</strong>?'},
+  {zh:'谁<strong>不会</strong>从你的 AI 受益？甚至——谁可能<strong>被你的 AI 伤害</strong>？（比如不在你设计中的人）',
+   en:'Who <strong>doesn\'t</strong> benefit from your AI? Or — who might be <strong>hurt by it</strong>? (e.g. people not in your design)'},
+];
+
+function renderQAs(){
+  const host = document.getElementById('qa-list');
+  host.innerHTML = QA_QUESTIONS.map((q,i)=>{
+    let zh = q.zh, en = q.en;
+    zh = zh.replace('<span class="hl-who"></span>', `<span class="text-purple-700">${state.project.who||'…'}</span>`);
+    en = en.replace('<span class="hl-who"></span>', `<span class="text-purple-700">${state.project.who||'…'}</span>`);
+    zh = zh.replace('<span class="hl-risk"></span>', `<span class="text-red-700">${(state.project.risk||'').slice(0,30)}…</span>`);
+    en = en.replace('<span class="hl-risk"></span>', `<span class="text-red-700">${(state.project.risk||'').slice(0,30)}…</span>`);
+    return `<div class="fb-card">
+      <div class="font-semibold text-sm mb-2">${i+1}. <span data-zh>${zh}</span><span data-en>${en}</span></div>
+      <textarea class="b-input" data-idx="${i}" placeholder="" data-zh-placeholder="认真回答（≥ 30 字）……" data-en-placeholder="Answer carefully (≥ 30 chars)…" oninput="updateQA(${i})">${state.qaAnswers[i]}</textarea>
+    </div>`;
+  }).join('');
+  updatePlaceholders();
+}
+
+function updateQA(idx){
+  const el = document.querySelector(`#qa-list textarea[data-idx="${idx}"]`);
+  state.qaAnswers[idx] = el.value;
+  el.classList.toggle('ok', Array.from(el.value).length>=30);
+  const answered = state.qaAnswers.filter(a=>Array.from(a).length>=30).length;
+  document.getElementById('qa-answered').textContent = answered;
+  document.getElementById('p4-next').disabled = answered<4;
+}
+
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M7-1',
+    decRead:state.decRead.size, inspRead:state.inspRead.size,
+    project:state.project, qaAnswers:state.qaAnswers,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m7-1', JSON.stringify(data));
+  document.getElementById('final-name').textContent = state.project.name;
+  document.getElementById('final-problem').textContent = state.project.problem;
+  goTo(6);
+}
+
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderDecisions();
+  if(n===2) renderInspirations();
+  if(n===3) updatePlaceholders();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.decRead=new Set();state.inspRead=new Set();state.project={name:'',problem:'',who:'',whyAi:'',risk:''};state.qaAnswers=['','','',''];state.reflectChoice=null;state.reflectText='';
+    document.getElementById('dec-count').textContent='0';
+    document.getElementById('insp-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('pi-filled').textContent='0';
+    document.getElementById('pi-submit').disabled=true;
+    ['pi-name','pi-problem','pi-who','pi-why-ai','pi-risk','reflect-text'].forEach(id=>document.getElementById(id).value='');
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+
+updatePlaceholders();
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

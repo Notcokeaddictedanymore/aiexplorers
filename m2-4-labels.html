@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M2-4 谁来定标签 · Who Decides the Labels?</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Ranking row */
+  .rank-row{display:flex;gap:.7rem;align-items:center;padding:.55rem .75rem;background:#fff;border:2px solid #E2E8F0;border-radius:12px;transition:all .4s ease;margin-bottom:.5rem}
+  .rank-row.gold{border-color:#FBBF24;background:linear-gradient(90deg,#FEF3C7,#fff)}
+  .rank-row.silver{border-color:#94A3B8;background:linear-gradient(90deg,#F1F5F9,#fff)}
+  .rank-row.bronze{border-color:#D97706;background:linear-gradient(90deg,#FED7AA,#fff)}
+  .rank-row.bottom{opacity:.55;background:#FAFAFA}
+  .rank-num{font-size:1.5rem;font-weight:900;width:36px;text-align:center;flex-shrink:0;color:#94A3B8}
+  .rank-row.gold .rank-num{color:#D97706}
+  .rank-emoji{font-size:1.8rem;flex-shrink:0}
+  .rank-name{font-weight:700;flex:1;min-width:0}
+  .rank-score{font-size:.85rem;font-weight:700;color:#64748B}
+
+  /* Scheme buttons */
+  .scheme-btn{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:.85rem 1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .scheme-btn:hover{border-color:#94A3B8}
+  .scheme-btn.active{border-color:#DC2626;background:#FEF2F2;color:#DC2626}
+
+  /* Era timeline */
+  .era-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem;transition:all .2s;cursor:pointer;position:relative}
+  .era-card:hover{border-color:#94A3B8;transform:translateY(-2px)}
+  .era-card.active{border-color:#DC2626;background:#FEF2F2;box-shadow:0 12px 28px -12px rgba(220,38,38,.25)}
+  .era-card.visited::after{content:"✓";position:absolute;top:8px;right:10px;color:#10B981;font-weight:700}
+  .era-emoji{font-size:1.8rem}
+
+  /* Pledge inputs */
+  .pledge-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s}
+  .pledge-input:focus{outline:none;border-color:#3B82F6}
+  .pledge-input.ok{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+  .ch-glow{box-shadow:0 0 0 6px rgba(59,130,246,.08),0 0 0 12px rgba(59,130,246,.04),0 18px 40px -12px rgba(59,130,246,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M2-4 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.2 · 推理 / Reasoning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>反思 · 30 min</span><span data-en>Reflect · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>谁来定标签：标签里藏着谁的权力？</span>
+      <span data-en>Who Decides the Labels: Power Hidden in Categories</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            上一关你给 AI 加了"价格"属性。可是<strong>"价格"本身怎么定？</strong>谁说翠玉白菜值"无价"？谁说唐三彩马值 500 万？
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Last time you added a "price" attribute. But <strong>who decides "price"?</strong> Who says Jadeite Cabbage is "priceless"? Who values Sancai Horse at 5M RMB?
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            标签<strong>不是事实，是判断</strong>。每一个标签，背后都站着一个人——或者一个时代、一种文化、一家公司、一个算法。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Labels <strong>are not facts — they are judgments</strong>. Behind every label stands someone: an era, a culture, a company, an algorithm.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            今天这一关，我们一起<strong>穿越 4 个时代</strong>，看同样的 6 件文物，怎么被一次次重新"排座次"。最后，你写下自己的标签宣言。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Today, we time-travel through <strong>4 eras</strong>, watch the same 6 artifacts get re-ranked again and again. Then you write your own labeling manifesto.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>穿越时代看价值重排 →</span><span data-en>Travel through eras →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: HISTORICAL RE-RANKINGS ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>同样的 6 件文物，在 <strong>4 个不同时代</strong>被打过不同的"<strong>价值标签</strong>"。<strong>点每个时代</strong>，看排名怎么变。</p>
+      <p data-en>Same 6 artifacts, ranked under <strong>4 different eras</strong>' value-labeling systems. <strong>Click each era</strong>, watch the order shift.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5" id="era-cards"></div>
+
+    <!-- Ranking display -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div>
+          <div class="text-xs uppercase text-slate-500 font-bold tracking-wide"><span data-zh>当前价值排名</span><span data-en>Current value ranking</span></div>
+          <div class="text-2xl font-black" id="era-title"><span data-zh>选一个时代</span><span data-en>Pick an era</span></div>
+        </div>
+        <div class="text-right text-xs text-slate-500" id="era-criterion"></div>
+      </div>
+      <div id="ranking-list"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：你的标签实验室 →</span><span data-en>Next: Your label lab →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: STUDENT CLASSIFIES ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>现在轮到你。<strong>用 3 种不同标准</strong>给这 6 件文物排座次。看看"<strong>谁是第一</strong>"在不同标准下完全不同——这就是<strong>标签的权力</strong>。</p>
+      <p data-en>Your turn. <strong>Try 3 different criteria</strong> to rank the 6 artifacts. Watch "who comes first" change drastically — that's <strong>the power of labels</strong>.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-3 mb-5" id="my-schemes"></div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-xs uppercase text-slate-500 font-bold tracking-wide"><span data-zh>你的排名</span><span data-en>Your ranking</span></div>
+          <div class="text-2xl font-black" id="my-scheme-title"><span data-zh>选一种标准</span><span data-en>Pick a criterion</span></div>
+        </div>
+        <div class="text-xs text-slate-500" id="my-scheme-note"></div>
+      </div>
+      <div id="my-ranking"></div>
+    </div>
+
+    <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm hidden" id="my-summary">
+      <strong>🪞 <span data-zh>你试过的标准：</span><span data-en>You've tried:</span></strong>
+      <div id="my-tried-list" class="mt-2"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：真实案例 →</span><span data-en>Next: Real case →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: REAL WORLD CASE ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>"标签是判断"听起来抽象。来看一个<strong>真实事件</strong>——AI 把"哪些艺术品该被记住"这种事，<strong>翻车</strong>了。</p>
+      <p data-en>"Labels are judgments" sounds abstract. Real-world case: AI <strong>botched</strong> "which artworks deserve to be remembered."</p>
+    </div>
+
+    <div class="bg-white border-2 border-red-300 rounded-2xl p-5 mb-4">
+      <div class="text-xs uppercase text-red-700 font-bold mb-2">📍 <span data-zh>2020 年代</span><span data-en>2020s</span></div>
+      <h3 class="text-xl font-bold mb-3" data-zh>AI 文物识别系统：低估非西方文化遗产</h3>
+      <h3 class="text-xl font-bold mb-3" data-en>AI Heritage Recognition: Undervaluing Non-Western Art</h3>
+      <p class="text-sm text-slate-700 mb-3" data-zh>多家科技公司开发的"全球艺术品 AI 识别"系统被发现：<strong>识别欧洲油画准确率 92%，识别非洲面具、亚洲青铜器、原住民艺术只有 60%</strong>。</p>
+      <p class="text-sm text-slate-700 mb-3" data-en>Global art recognition AIs from major tech companies were found to: <strong>identify European oil paintings at 92% accuracy, but African masks, Asian bronzes, and indigenous art at just 60%</strong>.</p>
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+        <div class="text-xs font-bold text-red-700 uppercase mb-1"><span data-zh>原因（很尴尬）</span><span data-en>Cause (embarrassing)</span></div>
+        <p class="text-sm" data-zh>训练数据 78% 来自欧美博物馆。<strong>"什么是艺术"</strong>这个标签——已经被打上了文化偏见。AI 不是种族主义，但<strong>它学了一份种族主义的标签清单</strong>。</p>
+        <p class="text-sm" data-en>78% of training data came from Western museums. <strong>"What counts as art"</strong> — the label itself carried cultural bias. AI isn't racist, but <strong>it learned a label set that is</strong>.</p>
+      </div>
+    </div>
+
+    <div class="font-semibold mb-3"><span data-zh>问题：怎么修这个问题？</span><span data-en>Q: How would you fix this?</span></div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-4" id="fix-choices">
+      <button class="scheme-btn text-left" onclick="fixAns('a',event)">
+        <div class="font-bold">A</div>
+        <div class="text-sm mt-1"><span data-zh>让 AI 训练更多数据</span><span data-en>Train AI on more data</span></div>
+      </button>
+      <button class="scheme-btn text-left" onclick="fixAns('b',event)">
+        <div class="font-bold">B</div>
+        <div class="text-sm mt-1"><span data-zh>让非西方文化的人参与定标签</span><span data-en>Let non-Western cultures help label</span></div>
+      </button>
+      <button class="scheme-btn text-left" onclick="fixAns('c',event)">
+        <div class="font-bold">C</div>
+        <div class="text-sm mt-1"><span data-zh>所有都做：A + B + 持续审查</span><span data-en>All of it: A + B + ongoing audit</span></div>
+      </button>
+    </div>
+
+    <div id="fix-result" class="hidden">
+      <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-5">
+        <div class="font-bold text-green-700 mb-2">✓ <span data-zh>最佳答案：C</span><span data-en>Best answer: C</span></div>
+        <p class="text-sm" data-zh>只加数据（A）没用——如果新数据还是<strong>欧美学者标的</strong>，偏见还在。</p>
+        <p class="text-sm" data-en>Just adding data (A) fails — if the new data is <strong>still labeled by Western experts</strong>, bias persists.</p>
+        <p class="text-sm mt-2" data-zh>只让其他文化的人参与（B）也不够——他们可能只能影响小部分数据。</p>
+        <p class="text-sm mt-2" data-en>Just inviting others (B) isn't enough — they may only touch a fraction of data.</p>
+        <p class="text-sm mt-2" data-zh><strong>真正的修复需要：① 更多元的数据 ② 标签者来自多元文化 ③ 上线后持续被审查</strong>——这才是负责任地解决标签偏见的标准做法。</p>
+        <p class="text-sm mt-2" data-en><strong>Real fix needs: ① diverse data ② diverse labelers ③ ongoing audit post-launch</strong> — the responsible standard.</p>
+        <div class="mt-4 p-3 bg-white rounded-lg text-xs">
+          <strong>📚 <span data-zh>延伸阅读</span><span data-en>Read more</span></strong>：
+          <span data-zh>这种"数据标签里的隐形偏见"现在有个学术名：<strong>"算法殖民主义"（Algorithmic Colonialism）</strong>——西方科技公司用西方标准定义全世界"什么是好的"。中国学者也越来越关注这个问题。</span>
+          <span data-en>This "hidden bias in data labeling" is now called <strong>"Algorithmic Colonialism"</strong> — when Western tech firms use Western standards to define what's "good" globally. Chinese scholars are paying increasing attention.</span>
+        </div>
+      </div>
+      <div class="mt-5 text-right">
+        <button class="btn-primary" onclick="goTo(4)">
+          <span data-zh>下一关：你的标签宣言 →</span><span data-en>Next: Your manifesto →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: PERSONAL MANIFESTO ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这一整章你学会了：<strong>AI 不只是工具——它继承了我们的标签、我们的偏见、我们的价值观</strong>。最后请你写下你自己的<strong>标签宣言</strong>：</p>
+      <p data-en>This chapter taught you: <strong>AI isn't just a tool — it inherits our labels, biases, and values</strong>. Final step: write your <strong>labeling manifesto</strong>:</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-red-50 to-blue-50 border-2 border-slate-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-1"><span data-zh>📜 我的标签宣言</span><span data-en>📜 My Labeling Manifesto</span></h3>
+      <p class="text-sm text-slate-600 mb-5"><span data-zh>填 3 句话——具体、真诚、可执行。这是你<strong>作为未来 AI 设计者/用户</strong>的立场。</span><span data-en>Three sentences — specific, sincere, actionable. Your stance as a future AI designer/user.</span></p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600">① <span data-zh>当我用 AI 给东西"打分""排序""分类"时，我会先问自己……</span><span data-en>When I use AI to rate / sort / classify, I will first ask myself…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl1" placeholder="..." oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">② <span data-zh>当看到 AI 系统说"这是好的、那是不好的"时，我会注意……</span><span data-en>When AI says "this is good, that is bad", I'll notice…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl2" placeholder="..." oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">③ <span data-zh>如果以后我设计 AI，我会让谁参与定标签？为什么？</span><span data-en>If I design AI someday, who will I include in labeling? Why?</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl3" placeholder="..." oninput="checkPledges()"/>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pl-progress">0</span> / 3 <span data-zh>条完成</span><span data-en>complete</span></div>
+        <button class="btn-primary" id="pledge-submit" disabled onclick="submitManifesto()">
+          <span data-zh>提交宣言 + 完成 Ch.2 →</span><span data-en>Submit & finish Ch.2 →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION (Mission + Chapter) ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-red-500 to-amber-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#F87171" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">⚖️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>Ch.2 全部完成！</span><span data-en>Chapter 2 complete!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"标签解构者" 徽章已解锁</span><span data-en>"Label Deconstructor" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-red-50 border border-red-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>这一章你内化了……</span><span data-en>This chapter you internalized…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 用 <strong>知识图谱</strong>存"东西+关系"</span><span data-en>AI uses <strong>knowledge graphs</strong> for facts + relations</span></li>
+          <li>✓ <span data-zh>AI 用 <strong>决策树</strong>一步步推理（白盒、可解释）</span><span data-en>AI uses <strong>decision trees</strong> to reason step-by-step (white-box)</span></li>
+          <li>✓ <span data-zh>AI 推理有<strong>边界</strong>——主观问题加再多知识也答不了</span><span data-en>AI reasoning is <strong>bounded</strong> — subjective questions can't be solved with facts</span></li>
+          <li>✓ <span data-zh><strong>标签即权力</strong>——谁定标签，谁定义"什么重要"</span><span data-en><strong>Labels = power</strong> — whoever labels, defines "what matters"</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-amber-100 to-amber-50 border-2 border-amber-300 rounded-2xl">
+        <div class="text-xl font-black mb-2">🎓 <span data-zh>第二章结业</span><span data-en>Chapter 2 complete</span></div>
+        <p class="text-sm" data-zh>你完成了"AI 怎么思考"全部 4 关。Ch.1 + Ch.2 = <strong>8 个徽章</strong>。</p>
+        <p class="text-sm" data-en>4 missions of "How AI Thinks" complete. Ch.1 + Ch.2 = <strong>8 badges</strong>.</p>
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M2-1">🗂️</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M2-2">🌳</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M2-3">🏛️</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M2-4">⚖️</div>
+        </div>
+        <p class="text-xs text-slate-600 mt-2"><span data-zh>下一章：AI 怎么学习（M3 系列）。</span><span data-en>Next chapter: How AI Learns.</span></p>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="alert(LANG==='en'?'Chapter 3 coming soon!':'第 3 章即将开放！')">
+          <span data-zh>开启 Ch.3 →</span><span data-en>Start Ch.3 →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M2-4 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M2-4 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   ARTIFACTS (same 6 from M2-1)
+   ===================================================== */
+const ARTS = [
+  {id:'cabbage', emoji:'🥬', name:{zh:'翠玉白菜', en:'Jadeite Cabbage'},
+    age:280, /* yrs old approx (Qing) */
+    rarity:5, /* 1-5, 5 = most rare */
+    craft:5,
+    market:5, /* priceless */
+    instagram:5, /* very photogenic */
+    royal:5,  /* imperial use */
+    national:5, /* national treasure */
+  },
+  {id:'scroll',  emoji:'📜', name:{zh:'清明上河图', en:'Along the River'},
+    age:900, rarity:5, craft:5, market:5, instagram:3, royal:3, national:5},
+  {id:'ding',    emoji:'🏺', name:{zh:'司母戊鼎', en:'Houmuwu Ding'},
+    age:3200, rarity:5, craft:4, market:5, instagram:2, royal:5, national:5},
+  {id:'lamp',    emoji:'💡', name:{zh:'长信宫灯', en:'Changxin Lamp'},
+    age:2100, rarity:4, craft:5, market:4, instagram:4, royal:5, national:4},
+  {id:'horse',   emoji:'🐎', name:{zh:'唐三彩马', en:'Sancai Horse'},
+    age:1300, rarity:2, /* many exist */ craft:3, market:3, instagram:5, royal:2, /* burial item */ national:3},
+  {id:'sword',   emoji:'⚔️', name:{zh:'越王勾践剑', en:'Goujian Sword'},
+    age:2500, rarity:4, craft:4, market:5, instagram:3, royal:4, national:5},
+];
+
+/* =====================================================
+   ERAS — historical re-rankings
+   ===================================================== */
+const ERAS = [
+  {id:'qing', label:{zh:'清代御用标准', en:'Qing Imperial'}, emoji:'👑',
+    desc:{zh:'看是否御用、是否雕工精细', en:'Imperial use + craft'},
+    score:a=>(a.royal*2 + a.craft),
+    criterion:{zh:'御用程度 × 2 + 雕工', en:'Royal use ×2 + craft'}},
+  {id:'modern', label:{zh:'1949 后国家文物分级', en:'Post-1949 National Grade'}, emoji:'🏛️',
+    desc:{zh:'看历史价值+国宝级别', en:'Historical value + national grade'},
+    score:a=>(a.national*2 + a.age*0.001),
+    criterion:{zh:'国宝级 × 2 + 年龄/1000', en:'National grade ×2 + age/1000'}},
+  {id:'market', label:{zh:'拍卖市场标准', en:'Auction Market'}, emoji:'💰',
+    desc:{zh:'看市场估价、稀缺度', en:'Market price + rarity'},
+    score:a=>(a.market + a.rarity*1.5),
+    criterion:{zh:'市场估价 + 稀缺度 × 1.5', en:'Market + rarity ×1.5'}},
+  {id:'social', label:{zh:'社交媒体时代', en:'Social Media Era'}, emoji:'📱',
+    desc:{zh:'看流量/上镜程度', en:'Photo appeal / traffic'},
+    score:a=>(a.instagram*2 + a.craft*0.5),
+    criterion:{zh:'上镜度 × 2 + 雕工 × 0.5', en:'Photo appeal ×2 + craft ×0.5'}},
+];
+
+const MY_SCHEMES = [
+  {id:'craft', label:{zh:'按"做工精细程度"', en:'By craftsmanship'}, emoji:'🛠️',
+    score:a=>a.craft,
+    note:{zh:'有的文物因"做工精细"被看重，会让粗犷的青铜礼器被低估', en:'Honors fine craft; coarse ritual bronzes get downranked'}},
+  {id:'age', label:{zh:'按"年代久远"', en:'By age (older = better)'}, emoji:'⏳',
+    score:a=>a.age,
+    note:{zh:'最早的器物排第一，但"年代越老越好"忽略了近代工艺的价值', en:'Oldest wins, but ignores recent craftsmanship'}},
+  {id:'rare', label:{zh:'按"稀有度"', en:'By rarity'}, emoji:'💎',
+    score:a=>a.rarity,
+    note:{zh:'唐三彩马数量多 → 被低估，但它代表的是"普及的繁荣"', en:'Tang horses are common → undervalued, though they represent a "spread prosperity"'}},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {
+  phase:0,
+  era:null,
+  visitedEras:new Set(),
+  myScheme:null,
+  triedSchemes:new Set(),
+  fixAns:null,
+  reflectChoice:null,
+  reflectText:'',
+  manifesto:['','','']
+};
+
+/* =====================================================
+   PHASE 1: Eras
+   ===================================================== */
+function renderEras(){
+  const host = document.getElementById('era-cards');
+  host.innerHTML = ERAS.map(e=>`
+    <button class="era-card ${state.era===e.id?'active':''} ${state.visitedEras.has(e.id)?'visited':''}" data-id="${e.id}" onclick="pickEra('${e.id}')">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="era-emoji">${e.emoji}</div>
+        <div class="font-bold text-sm"><span data-zh>${e.label.zh}</span><span data-en>${e.label.en}</span></div>
+      </div>
+      <div class="text-xs text-slate-600"><span data-zh>${e.desc.zh}</span><span data-en>${e.desc.en}</span></div>
+    </button>
+  `).join('');
+}
+
+function pickEra(id){
+  state.era = id;
+  state.visitedEras.add(id);
+  renderEras();
+  renderRanking();
+  if(state.visitedEras.size>=4){
+    document.getElementById('p1-next').disabled = false;
+  }
+}
+
+function renderRanking(){
+  const era = ERAS.find(e=>e.id===state.era);
+  if(!era) return;
+  document.getElementById('era-title').innerHTML = `<span data-zh>${era.label.zh}</span><span data-en>${era.label.en}</span>`;
+  document.getElementById('era-criterion').innerHTML = `<span data-zh>评分公式：${era.criterion.zh}</span><span data-en>Formula: ${era.criterion.en}</span>`;
+  const sorted = ARTS.map(a=>({...a, score:era.score(a)})).sort((x,y)=>y.score-x.score);
+  const host = document.getElementById('ranking-list');
+  host.innerHTML = sorted.map((a,i)=>{
+    const cls = i===0?'gold':i===1?'silver':i===2?'bronze':i>=4?'bottom':'';
+    return `<div class="rank-row ${cls}">
+      <div class="rank-num">#${i+1}</div>
+      <div class="rank-emoji">${a.emoji}</div>
+      <div class="rank-name"><span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></div>
+      <div class="rank-score">${a.score.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   PHASE 2: Student schemes
+   ===================================================== */
+function renderMySchemes(){
+  const host = document.getElementById('my-schemes');
+  host.innerHTML = MY_SCHEMES.map(s=>`
+    <button class="scheme-btn ${state.myScheme===s.id?'active':''}" onclick="pickMyScheme('${s.id}')">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-2xl">${s.emoji}</span>
+        <span class="font-bold text-sm"><span data-zh>${s.label.zh}</span><span data-en>${s.label.en}</span></span>
+      </div>
+      ${state.triedSchemes.has(s.id)?'<div class="text-xs text-green-700 font-bold">✓ '+(LANG==='en'?'tried':'已试过')+'</div>':''}
+    </button>
+  `).join('');
+}
+
+function pickMyScheme(id){
+  state.myScheme = id;
+  state.triedSchemes.add(id);
+  renderMySchemes();
+  renderMyRanking();
+  if(state.triedSchemes.size>=3){
+    document.getElementById('p2-next').disabled = false;
+    document.getElementById('my-summary').classList.remove('hidden');
+    document.getElementById('my-tried-list').innerHTML = MY_SCHEMES.filter(s=>state.triedSchemes.has(s.id)).map(s=>
+      `<div class="text-sm mt-1"><strong>${s.emoji} <span data-zh>${s.label.zh}</span><span data-en>${s.label.en}</span></strong>：<span data-zh>${s.note.zh}</span><span data-en>${s.note.en}</span></div>`
+    ).join('');
+  }
+}
+
+function renderMyRanking(){
+  const s = MY_SCHEMES.find(x=>x.id===state.myScheme);
+  if(!s) return;
+  document.getElementById('my-scheme-title').innerHTML = `${s.emoji} <span data-zh>${s.label.zh}</span><span data-en>${s.label.en}</span>`;
+  document.getElementById('my-scheme-note').innerHTML = `<span data-zh>${s.note.zh}</span><span data-en>${s.note.en}</span>`;
+  const sorted = ARTS.map(a=>({...a, score:s.score(a)})).sort((x,y)=>y.score-x.score);
+  const host = document.getElementById('my-ranking');
+  host.innerHTML = sorted.map((a,i)=>{
+    const cls = i===0?'gold':i===1?'silver':i===2?'bronze':i>=4?'bottom':'';
+    return `<div class="rank-row ${cls}">
+      <div class="rank-num">#${i+1}</div>
+      <div class="rank-emoji">${a.emoji}</div>
+      <div class="rank-name"><span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></div>
+      <div class="rank-score">${a.score}</div>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   PHASE 3: Fix
+   ===================================================== */
+function fixAns(k, ev){
+  if(state.fixAns) return;
+  state.fixAns = k;
+  document.querySelectorAll('#fix-choices button').forEach(b=>{b.disabled=true;b.classList.remove('active')});
+  ev.currentTarget.classList.add('active');
+  document.getElementById('fix-result').classList.remove('hidden');
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+
+/* =====================================================
+   PHASE 4: Manifesto
+   ===================================================== */
+function checkPledges(){
+  let count=0;
+  [1,2,3].forEach(n=>{
+    const el = document.getElementById('pl'+n);
+    const v = el.value;
+    state.manifesto[n-1] = v;
+    const ok = Array.from(v).length>=10;
+    el.classList.toggle('ok', ok);
+    if(ok) count++;
+  });
+  document.getElementById('pl-progress').textContent = count;
+  document.getElementById('pledge-submit').disabled = count<3;
+}
+
+function submitManifesto(){
+  const data = {timestamp:Date.now(), mission:'M2-4',
+    erasVisited:state.visitedEras.size,
+    schemesTried:state.triedSchemes.size,
+    fixAns:state.fixAns,
+    manifesto:state.manifesto};
+  localStorage.setItem('lingxi-m2-4', JSON.stringify(data));
+  goTo(5);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderEras();
+  if(n===2) renderMySchemes();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,era:null,visitedEras:new Set(),myScheme:null,triedSchemes:new Set(),fixAns:null,reflectChoice:null,reflectText:'',manifesto:['','','']});
+    document.getElementById('era-title').innerHTML = '<span data-zh>选一个时代</span><span data-en>Pick an era</span>';
+    document.getElementById('era-criterion').innerHTML = '';
+    document.getElementById('ranking-list').innerHTML='';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('my-scheme-title').innerHTML = '<span data-zh>选一种标准</span><span data-en>Pick a criterion</span>';
+    document.getElementById('my-scheme-note').innerHTML='';
+    document.getElementById('my-ranking').innerHTML='';
+    document.getElementById('my-summary').classList.add('hidden');
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('fix-result').classList.add('hidden');
+    document.querySelectorAll('#fix-choices button').forEach(b=>{b.disabled=false;b.classList.remove('active')});
+    [1,2,3].forEach(n=>document.getElementById('pl'+n).value='');
+    document.getElementById('pl-progress').textContent='0';
+    document.getElementById('pledge-submit').disabled=true;
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

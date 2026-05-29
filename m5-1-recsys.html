@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5-1 推荐算法 · Who's Choosing for Me?</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Stat card */
+  .stat-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1.1rem;text-align:center}
+  .stat-num{font-size:2.5rem;font-weight:900;line-height:1}
+
+  /* Algorithm pipeline */
+  .algo-step{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s}
+  .algo-step:hover{border-color:#3B82F6;transform:translateY(-2px)}
+  .algo-step.read{border-color:#10B981;background:#ECFDF5}
+
+  /* Video card */
+  .video-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;overflow:hidden;transition:all .2s}
+  .video-thumb{aspect-ratio:9/12;background:linear-gradient(135deg,var(--c1),var(--c2));display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative}
+  .video-card.liked{border-color:#DC2626;background:#FEF2F2}
+  .video-card.liked .video-thumb::after{content:'❤️';position:absolute;top:8px;right:8px;font-size:1.5rem;animation:popIn .3s ease}
+  .video-card.skipped{opacity:.45}
+  @keyframes popIn{0%{transform:scale(0)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+
+  /* Profile tags */
+  .tag-row{display:flex;align-items:center;gap:.5rem;background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.5rem .8rem;margin-bottom:.4rem;transition:all .3s}
+  .tag-emoji{font-size:1.5rem}
+  .tag-name{font-weight:700;flex:1;min-width:0}
+  .tag-bar-wrap{flex:2;height:8px;background:#F1F5F9;border-radius:4px;overflow:hidden}
+  .tag-bar-fill{height:100%;background:linear-gradient(90deg,#3B82F6,#DC2626);border-radius:4px;transition:width .6s ease}
+  .tag-score{font-weight:700;color:#3B82F6;min-width:30px;text-align:right}
+
+  /* AI brain */
+  .ai-brain{background:linear-gradient(135deg,#EFF6FF,#FEF2F2);border:2px solid #93C5FD;border-radius:14px;padding:.8rem;text-align:center;transition:all .3s}
+  .ai-brain.thinking{border-color:#DC2626;transform:scale(1.02)}
+  @keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+  .pulse-text{animation:pulse 1.2s ease infinite}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M5-1 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-200 text-slate-700 px-2 py-1 rounded-full">Ch.5 · 社会 / Society</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>热身 · 20 min</span><span data-en>Warm-up · 20 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>谁在替我选：推荐算法在你身上做了什么</span>
+      <span data-en>Who's Choosing for Me: What Recsys Does to You</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            欢迎来到 <strong>第 5 章 · AI 与人类社会</strong>。前 4 章看 AI 怎么运作——这一章看它<strong>怎么改变你和世界的关系</strong>。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Welcome to <strong>Chapter 5 · AI and Society</strong>. We've seen how AI works — now: <strong>how it reshapes your relationship with the world</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            从今天的<strong>第一个问题</strong>开始：你昨天刷了多久抖音/快手/B站/小红书？<strong>3 小时？5 小时？</strong>那 100% 的内容，<strong>都是 AI 替你选的</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Start with the <strong>first question</strong>: how long did you scroll TikTok/Bilibili/RedNote yesterday? <strong>3 hours? 5?</strong> 100% of what you saw was <strong>AI-selected</strong> for you.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            今天我让你做一件事：刷一个我做的<strong>模拟短视频 APP</strong>，<strong>看 AI 怎么"了解"你</strong>——并在你眼皮底下给你"贴标签"。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Today: scroll my <strong>simulated short-video app</strong> and <strong>watch AI "learn" you</strong> — labeling you in real time.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>先看数据冲击 →</span><span data-en>First, the data shock →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: DATA SHOCK ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>先看 <strong>3 个数字</strong>——这是 2024 年中国互联网研究的真实统计：</p>
+      <p data-en>3 numbers — real 2024 China internet stats:</p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-4 mb-5">
+      <div class="stat-card">
+        <div class="stat-num text-red-600">3.2 <span class="text-base">h</span></div>
+        <div class="text-sm font-bold mt-1" data-zh>中学生每天平均</div>
+        <div class="text-sm font-bold mt-1" data-en>Avg per middle schooler</div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>用短视频/社交 APP</span><span data-en>on short-video/social apps</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num text-amber-600">100<span class="text-base">%</span></div>
+        <div class="text-sm font-bold mt-1" data-zh>看到的内容</div>
+        <div class="text-sm font-bold mt-1" data-en>Of content you see</div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>由推荐算法选定</span><span data-en>is algorithm-selected</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num text-blue-600">8<span class="text-base">亿</span></div>
+        <div class="text-sm font-bold mt-1" data-zh>中国短视频用户</div>
+        <div class="text-sm font-bold mt-1" data-en>Chinese short-video users</div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>每个人都有自己的"算法茧"</span><span data-en>each in their own algo-cocoon</span></div>
+      </div>
+    </div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm mb-4">
+      <strong>🤔 <span data-zh>一个奇怪的事实</span><span data-en>Strange fact</span></strong>：
+      <span data-zh>你和你的同桌，<strong>同时</strong>打开抖音，看到的视频<strong>完全不一样</strong>。10 年前的电视，全国 8 亿人看的是<strong>同一个春晚</strong>。<strong>现在，8 亿人有 8 亿个"春晚"</strong>。</span>
+      <span data-en>You and your deskmate, <strong>same moment</strong>, opening TikTok — see <strong>completely different videos</strong>. 10 yrs ago, 800M Chinese watched <strong>the same New Year Gala</strong>. <strong>Now, 800M Galas for 800M people</strong>.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(2)">
+        <span data-zh>下一关：算法的 4 步循环 →</span><span data-en>Next: algorithm's 4-step loop →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: 4-STEP LOOP ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>推荐算法是怎么工作的？就是一个<strong>4 步无限循环</strong>。点开每一步看故事。</p>
+      <p data-en>How does recsys work? An <strong>infinite 4-step loop</strong>. Click each step.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="algo-count">0</span> / 4</div>
+    </div>
+
+    <div id="algo-grid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+      <strong>🔄 <span data-zh>关键洞察</span><span data-en>Key insight</span></strong>：
+      <span data-zh>这个循环<strong>每秒都在转</strong>。你每点一下赞、每滑过一个视频，<strong>算法都在更新它对你的理解</strong>。你滑得越多，它越懂你——这听起来不错，对吧？下一关你会看到，"它懂你"<strong>不一定是好事</strong>。</span>
+      <span data-en>This loop <strong>spins every second</strong>. Every like, every swipe, <strong>updates AI's model of you</strong>. The more you scroll, the better it knows you — sounds nice, right? Next mission, you'll see why "knowing you" <strong>isn't always good</strong>.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：让算法学习你 →</span><span data-en>Next: let algo learn you →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: SIMULATED FEED ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这是我做的<strong>模拟短视频流</strong>。点 ❤️ "喜欢"或 ⏭ "跳过"——<strong>3 轮共 18 个视频</strong>。你边刷，"AI 大脑"边学。</p>
+      <p data-en>My <strong>simulated short-video feed</strong>. Like ❤️ or skip ⏭ — <strong>3 rounds, 18 videos total</strong>. As you scroll, "AI brain" learns.</p>
+    </div>
+
+    <div class="grid md:grid-cols-[1fr_280px] gap-5">
+      <!-- Feed -->
+      <div>
+        <div class="text-xs uppercase text-slate-500 font-bold tracking-wide mb-2 flex items-center justify-between">
+          <span><span data-zh>第 </span><span data-en>Round </span><span id="round-num">1</span> / 3 <span data-zh>轮</span></span>
+          <span><span id="interactions">0</span> / 18 <span data-zh>互动</span><span data-en>interactions</span></span>
+        </div>
+        <div id="feed-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+        <div id="feed-done" class="hidden mt-4 text-center">
+          <button class="btn-primary" onclick="goTo(4)">
+            <span data-zh>查看 AI 给你的画像 →</span><span data-en>See your AI profile →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Brain side panel -->
+      <div class="md:sticky md:top-4 self-start">
+        <div class="ai-brain" id="brain">
+          <div class="text-3xl mb-2">🤖</div>
+          <div class="text-xs uppercase text-slate-500 font-bold mb-1"><span data-zh>AI 大脑</span><span data-en>AI Brain</span></div>
+          <div class="text-sm" id="brain-msg"><span data-zh>等你开始刷……</span><span data-en>Waiting for you to scroll…</span></div>
+        </div>
+        <div class="mt-3 bg-white border border-slate-200 rounded-xl p-3">
+          <div class="text-xs uppercase text-slate-500 font-bold mb-2"><span data-zh>正在学的标签</span><span data-en>Tags being learned</span></div>
+          <div id="tag-live" class="space-y-1"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: YOUR ALGORITHM PROFILE ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>看！这是<strong>"AI 给你贴的标签"</strong>——基于你刚才<strong>18 次互动</strong>算出来的。下次你打开 APP，它会<strong>优先</strong>推送匹配这些标签的视频。</p>
+      <p data-en>Look! These are <strong>"the tags AI gave you"</strong> — computed from your 18 interactions. Next time you open the app, it'll <strong>prioritize</strong> videos matching these tags.</p>
+    </div>
+
+    <div class="bg-white border-2 border-amber-300 rounded-2xl p-5">
+      <div class="text-xs uppercase text-amber-700 font-bold tracking-wide mb-3 flex items-center justify-between">
+        <span>🏷️ <span data-zh>你的算法画像</span><span data-en>Your Algorithm Profile</span></span>
+        <span class="text-slate-500 normal-case"><span data-zh>基于 18 次互动</span><span data-en>based on 18 interactions</span></span>
+      </div>
+      <div id="profile-final"></div>
+
+      <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+        <strong>📌 <span data-zh>这意味着什么</span><span data-en>What this means</span></strong>：
+        <span data-zh>抖音/快手/B站 都有<strong>同样的画像</strong>——只是<strong>更精确（基于你 100,000 次互动）</strong>。你的算法画像决定了你看到的世界。<strong>但你从来没看过自己的画像</strong>——平台不会主动给你看。</span>
+        <span data-en>TikTok/Bilibili/RedNote have <strong>this same profile</strong> — just <strong>much sharper (built on 100,000 interactions)</strong>. Your profile shapes your world. <strong>You\'ve never seen yours</strong> — platforms don't volunteer it.</span>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(5)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>推荐算法是 2026 年最强大的 AI 应用——也是<strong>影响你每天生活最大的 AI</strong>。请你写下：</p>
+      <p data-en>Recsys is 2026's most powerful AI app — and <strong>the AI most affecting your daily life</strong>. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① "算法替我选" vs "我自己选"——哪种更累？哪种你更想要？为什么？</span>
+        <span data-en>① "Algo chooses for me" vs "I choose" — which feels easier? Which do you prefer? Why?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 你的算法画像里，有没有你<strong>没意识到</strong>的标签？你愿意让别人看到你的画像吗？</span>
+        <span data-en>② Any tag in your profile you <strong>didn't realize</strong> applies? Would you show your profile to others?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 如果让你设计一个"让用户少沉迷"的推荐算法，你会怎么改？平台为什么不做？</span>
+        <span data-en>③ Design a recsys that "reduces addiction" — what changes? Why don't platforms do this?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M5-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-500 to-slate-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#94A3B8" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">👀</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 1 关完成</span><span data-en>Mission #1 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"算法识破者" 徽章已解锁</span><span data-en>"Algorithm Decoder" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-slate-50 border border-slate-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>推荐算法 = <strong>4 步循环</strong>：观察 → 提取 → 预测 → 推送</span><span data-en>Recsys = <strong>4-step loop</strong>: observe → extract → predict → push</span></li>
+          <li>✓ <span data-zh>每次点赞/跳过，<strong>你的算法画像在更新</strong></span><span data-en>Every like/skip <strong>updates your algo profile</strong></span></li>
+          <li>✓ <span data-zh>"算法懂你"<strong>越多 = 你看到的世界越窄</strong></span><span data-en>The more algo "knows" you, <strong>the narrower your world</strong></span></li>
+          <li>✓ <span data-zh>你从未看过自己的算法画像——下一关让你看到<strong>它对两个人有多不同</strong></span><span data-en>You\'ve never seen yours — next mission shows you <strong>how different it is for 2 people</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m5-2-echo.html'">
+          <span data-zh>下一关：M5-2 信息茧房 →</span><span data-en>Next: M5-2 Echo Chamber →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M5-1 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M5-1 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   ALGORITHM 4-STEP LOOP
+   ===================================================== */
+const ALGO = [
+  {id:'observe', emoji:'👁️',
+   name:{zh:'① 观察', en:'① Observe'},
+   what:{zh:'你点了赞、看了几秒、有没有评论、收藏、转发……每个动作都被记录。',
+         en:'Your likes, watch time, comments, saves, shares — all logged.'}},
+  {id:'extract', emoji:'🏷️',
+   name:{zh:'② 提取特征', en:'② Extract features'},
+   what:{zh:'AI 把你的行为转成"标签"：爱看美食、不爱看运动、对游戏内容停留长……',
+         en:'AI converts behavior to "tags": likes food, skips sports, lingers on gaming…'}},
+  {id:'predict', emoji:'🎯',
+   name:{zh:'③ 预测', en:'③ Predict'},
+   what:{zh:'根据你的标签，AI 算下一个视频"<strong>你会喜欢的概率</strong>"。概率越高越优先。',
+         en:'Based on tags, AI computes <strong>"likelihood you\'ll like"</strong> for next video. Highest wins.'}},
+  {id:'push', emoji:'📲',
+   name:{zh:'④ 推送', en:'④ Push'},
+   what:{zh:'优先推高概率的——你看了 → 回到步骤 ①，<strong>循环更紧</strong>。这就是"上瘾"的机制。',
+         en:'Push high-prob first — you watch → loop to ① <strong>tighter and tighter</strong>. That\'s the addiction mechanism.'}},
+];
+
+/* =====================================================
+   VIDEO CATEGORIES + STARTER FEED
+   ===================================================== */
+const CATEGORIES = [
+  {id:'game', emoji:'🎮', name:{zh:'游戏', en:'Gaming'}, c1:'#a855f7', c2:'#7c3aed'},
+  {id:'food', emoji:'🍜', name:{zh:'美食', en:'Food'}, c1:'#f97316', c2:'#ea580c'},
+  {id:'pets', emoji:'🐱', name:{zh:'萌宠', en:'Pets'}, c1:'#fbbf24', c2:'#f59e0b'},
+  {id:'study', emoji:'📚', name:{zh:'学习', en:'Study'}, c1:'#3b82f6', c2:'#1d4ed8'},
+  {id:'sports', emoji:'⚽', name:{zh:'运动', en:'Sports'}, c1:'#10b981', c2:'#059669'},
+  {id:'funny', emoji:'😆', name:{zh:'搞笑', en:'Funny'}, c1:'#ef4444', c2:'#dc2626'},
+  {id:'beauty', emoji:'💄', name:{zh:'美妆', en:'Beauty'}, c1:'#ec4899', c2:'#db2777'},
+  {id:'tech', emoji:'💻', name:{zh:'科技', en:'Tech'}, c1:'#06b6d4', c2:'#0891b2'},
+];
+
+const VIDEO_TITLES = {
+  game:[{zh:'我的世界·末影龙',en:'Minecraft Ender Dragon'},{zh:'王者最强连招',en:'Best combo in MOBA'},{zh:'吃鸡神操作',en:'BR insane play'},{zh:'原神 5.0 攻略',en:'Genshin 5.0 guide'},{zh:'吉尼斯电竞纪录',en:'Esports world record'}],
+  food:[{zh:'1 分钟做西红柿炒蛋',en:'Tomato eggs in 1 min'},{zh:'四川火锅秘籍',en:'Sichuan hotpot secrets'},{zh:'治愈系深夜食堂',en:'Late-night snack ASMR'},{zh:'你没吃过的小众水果',en:'Rare fruit you haven\'t tried'},{zh:'妈妈的拿手菜',en:'Mom\'s signature dish'}],
+  pets:[{zh:'橘猫趴键盘上',en:'Orange cat on keyboard'},{zh:'柴犬笑死了',en:'Shiba Inu laugh'},{zh:'救助流浪猫',en:'Rescuing strays'},{zh:'仓鼠塞食物',en:'Hamster stuffing food'},{zh:'我家狗有特异功能',en:'My dog\'s superpower'}],
+  study:[{zh:'30 秒学一道几何',en:'Geometry in 30s'},{zh:'背单词神技',en:'Vocab memory hack'},{zh:'物理学霸答疑',en:'Physics genius Q&A'},{zh:'高效学习法',en:'Efficient study tips'},{zh:'考前 1 天怎么过',en:'Day-before-exam plan'}],
+  sports:[{zh:'梅西绝杀',en:'Messi\'s winning goal'},{zh:'NBA 十大扣篮',en:'NBA top 10 dunks'},{zh:'乒乓神球',en:'Insane ping-pong'},{zh:'马拉松冠军采访',en:'Marathon champ interview'},{zh:'极限运动',en:'Extreme sports'}],
+  funny:[{zh:'笑到喷饭的合集',en:'Laugh-out-loud comp'},{zh:'整蛊室友',en:'Pranking roomie'},{zh:'方言段子',en:'Dialect jokes'},{zh:'熊孩子日常',en:'Naughty kid daily'},{zh:'宠物谐音梗',en:'Pet puns'}],
+  beauty:[{zh:'平价化妆品测评',en:'Affordable cosmetics review'},{zh:'校园简易妆容',en:'Easy school makeup'},{zh:'敏感肌护肤',en:'Sensitive-skin care'},{zh:'染发翻车',en:'Hair-dye fail'},{zh:'素颜挑战',en:'No-makeup challenge'}],
+  tech:[{zh:'最新 AI 工具',en:'Newest AI tools'},{zh:'iPhone 隐藏功能',en:'iPhone hidden features'},{zh:'数码新品上手',en:'Gadget unboxing'},{zh:'编程零基础',en:'Coding from scratch'},{zh:'比尔盖茨访谈',en:'Bill Gates interview'}],
+};
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {
+  phase:0,
+  algoRead:new Set(),
+  tagScores:{}, // categoryId -> score
+  interactions:0,
+  curRound:1,
+  curBatch:[],
+  reflectChoice:null,
+  reflectText:''
+};
+
+// Initialize tag scores
+CATEGORIES.forEach(c=>state.tagScores[c.id]=0);
+
+/* =====================================================
+   PHASE 2: ALGO STEPS
+   ===================================================== */
+function renderAlgo(){
+  const host = document.getElementById('algo-grid');
+  host.innerHTML = ALGO.map(a=>`
+    <div class="algo-step ${state.algoRead.has(a.id)?'read':''}" data-id="${a.id}" onclick="readAlgo('${a.id}')">
+      <div class="text-4xl mb-2">${a.emoji}</div>
+      <div class="font-bold text-sm mb-1"><span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span></div>
+      <p class="text-xs text-slate-600"><span data-zh>${a.what.zh}</span><span data-en>${a.what.en}</span></p>
+    </div>
+  `).join('');
+}
+
+function readAlgo(id){
+  state.algoRead.add(id);
+  renderAlgo();
+  document.getElementById('algo-count').textContent = state.algoRead.size;
+  if(state.algoRead.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 3: SIMULATED FEED
+   ===================================================== */
+function generateBatch(){
+  // For round 1: uniform random (no learning yet)
+  // For round 2-3: weighted by tagScores
+  const batch = [];
+  for(let i=0;i<6;i++){
+    let cat;
+    if(state.curRound===1 || state.interactions<3){
+      // Uniform
+      cat = CATEGORIES[Math.floor(Math.random()*CATEGORIES.length)];
+    } else {
+      // Weighted by current tag scores (with smoothing)
+      const total = CATEGORIES.reduce((sum,c)=>sum + Math.max(1, state.tagScores[c.id]+1), 0);
+      let r = Math.random() * total;
+      for(const c of CATEGORIES){
+        const w = Math.max(1, state.tagScores[c.id]+1);
+        if(r < w){ cat=c; break; }
+        r -= w;
+      }
+      if(!cat) cat = CATEGORIES[0];
+    }
+    const titles = VIDEO_TITLES[cat.id];
+    const title = titles[Math.floor(Math.random()*titles.length)];
+    batch.push({cat, title, id:'v'+Math.random().toString(36).slice(2,8), action:null});
+  }
+  return batch;
+}
+
+function renderFeed(){
+  const host = document.getElementById('feed-grid');
+  host.innerHTML = state.curBatch.map(v=>`
+    <div class="video-card ${v.action==='like'?'liked':v.action==='skip'?'skipped':''}" data-id="${v.id}">
+      <div class="video-thumb" style="--c1:${v.cat.c1};--c2:${v.cat.c2}">${v.cat.emoji}</div>
+      <div class="p-2">
+        <div class="text-xs font-bold"><span data-zh>${v.title.zh}</span><span data-en>${v.title.en}</span></div>
+        <div class="text-xs text-slate-500 mb-2"><span data-zh>#${v.cat.name.zh}</span><span data-en>#${v.cat.name.en}</span></div>
+        ${v.action===null ? `
+          <div class="flex gap-1">
+            <button class="btn-ghost text-xs flex-1 border-red-300" onclick="videoAction('${v.id}','like')">❤️</button>
+            <button class="btn-ghost text-xs flex-1" onclick="videoAction('${v.id}','skip')">⏭</button>
+          </div>
+        ` : v.action==='like' ? '<div class="text-xs text-red-700 font-bold text-center">❤️ <span data-zh>已点赞</span><span data-en>Liked</span></div>'
+                              : '<div class="text-xs text-slate-500 text-center">⏭ <span data-zh>跳过</span><span data-en>Skipped</span></div>'
+        }
+      </div>
+    </div>
+  `).join('');
+}
+
+function videoAction(id, action){
+  const v = state.curBatch.find(x=>x.id===id);
+  if(!v || v.action) return;
+  v.action = action;
+  // Update scores
+  if(action==='like') state.tagScores[v.cat.id] += 2;
+  else state.tagScores[v.cat.id] -= 1;
+  state.interactions++;
+  renderFeed();
+  updateBrain(v, action);
+  updateLiveTags();
+  document.getElementById('interactions').textContent = state.interactions;
+
+  // Check if batch complete
+  if(state.curBatch.every(x=>x.action!==null)){
+    if(state.curRound<3){
+      setTimeout(()=>{
+        state.curRound++;
+        state.curBatch = generateBatch();
+        document.getElementById('round-num').textContent = state.curRound;
+        renderFeed();
+        updateBrain(null, 'round');
+      }, 800);
+    } else {
+      // Done
+      document.getElementById('feed-done').classList.remove('hidden');
+    }
+  }
+}
+
+function updateBrain(v, action){
+  const brain = document.getElementById('brain');
+  const msg = document.getElementById('brain-msg');
+  brain.classList.add('thinking');
+  if(action==='round'){
+    msg.innerHTML = `<span class="pulse-text"><span data-zh>正在根据你的偏好调整推荐……</span><span data-en>Re-tuning based on your taste…</span></span>`;
+  } else if(action==='like'){
+    msg.innerHTML = `<span data-zh>"哦！${LANG==='zh'?v.cat.name.zh:v.cat.name.en}+1"<br>→ 下次给你<strong>更多 ${v.cat.emoji}</strong></span><span data-en>"Oh! ${v.cat.name.en}+1"<br>→ next batch <strong>more ${v.cat.emoji}</strong></span>`;
+  } else {
+    msg.innerHTML = `<span data-zh>"${LANG==='zh'?v.cat.name.zh:v.cat.name.en}-1"<br>→ 下次<strong>少给 ${v.cat.emoji}</strong></span><span data-en>"${v.cat.name.en}-1"<br>→ next batch <strong>less ${v.cat.emoji}</strong></span>`;
+  }
+  setTimeout(()=>brain.classList.remove('thinking'), 600);
+}
+
+function updateLiveTags(){
+  const host = document.getElementById('tag-live');
+  const sorted = [...CATEGORIES].sort((a,b)=>state.tagScores[b.id]-state.tagScores[a.id]).slice(0,5);
+  const maxScore = Math.max(1, ...sorted.map(c=>Math.abs(state.tagScores[c.id])));
+  host.innerHTML = sorted.map(c=>{
+    const s = state.tagScores[c.id];
+    const pct = (Math.abs(s)/maxScore) * 100;
+    return `<div class="flex items-center gap-2 text-xs">
+      <span class="text-lg">${c.emoji}</span>
+      <span class="flex-1"><span data-zh>${c.name.zh}</span><span data-en>${c.name.en}</span></span>
+      <span class="${s>0?'text-green-700':s<0?'text-red-700':'text-slate-500'} font-bold">${s>0?'+':''}${s}</span>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   PHASE 4: FINAL PROFILE
+   ===================================================== */
+function renderFinalProfile(){
+  const sorted = [...CATEGORIES].sort((a,b)=>state.tagScores[b.id]-state.tagScores[a.id]);
+  const maxScore = Math.max(1, ...sorted.map(c=>state.tagScores[c.id]));
+  const host = document.getElementById('profile-final');
+  host.innerHTML = sorted.map(c=>{
+    const s = state.tagScores[c.id];
+    const pct = s>0 ? (s/maxScore)*100 : 0;
+    const label = s>5 ? {zh:'强偏好', en:'strong fan'} : s>0 ? {zh:'有兴趣', en:'interested'} : s===0 ? {zh:'中立', en:'neutral'} : {zh:'不喜欢', en:'avoid'};
+    return `<div class="tag-row">
+      <span class="tag-emoji">${c.emoji}</span>
+      <span class="tag-name"><span data-zh>${c.name.zh}</span><span data-en>${c.name.en}</span></span>
+      <div class="tag-bar-wrap"><div class="tag-bar-fill" style="width:${Math.max(2,pct)}%;background:${s>0?'linear-gradient(90deg,#10B981,#3B82F6)':'linear-gradient(90deg,#94A3B8,#64748B)'}"></div></div>
+      <span class="text-xs ${s>0?'text-blue-700':'text-slate-500'} min-w-[70px] text-right"><span data-zh>${label.zh}</span><span data-en>${label.en}</span></span>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M5-1',
+    algoRead:state.algoRead.size,
+    interactions:state.interactions,
+    topTags:[...CATEGORIES].sort((a,b)=>state.tagScores[b.id]-state.tagScores[a.id]).slice(0,3).map(c=>({tag:c.id,score:state.tagScores[c.id]})),
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m5-1', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===2) renderAlgo();
+  if(n===3 && state.curBatch.length===0){
+    state.curBatch = generateBatch();
+    renderFeed();
+    updateLiveTags();
+  }
+  if(n===4) renderFinalProfile();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;
+    state.algoRead=new Set();
+    state.interactions=0;
+    state.curRound=1;
+    state.curBatch=[];
+    state.reflectChoice=null;
+    state.reflectText='';
+    CATEGORIES.forEach(c=>state.tagScores[c.id]=0);
+    document.getElementById('feed-done').classList.add('hidden');
+    document.getElementById('algo-count').textContent='0';
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

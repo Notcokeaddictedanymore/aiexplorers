@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M6-2 北京内涝地图 · Beijing Flood Map</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#1E40AF,#0F172A);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(30,64,175,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(30,64,175,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(30,64,175,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Formula */
+  .formula{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;text-align:center}
+  .formula-part{display:inline-block;background:#EFF6FF;border:2px solid #93C5FD;border-radius:10px;padding:.5rem .8rem;margin:.2rem;font-weight:700;font-size:.9rem;color:#1E40AF}
+  .formula-op{display:inline-block;font-size:1.5rem;color:#64748B;margin:0 .3rem;vertical-align:middle}
+
+  /* Map */
+  .map-container{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:.5rem;overflow:hidden}
+  .hotspot{cursor:pointer;transition:all .3s}
+  .hotspot:hover{filter:brightness(1.1)}
+  .hotspot.selected circle{stroke:#fff;stroke-width:3}
+  .ring-road{fill:none;stroke:#94A3B8;stroke-width:1.5;stroke-dasharray:3,2;opacity:.5}
+  .road-label{font-size:9px;fill:#64748B;font-weight:600;pointer-events:none}
+  .center-tian{fill:#DC2626}
+
+  /* Slider */
+  .smart-slider{-webkit-appearance:none;width:100%;background:transparent}
+  .smart-slider::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);box-shadow:0 4px 10px rgba(59,130,246,.4);cursor:pointer;border:3px solid #fff;margin-top:-12px}
+  .smart-slider::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);cursor:pointer;border:3px solid #fff}
+  .smart-slider::-webkit-slider-runnable-track{background:linear-gradient(90deg,#93C5FD,#F59E0B,#DC2626);height:6px;border-radius:3px}
+
+  /* Hotspot info card */
+  .hs-info{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .3s}
+  .hs-info.danger{border-color:#DC2626;background:linear-gradient(135deg,#FEF2F2,#fff)}
+  .hs-info.warn{border-color:#F59E0B;background:linear-gradient(135deg,#FFFBEB,#fff)}
+  .hs-info.caution{border-color:#FBBF24;background:linear-gradient(135deg,#FEFCE8,#fff)}
+  .hs-info.safe{border-color:#10B981;background:linear-gradient(135deg,#ECFDF5,#fff)}
+
+  /* Time scenario card */
+  .scenario-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.2rem}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(30,64,175,.08),0 0 0 12px rgba(30,64,175,.04),0 18px 40px -12px rgba(30,64,175,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">M6-2 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-800 text-white px-2 py-1 rounded-full">Ch.6 · 暴雨中的 AI</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>探索 · 30 min</span><span data-en>Explore · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>北京内涝地图：AI 怎么"看"一座城市</span>
+      <span data-en>Beijing Flood Map: How AI "Sees" a City</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            M6-1 你看到 <strong>国家级 AI</strong> 给出"北京降雨 200mm"——但<strong>具体哪里会被淹</strong>？
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            In M6-1 you saw <strong>national AI</strong> say "Beijing 200mm rainfall" — but <strong>where exactly floods</strong>?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            这就是 <strong>城市级 AI</strong> 的工作。它把降雨量翻译成<strong>每个具体点的积水深度</strong>。今天我给你看一张<strong>真实的北京内涝热点地图</strong>——8 个历史上经常被淹的桥下穿和低洼点。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            That\'s <strong>city-scale AI</strong>\'s job — translating rainfall into <strong>water depth at each spot</strong>. Today I\'ll show you a <strong>real Beijing flood hotspot map</strong> — 8 underpasses and low-lying spots historically flooded.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            然后你<strong>滑动降雨量</strong>，看 AI 怎么预测每个点变成什么颜色。<strong>看一座城市怎么被淹</strong>，是 12 岁的孩子很少有的视角。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Then you\'ll <strong>slide rainfall</strong> and watch AI predict each spot\'s status. <strong>Seeing a city flood</strong> is a perspective 12-yos rarely get.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看内涝预测的"4 个变量" →</span><span data-en>See the 4 variables →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: FORMULA ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>城市内涝 = <strong>4 个变量</strong>的<strong>方程</strong>。每个变量都很复杂，但<strong>整体公式</strong>简单：</p>
+      <p data-en>Urban flood = an <strong>equation of 4 variables</strong>. Each variable is complex, but the <strong>overall formula</strong> is simple:</p>
+    </div>
+
+    <div class="formula mb-4">
+      <div class="formula-part">🌧️ <span data-zh>降雨量</span><span data-en>Rainfall</span></div>
+      <span class="formula-op">+</span>
+      <div class="formula-part">⛰️ <span data-zh>地形高低</span><span data-en>Terrain</span></div>
+      <span class="formula-op">−</span>
+      <div class="formula-part">🚰 <span data-zh>排水能力</span><span data-en>Drainage</span></div>
+      <span class="formula-op">×</span>
+      <div class="formula-part">📚 <span data-zh>历史规律</span><span data-en>History</span></div>
+      <div class="formula-op text-2xl">=</div>
+      <div class="formula-part bg-red-50 border-red-300 text-red-700">⚠️ <span data-zh>积水深度</span><span data-en>Flood Depth</span></div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-3 text-sm">
+        <div class="text-2xl mb-1">🌧️</div>
+        <div class="font-bold text-blue-700"><span data-zh>降雨量</span><span data-en>Rainfall</span></div>
+        <p class="text-xs text-slate-600 mt-1" data-zh>来自国家气象中心 AI。单位 mm，每分钟更新</p>
+        <p class="text-xs text-slate-600 mt-1" data-en>From National Met AI. mm/min, updates every minute</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-3 text-sm">
+        <div class="text-2xl mb-1">⛰️</div>
+        <div class="font-bold text-blue-700"><span data-zh>地形高低</span><span data-en>Terrain</span></div>
+        <p class="text-xs text-slate-600 mt-1" data-zh>北京 DEM 数字高程模型，5 米精度。<strong>低洼点 = 高风险</strong></p>
+        <p class="text-xs text-slate-600 mt-1" data-en>Beijing DEM at 5m resolution. <strong>Low = high risk</strong></p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-3 text-sm">
+        <div class="text-2xl mb-1">🚰</div>
+        <div class="font-bold text-blue-700"><span data-zh>排水能力</span><span data-en>Drainage</span></div>
+        <p class="text-xs text-slate-600 mt-1" data-zh>城市排水管网 GIS。<strong>老城区</strong>设计标准只能排 1 年一遇雨</p>
+        <p class="text-xs text-slate-600 mt-1" data-en>City drainage GIS. <strong>Old districts</strong> only handle 1-yr storms</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-3 text-sm">
+        <div class="text-2xl mb-1">📚</div>
+        <div class="font-bold text-blue-700"><span data-zh>历史规律</span><span data-en>History</span></div>
+        <p class="text-xs text-slate-600 mt-1" data-zh>北京 30 年 200+ 次内涝事件数据库</p>
+        <p class="text-xs text-slate-600 mt-1" data-en>Beijing\'s 30-yr / 200+ flood event database</p>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(2)">
+        <span data-zh>看真实的北京内涝热点地图 →</span><span data-en>See the real flood hotspot map →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: BEIJING MAP EXPLORATION ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这是北京市的<strong>真实历史内涝热点地图</strong>——8 个最常被淹的位置。<strong>点击每个红点</strong>看它的"<strong>风险档案</strong>"。点完 4 个再继续。</p>
+      <p data-en>Real Beijing <strong>historical flood hotspot map</strong> — 8 most frequently flooded spots. <strong>Click each red dot</strong> to read its <strong>risk profile</strong>. Read 4+ to continue.</p>
+    </div>
+
+    <div class="grid md:grid-cols-[1.4fr_1fr] gap-4">
+      <div class="map-container">
+        <svg id="bj-map" viewBox="0 0 800 600" class="w-full" style="aspect-ratio:4/3;background:#F0FDF4"></svg>
+      </div>
+      <div id="hotspot-info">
+        <div class="hs-info safe">
+          <div class="text-center text-slate-500 text-sm py-6">
+            👈 <span data-zh>点击地图上的红点查看详情</span><span data-en>Click a red dot on the map</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 flex items-center justify-between text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已查看：</span><span data-en>Visited:</span><span id="hs-visited">0</span> / 8</div>
+      <div class="text-slate-500"><span data-zh>建议 ≥ 4 个</span><span data-en>≥ 4 recommended</span></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：拉滑杆看暴雨 →</span><span data-en>Next: slide the rain →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: RAINFALL SLIDER ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>现在<strong>你来下雨</strong>。拖动滑杆——降雨量从 0 涨到 300mm。<strong>看 8 个热点</strong>怎么从绿色变成红色。这正是 AI 给防汛办看的<strong>风险扩散图</strong>。</p>
+      <p data-en>Now <strong>you make it rain</strong>. Drag the slider — rainfall from 0 to 300mm. <strong>Watch 8 spots</strong> turn from green to red. This is the <strong>risk-spreading map</strong> AI shows emergency officials.</p>
+    </div>
+
+    <div class="bg-white border-2 border-blue-200 rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div>
+          <div class="text-xs uppercase text-blue-700 font-bold tracking-wide"><span data-zh>降雨量（mm，6 小时内）</span><span data-en>Rainfall (mm in 6hr)</span></div>
+          <div class="text-3xl font-black text-blue-900"><span id="rain-num">0</span> mm</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs uppercase text-red-700 font-bold tracking-wide"><span data-zh>高风险点</span><span data-en>High-risk spots</span></div>
+          <div class="text-3xl font-black text-red-700"><span id="danger-count">0</span> / 8</div>
+        </div>
+      </div>
+
+      <input type="range" min="0" max="300" value="0" class="smart-slider" id="rain-slider" oninput="updateRain()"/>
+      <div class="flex justify-between text-xs text-slate-500 mt-1">
+        <span><span data-zh>0 (晴)</span><span data-en>0 (clear)</span></span>
+        <span><span data-zh>50 (小雨)</span><span data-en>50 (light)</span></span>
+        <span><span data-zh>100 (暴雨)</span><span data-en>100 (heavy)</span></span>
+        <span><span data-zh>200 (大暴雨)</span><span data-en>200 (severe)</span></span>
+        <span><span data-zh>300 (特大暴雨)</span><span data-en>300 (extreme)</span></span>
+      </div>
+
+      <div class="map-container mt-4">
+        <svg id="bj-map-2" viewBox="0 0 800 600" class="w-full" style="aspect-ratio:4/3;background:#F0FDF4"></svg>
+      </div>
+
+      <div id="rain-message" class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm"></div>
+
+      <div class="mt-4 flex flex-wrap gap-2 justify-center">
+        <button class="btn-ghost text-xs" onclick="setRain(50)"><span data-zh>小雨 50mm</span><span data-en>Light 50mm</span></button>
+        <button class="btn-ghost text-xs" onclick="setRain(100)"><span data-zh>暴雨 100mm</span><span data-en>Heavy 100mm</span></button>
+        <button class="btn-ghost text-xs" onclick="setRain(200)"><span data-zh>大暴雨 200mm</span><span data-en>Severe 200mm</span></button>
+        <button class="btn-ghost text-xs" onclick="setRain(300)"><span data-zh>"7·31" 300mm</span><span data-en>"7·31" 300mm</span></button>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：时间维度对比 →</span><span data-en>Next: time dimension →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: TIME DIMENSION ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>同样下 <strong>100mm</strong> 雨——但是<strong>怎么下</strong>，结果<strong>完全不同</strong>。看 2 个真实场景对比。</p>
+      <p data-en>Same <strong>100mm</strong> of rain — but <strong>how it falls</strong> changes <strong>everything</strong>. Compare 2 real scenarios.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 mb-4" id="time-grid"></div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+      <strong>💡 <span data-zh>关键洞察</span><span data-en>Key insight</span></strong>：
+      <span data-zh>"100mm 雨"对气象局是<strong>1 个数字</strong>。但对防汛办，<strong>"1 小时下完"和"4 小时下完"是 2 个完全不同的灾害</strong>。这就是为什么 AI 必须告诉防汛办<strong>"降雨强度曲线"</strong>，而不只是总量。</span>
+      <span data-en>"100mm rain" is <strong>1 number</strong> to Met office. But to emergency, <strong>"1hr" vs "4hr" are 2 different disasters</strong>. Why AI must report the <strong>"rain intensity curve"</strong>, not just totals.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(5)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这一关你看到 AI 怎么把"<strong>大数据</strong>"变成"<strong>具体地点的预测</strong>"。请写下：</p>
+      <p data-en>You saw AI turn <strong>"big data"</strong> into <strong>"location-specific predictions"</strong>. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你<strong>家附近</strong>有没有像图上那种"<strong>每次下雨必淹</strong>"的地方？是<strong>什么原因</strong>（地形低洼？排水差？老城区？）</span>
+        <span data-en>① Is there a "<strong>floods every time it rains</strong>" spot near your home? <strong>Why</strong> (low terrain? bad drainage? old city)?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 看完地图你发现："<strong>桥下穿洞</strong>"几乎都是热点。这是<strong>城市设计</strong>的问题吗？该怎么解决（AI 能解决吗）？</span>
+        <span data-en>② You saw: <strong>"underpasses"</strong> are nearly all hotspots. Is this a <strong>city design</strong> problem? How to fix (can AI?)</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ <strong>时间维度</strong>告诉你：100mm 雨"快下"比"慢下"危险得多。这<strong>对你的日常生活</strong>有什么启示？</span>
+        <span data-en>③ <strong>Time dimension</strong> showed: 100mm "fast" is far worse than "slow". What does this teach for <strong>your daily life</strong>?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M6-2 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-700 to-blue-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#1E40AF" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🗺️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 2 关完成</span><span data-en>Mission #2 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"内涝地图解读员" 徽章已解锁</span><span data-en>"Flood Map Reader" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>内涝 = <strong>降雨 + 地形 + 排水 + 历史</strong> 四个变量</span><span data-en>Flood = <strong>rain + terrain + drainage + history</strong></span></li>
+          <li>✓ <span data-zh>北京 8 个真实热点：<strong>莲花桥、上清桥、广渠门</strong>等都是桥下穿</span><span data-en>8 real Beijing hotspots: <strong>Lianhua, Shangqing, Guangqumen</strong> — all underpasses</span></li>
+          <li>✓ <span data-zh>同样 100mm 雨，<strong>"1 小时下完" ≠ "4 小时下完"</strong></span><span data-en>Same 100mm rain: <strong>"in 1hr" ≠ "in 4hr"</strong></span></li>
+          <li>✓ <span data-zh>AI 的"<strong>风险扩散图</strong>"让防汛办知道<strong>派人去哪</strong></span><span data-en>AI\'s <strong>risk-spread map</strong> tells emergency offices <strong>where to deploy</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m6-3-allocate.html'">
+          <span data-zh>下一关：M6-3 资源分配挑战 →</span><span data-en>Next: M6-3 Resource Allocation →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M6-2 · 开发者：辜月晗 · 2026 · 数据：北京水务局公开内涝点</span>
+  <span data-en>AI Literacy Courses for Beginners · M6-2 · Dev: Gu Yuehan · 2026 · Data: Beijing Water Bureau public flood points</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+  if(state.phase===2) renderMap();
+  if(state.phase===3) renderRainMap();
+  if(state.phase===4) renderTimeScenarios();
+}
+
+/* =====================================================
+   8 BEIJING FLOOD HOTSPOTS (real historical data)
+   ===================================================== */
+const HOTSPOTS = [
+  {id:'h1', x:280, y:300, name:{zh:'莲花桥下穿',en:'Lianhua Bridge Underpass'},
+   ring:'三环',
+   elev:'低',
+   drainage:'差',
+   history:{zh:'2012、2016、2021、2023 多次积水',en:'Flooded 2012, 2016, 2021, 2023'},
+   risk:90,
+   peakDepth:'1.8m',
+   note:{zh:'西三环交通要道，下沉式立交桥。曾导致车辆被淹没数十辆',
+         en:'West 3rd Ring artery, sunken interchange. Dozens of cars submerged in past floods'}},
+  {id:'h2', x:400, y:230, name:{zh:'上清桥',en:'Shangqing Bridge'},
+   ring:'北四环',
+   elev:'低',
+   drainage:'差',
+   history:{zh:'近 10 年有记录 7 次',en:'7 events recorded in past decade'},
+   risk:85,
+   peakDepth:'1.5m',
+   note:{zh:'北四环高速桥下穿。2023 "7·31"积水深度达警戒线',
+         en:'North 4th Ring underpass. 2023 "7·31" hit critical level'}},
+  {id:'h3', x:520, y:340, name:{zh:'广渠门桥',en:'Guangqumen Bridge'},
+   ring:'东二环',
+   elev:'低',
+   drainage:'中',
+   history:{zh:'2012 "7·21" 大暴雨重灾区，1 人遇难',en:'2012 "7·21" mega-storm hotspot, 1 fatality'},
+   risk:95,
+   peakDepth:'2m+',
+   note:{zh:'2012 年 7 月 21 日特大暴雨，丁姓男子在此因车辆被淹遇难。事故后改造排水',
+         en:'July 21, 2012: Mr. Ding drowned here when his car submerged. Drainage upgraded after'}},
+  {id:'h4', x:520, y:220, name:{zh:'三元桥',en:'Sanyuan Bridge'},
+   ring:'东北三环',
+   elev:'中',
+   drainage:'中',
+   history:{zh:'2023 "7·31"积水超 30 分钟',en:'2023 "7·31" >30 min flooded'},
+   risk:65,
+   peakDepth:'0.8m',
+   note:{zh:'机场高速入口附近，影响进京车辆',
+         en:'Near airport expressway entrance, affects inbound traffic'}},
+  {id:'h5', x:340, y:430, name:{zh:'玉泉营桥',en:'Yuquanying Bridge'},
+   ring:'西南三环',
+   elev:'低',
+   drainage:'差',
+   history:{zh:'多次因暴雨被淹',en:'Multiple flood events'},
+   risk:80,
+   peakDepth:'1.3m',
+   note:{zh:'西南三环关键节点，附近有大型蔬菜批发市场，受影响人群广',
+         en:'SW 3rd Ring critical node. Near major produce market, wide impact'}},
+  {id:'h6', x:330, y:340, name:{zh:'复兴门桥下穿',en:'Fuxingmen Underpass'},
+   ring:'西二环',
+   elev:'中',
+   drainage:'中',
+   history:{zh:'老城区改造前常涝',en:'Frequent before old-city renovation'},
+   risk:60,
+   peakDepth:'0.7m',
+   note:{zh:'西二环老城区入口，2014 后改造排水有所改善',
+         en:'West 2nd Ring old-city entry. Drainage improved post-2014'}},
+  {id:'h7', x:480, y:240, name:{zh:'京广桥',en:'Jingguang Bridge'},
+   ring:'东北三环',
+   elev:'低',
+   drainage:'差',
+   history:{zh:'2016、2018、2023 多次警戒',en:'Critical alerts 2016, 2018, 2023'},
+   risk:70,
+   peakDepth:'1m',
+   note:{zh:'北三环偏东，附近 CBD 写字楼密集，影响通勤',
+         en:'NE 3rd Ring near CBD. Major commute impact'}},
+  {id:'h8', x:430, y:480, name:{zh:'大红门桥',en:'Dahongmen Bridge'},
+   ring:'南三环',
+   elev:'低',
+   drainage:'差',
+   history:{zh:'2017、2021、2023 严重',en:'Severe 2017, 2021, 2023'},
+   risk:85,
+   peakDepth:'1.4m',
+   note:{zh:'南三环外，丰台区，人口密集且地势低洼',
+         en:'Outside South 3rd Ring, Fengtai district. Dense + low-lying'}},
+];
+
+/* =====================================================
+   2 TIME SCENARIOS
+   ===================================================== */
+const TIME_SCENARIOS = [
+  {id:'t1', emoji:'💥', label:{zh:'急速·1 小时下完 100mm',en:'Fast: 100mm in 1hr'},
+   intensity:'100 mm/h',
+   result:{zh:'<strong>地表径流暴增</strong>——雨水来不及进排水管，<strong>瞬间形成洪流</strong>。这种情况下：',
+           en:'<strong>Surface runoff explodes</strong> — rain can\'t enter drains, <strong>instant torrent</strong>. Result:'},
+   impacts:[
+     {zh:'7/8 个热点严重积水（>1m）',en:'7/8 hotspots severe (>1m)'},
+     {zh:'桥下穿洞 30 分钟内淹没',en:'Underpasses submerge in 30 min'},
+     {zh:'2012 "7·21"就是这样下的',en:'2012 "7·21" was like this'},
+     {zh:'死亡风险<strong>极高</strong>',en:'Fatality risk <strong>extreme</strong>'},
+   ],
+   severity:'danger'},
+  {id:'t2', emoji:'🌧️', label:{zh:'缓慢·4 小时下完 100mm',en:'Slow: 100mm in 4hr'},
+   intensity:'25 mm/h',
+   result:{zh:'<strong>排水系统能跟上</strong>——大部分雨水通过排水管流走，地表只有<strong>少量积水</strong>。',
+           en:'<strong>Drainage keeps up</strong> — most rain enters drains; only <strong>minor surface flooding</strong>.'},
+   impacts:[
+     {zh:'2-3 个热点轻度积水（<0.5m）',en:'2-3 hotspots mild (<0.5m)'},
+     {zh:'通常不影响通行',en:'Usually doesn\'t block traffic'},
+     {zh:'这是<strong>北京排水系统正常承载量</strong>',en:'This is <strong>Beijing\'s normal drainage capacity</strong>'},
+     {zh:'人员伤亡<strong>风险低</strong>',en:'Fatality risk <strong>low</strong>'},
+   ],
+   severity:'caution'},
+];
+
+const state = {phase:0, hsVisited:new Set(), selectedHs:null, rainAmount:0, reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   MAP RENDERING (Phase 2)
+   ===================================================== */
+function getRiskColor(risk){
+  if(risk>=85) return '#DC2626'; // red
+  if(risk>=70) return '#EA580C'; // orange
+  if(risk>=50) return '#F59E0B'; // amber
+  return '#10B981'; // green
+}
+
+function buildMapBase(){
+  // Ring roads + landmarks + city outline
+  const cx = 400, cy = 350;
+  return `
+    <!-- City outline (irregular) -->
+    <path d="M 100 200 Q 200 100, 400 90 T 700 200 Q 730 350, 700 500 T 400 580 Q 200 590, 100 500 Z" fill="#DCFCE7" stroke="#86EFAC" stroke-width="2"/>
+
+    <!-- Ring roads -->
+    <circle class="ring-road" cx="${cx}" cy="${cy}" r="50"/>
+    <text class="road-label" x="${cx+15}" y="${cy-50}">二环</text>
+    <circle class="ring-road" cx="${cx}" cy="${cy}" r="110"/>
+    <text class="road-label" x="${cx+15}" y="${cy-110}">三环</text>
+    <circle class="ring-road" cx="${cx}" cy="${cy}" r="170"/>
+    <text class="road-label" x="${cx+15}" y="${cy-170}">四环</text>
+    <circle class="ring-road" cx="${cx}" cy="${cy}" r="220"/>
+    <text class="road-label" x="${cx+15}" y="${cy-220}">五环</text>
+
+    <!-- Tiananmen center -->
+    <circle class="center-tian" cx="${cx}" cy="${cy}" r="6"/>
+    <text x="${cx+10}" y="${cy+4}" font-size="11" font-weight="700" fill="#0F172A">天安门</text>
+
+    <!-- Compass -->
+    <g transform="translate(70,80)">
+      <circle r="20" fill="#fff" stroke="#94A3B8" stroke-width="1.5"/>
+      <text y="-8" text-anchor="middle" font-size="10" fill="#0F172A" font-weight="700">N</text>
+      <text y="20" text-anchor="middle" font-size="9" fill="#64748B">S</text>
+      <text x="-14" y="3" text-anchor="middle" font-size="9" fill="#64748B">W</text>
+      <text x="14" y="3" text-anchor="middle" font-size="9" fill="#64748B">E</text>
+      <line x1="0" y1="-15" x2="0" y2="-5" stroke="#DC2626" stroke-width="2"/>
+    </g>
+
+    <!-- Title -->
+    <text x="400" y="40" text-anchor="middle" font-size="18" font-weight="900" fill="#1E40AF">北京市 · Beijing</text>
+    <text x="400" y="58" text-anchor="middle" font-size="11" fill="#64748B">${LANG==='en'?'Historical Flood Hotspots':'历史内涝热点'}</text>
+  `;
+}
+
+function renderMap(){
+  const svg = document.getElementById('bj-map');
+  svg.innerHTML = buildMapBase() + HOTSPOTS.map(h=>`
+    <g class="hotspot ${state.selectedHs===h.id?'selected':''}" data-id="${h.id}" onclick="selectHotspot('${h.id}')">
+      <circle cx="${h.x}" cy="${h.y}" r="14" fill="${getRiskColor(h.risk)}" stroke="#fff" stroke-width="2" opacity="0.9"/>
+      <text x="${h.x}" y="${h.y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">📍</text>
+    </g>
+    <text x="${h.x+18}" y="${h.y+5}" font-size="10" font-weight="600" fill="#0F172A">${LANG==='en'?h.name.en:h.name.zh}</text>
+  `).join('');
+}
+
+function selectHotspot(id){
+  state.selectedHs = id;
+  state.hsVisited.add(id);
+  const h = HOTSPOTS.find(x=>x.id===id);
+  const sev = h.risk>=85?'danger':h.risk>=70?'warn':h.risk>=50?'caution':'safe';
+  document.getElementById('hotspot-info').innerHTML = `
+    <div class="hs-info ${sev}">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-bold text-lg"><span data-zh>${h.name.zh}</span><span data-en>${h.name.en}</span></div>
+          <div class="text-xs text-slate-500">📍 ${h.ring}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs uppercase text-slate-500"><span data-zh>风险等级</span><span data-en>Risk</span></div>
+          <div class="text-2xl font-black" style="color:${getRiskColor(h.risk)}">${h.risk}</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-xs mb-3">
+        <div class="bg-white/60 rounded p-2"><div class="text-slate-500"><span data-zh>地形</span><span data-en>Terrain</span></div><div class="font-bold">${h.elev}</div></div>
+        <div class="bg-white/60 rounded p-2"><div class="text-slate-500"><span data-zh>排水</span><span data-en>Drainage</span></div><div class="font-bold">${h.drainage}</div></div>
+        <div class="bg-white/60 rounded p-2"><div class="text-slate-500"><span data-zh>峰值积水</span><span data-en>Peak depth</span></div><div class="font-bold text-red-700">${h.peakDepth}</div></div>
+      </div>
+      <div class="text-xs">
+        <strong>📚 <span data-zh>历史</span><span data-en>History</span>：</strong>
+        <span data-zh>${h.history.zh}</span><span data-en>${h.history.en}</span>
+      </div>
+      <div class="text-xs mt-2">
+        <strong>📝 <span data-zh>说明</span><span data-en>Note</span>：</strong>
+        <span data-zh>${h.note.zh}</span><span data-en>${h.note.en}</span>
+      </div>
+    </div>
+  `;
+  renderMap();
+  document.getElementById('hs-visited').textContent = state.hsVisited.size;
+  if(state.hsVisited.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   RAIN SLIDER (Phase 3)
+   ===================================================== */
+function renderRainMap(){
+  const svg = document.getElementById('bj-map-2');
+  const r = state.rainAmount;
+  svg.innerHTML = buildMapBase() + HOTSPOTS.map(h=>{
+    // Compute predicted water depth based on rainfall + hotspot factors
+    let depth = 0;
+    if(r>0){
+      // base: rainfall * risk_factor / 100
+      depth = (r/100) * (h.risk/100) * 2.5;
+      // bonus if drainage is "差"
+      if(h.drainage==='差') depth *= 1.3;
+      // bonus if elevation is "低"
+      if(h.elev==='低') depth *= 1.2;
+    }
+    // Color by depth
+    let color, ringR;
+    if(depth>=1.5){ color='#DC2626'; ringR=30; }
+    else if(depth>=0.8){ color='#EA580C'; ringR=25; }
+    else if(depth>=0.3){ color='#F59E0B'; ringR=20; }
+    else { color='#10B981'; ringR=14; }
+    return `
+      <circle cx="${h.x}" cy="${h.y}" r="${ringR}" fill="${color}" opacity="0.3"/>
+      <circle cx="${h.x}" cy="${h.y}" r="14" fill="${color}" stroke="#fff" stroke-width="2"/>
+      <text x="${h.x}" y="${h.y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${depth>0?depth.toFixed(1)+'m':'📍'}</text>
+      <text x="${h.x+18}" y="${h.y+5}" font-size="9" font-weight="600" fill="#0F172A">${LANG==='en'?h.name.en:h.name.zh}</text>
+    `;
+  }).join('');
+}
+
+function updateRain(){
+  const v = +document.getElementById('rain-slider').value;
+  state.rainAmount = v;
+  document.getElementById('rain-num').textContent = v;
+  // Count danger
+  let dangerCount = 0;
+  HOTSPOTS.forEach(h=>{
+    let depth = (v/100) * (h.risk/100) * 2.5;
+    if(h.drainage==='差') depth *= 1.3;
+    if(h.elev==='低') depth *= 1.2;
+    if(depth>=0.8) dangerCount++;
+  });
+  document.getElementById('danger-count').textContent = dangerCount;
+  renderRainMap();
+
+  const msg = document.getElementById('rain-message');
+  if(v===0){
+    msg.innerHTML = '<span data-zh>📊 拖动滑杆查看 AI 预测</span><span data-en>📊 Drag slider to see AI predictions</span>';
+  } else if(v<50){
+    msg.innerHTML = '<span data-zh>☔ 小雨——所有热点都在安全线内</span><span data-en>☔ Light rain — all hotspots safe</span>';
+  } else if(v<100){
+    msg.innerHTML = '<span data-zh>🌧️ 大雨——少数热点开始警戒</span><span data-en>🌧️ Heavy rain — few hotspots warning</span>';
+  } else if(v<200){
+    msg.innerHTML = '<span data-zh>⛈️ 暴雨——多数高风险点告急，<strong>需启动应急响应</strong></span><span data-en>⛈️ Storm — most high-risk spots critical, <strong>activate emergency response</strong></span>';
+  } else if(v<250){
+    msg.innerHTML = '<span data-zh>🌊 大暴雨——<strong>全市进入红色预警</strong>，桥下穿洞已不可通行</span><span data-en>🌊 Mega-storm — <strong>citywide red alert</strong>, underpasses impassable</span>';
+  } else {
+    msg.innerHTML = '<span data-zh>💀 特大暴雨（如 2023 "7·31"）——<strong>生命安全受威胁</strong>，必须撤离</span><span data-en>💀 Catastrophic (like 2023 "7·31") — <strong>life-threatening</strong>, must evacuate</span>';
+  }
+  if(v>=100) document.getElementById('p3-next').disabled = false;
+}
+
+function setRain(v){
+  document.getElementById('rain-slider').value = v;
+  updateRain();
+}
+
+/* =====================================================
+   TIME SCENARIOS (Phase 4)
+   ===================================================== */
+function renderTimeScenarios(){
+  const host = document.getElementById('time-grid');
+  host.innerHTML = TIME_SCENARIOS.map(t=>`
+    <div class="scenario-card border-${t.severity==='danger'?'red':'amber'}-300" style="border-color:${t.severity==='danger'?'#DC2626':'#F59E0B'};border-width:3px">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="text-4xl">${t.emoji}</div>
+        <div>
+          <div class="font-bold"><span data-zh>${t.label.zh}</span><span data-en>${t.label.en}</span></div>
+          <div class="text-xs text-slate-500"><span data-zh>强度</span><span data-en>Intensity</span>：${t.intensity}</div>
+        </div>
+      </div>
+      <p class="text-sm mb-3"><span data-zh>${t.result.zh}</span><span data-en>${t.result.en}</span></p>
+      <div class="space-y-1 text-sm">
+        ${t.impacts.map(i=>`<div class="flex gap-2"><span class="${t.severity==='danger'?'text-red-700':'text-amber-700'}">●</span><span><span data-zh>${i.zh}</span><span data-en>${i.en}</span></span></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M6-2',
+    hsVisited:state.hsVisited.size, rainTried:state.rainAmount,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m6-2', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,7);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===2) renderMap();
+  if(n===3) renderRainMap();
+  if(n===4) renderTimeScenarios();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.hsVisited=new Set();state.selectedHs=null;state.rainAmount=0;state.reflectChoice=null;state.reflectText='';
+    document.getElementById('hs-visited').textContent='0';
+    document.getElementById('danger-count').textContent='0';
+    document.getElementById('rain-num').textContent='0';
+    document.getElementById('rain-slider').value=0;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

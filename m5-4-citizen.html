@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5-4 AI 时代的公民身份 · Citizenship in the AI Era</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Role card */
+  .role-card{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1.2rem;cursor:pointer;transition:all .2s}
+  .role-card:hover{transform:translateY(-3px);border-color:#94A3B8}
+  .role-card.read{border-color:#10B981;background:#ECFDF5}
+  .role-card.role-consumer{border-top:6px solid #3B82F6}
+  .role-card.role-thinker{border-top:6px solid #F59E0B}
+  .role-card.role-guardian{border-top:6px solid #10B981}
+  .role-card.role-influencer{border-top:6px solid #DC2626}
+
+  /* Hero card */
+  .hero-card{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1.2rem;transition:all .2s;cursor:pointer;position:relative}
+  .hero-card:hover{transform:translateY(-2px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15)}
+  .hero-card.read{border-color:#10B981}
+  .hero-card.read::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  /* Scenario */
+  .scn-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem}
+  .scn-opt{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.7rem .9rem;cursor:pointer;transition:all .15s;text-align:left}
+  .scn-opt:hover{border-color:#94A3B8;transform:translateX(2px)}
+  .scn-opt.selected{border-color:#3B82F6;background:#EFF6FF}
+
+  /* Citizen profile radar bar */
+  .radar-row{display:flex;align-items:center;gap:.6rem;padding:.4rem 0}
+  .radar-name{flex:1;min-width:0;font-weight:600}
+  .radar-bar{flex:2;height:14px;background:#F1F5F9;border-radius:7px;overflow:hidden}
+  .radar-fill{height:100%;border-radius:7px;transition:width .8s ease}
+
+  /* Pledge */
+  .pledge-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s}
+  .pledge-input:focus{outline:none;border-color:#3B82F6}
+  .pledge-input.ok{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M5-4 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-200 text-slate-700 px-2 py-1 rounded-full">Ch.5 · 社会 / Society</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>反思 · 30 min</span><span data-en>Reflect · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>AI 时代的公民身份：你能做什么？</span>
+      <span data-en>Citizenship in the AI Era: What Can You Do?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            <strong>恭喜你来到 Ch.5 最后一关</strong>。前面 14 关你学了：
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            <strong>Congrats — Ch.5\'s final mission</strong>. Across 14 missions you\'ve learned:
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            ✓ AI 怎么看、怎么想、怎么学、怎么说话<br>
+            ✓ AI 会出错、会偏差、会胡说、会窄化你的世界、会被坏人伪造
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            ✓ How AI sees, thinks, learns, talks<br>
+            ✓ AI errs, biases, lies, narrows your world, gets weaponized for fakes
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            现在<strong>最关键的问题</strong>：你 12 岁，<strong>能做什么</strong>？
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Now the <strong>most important question</strong>: you\'re 12 — <strong>what can you do</strong>?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            答案不是"等我长大了再说"。AI 时代<strong>已经把责任分给了每一个用户</strong>——包括你。今天这一关，我们看你<strong>4 种公民角色</strong>，看 4 个少年公民的真实故事，然后做一个<strong>"AI 公民"画像测试</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Answer isn\'t "wait til I\'m grown". The AI era <strong>has distributed responsibility to every user</strong> — including you. Today: <strong>4 citizen roles</strong>, 4 real teen-citizen stories, then your <strong>"AI Citizen" profile test</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>认识 4 种公民角色 →</span><span data-en>Meet the 4 roles →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: 4 ROLES ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>AI 时代的公民有 <strong>4 个角色</strong>——你可能在不同情况下扮演不同角色。点击每张卡片读它。</p>
+      <p data-en>AI-era citizens play <strong>4 roles</strong> — you may shift between them. Click each card.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="role-count">0</span> / 4</div>
+    </div>
+
+    <div id="role-grid" class="grid sm:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：真实少年故事 →</span><span data-en>Next: real teen stories →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: HEROES ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你不是第一个 12 岁来想 AI 公民身份的人。<strong>4 个真实少年</strong>的故事——他们已经改变了 AI 的样子。</p>
+      <p data-en>You\'re not the first 12-year-old thinking about AI citizenship. <strong>4 real teens</strong> — they\'ve already changed AI.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="hero-count">0</span> / 4</div>
+    </div>
+
+    <div id="hero-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：你的公民测试 →</span><span data-en>Next: your citizen test →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: CITIZEN TEST ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 <strong>6 个真实情境</strong>。每个有 4 种行动——每种对应一种公民角色。<strong>选你最可能做的那个</strong>。结束后你会得到一份"<strong>AI 公民画像</strong>"。</p>
+      <p data-en><strong>6 real scenarios</strong>. Each offers 4 actions — each maps to one citizen role. <strong>Pick what you\'d actually do</strong>. End: your "<strong>AI Citizen Profile</strong>".</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已答：</span><span data-en>Answered:</span><span id="scn-count">0</span> / 6</div>
+    </div>
+
+    <div id="scn-list" class="space-y-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>查看你的 AI 公民画像 →</span><span data-en>See your AI Citizen Profile →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: YOUR CITIZEN PROFILE ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>基于你的 6 个选择，这是你的<strong>"AI 公民画像"</strong>👇</p>
+      <p data-en>Based on your 6 choices, here\'s your <strong>"AI Citizen Profile"</strong>👇</p>
+    </div>
+
+    <div class="bg-white border-2 border-amber-300 rounded-2xl p-5">
+      <div class="text-center mb-4">
+        <div class="text-5xl mb-2" id="profile-emoji">🛡️</div>
+        <div class="text-2xl font-black" id="profile-title">—</div>
+        <div class="text-sm text-slate-600 mt-1" id="profile-desc">—</div>
+      </div>
+
+      <div class="text-xs uppercase font-bold tracking-wide text-slate-500 mb-2"><span data-zh>你的公民角色分布</span><span data-en>Your role distribution</span></div>
+      <div id="profile-radar" class="mb-4"></div>
+
+      <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm" id="profile-advice"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(5)">
+        <span data-zh>最后：你的公民承诺 →</span><span data-en>Final: your citizen pledge →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: PLEDGE ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这是你完成 Ch.5 的最后一步——也是 Ch.5 的<strong>灵魂</strong>。写下<strong>3 句作为 AI 时代公民的承诺</strong>，每句 ≥ 15 字。</p>
+      <p data-en>Final step of Ch.5 — and its <strong>soul</strong>. Write <strong>3 AI-citizen pledges</strong>, each ≥ 15 chars.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-red-50 to-blue-50 border-2 border-slate-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-1"><span data-zh>📜 我作为 AI 时代公民的承诺</span><span data-en>📜 My AI-Era Citizen Pledge</span></h3>
+      <p class="text-sm text-slate-600 mb-5"><span data-zh>这不是签作业。这是你<strong>给自己</strong>的承诺。一年后回来看，看你做到了多少。</span><span data-en>Not homework. A promise to <strong>yourself</strong>. Come back in a year — see how much you kept.</span></p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600">① <span data-zh>当我看到一个让我"震惊"或"愤怒"的视频时，我会先……</span><span data-en>When I see a "shocking" or "outrageous" video, I will first…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl1" placeholder="" oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">② <span data-zh>当家人/朋友收到可疑 AI 来电时，我会……</span><span data-en>When family/friends get a suspicious AI call, I will…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl2" placeholder="" oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">③ <span data-zh>过去这 5 章学到的 AI 知识，我想<strong>传给</strong>……</span><span data-en>The AI knowledge from these 5 chapters, I want to <strong>pass on to</strong>…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl3" placeholder="" oninput="checkPledges()"/>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pl-progress">0</span> / 3 <span data-zh>条完成</span><span data-en>complete</span></div>
+        <button class="btn-primary" id="pledge-submit" disabled onclick="submitPledge()">
+          <span data-zh>提交 + 完成 Ch.5 →</span><span data-en>Submit & finish Ch.5 →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-500 to-slate-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#94A3B8" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🤝</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>Ch.5 全部完成！</span><span data-en>Chapter 5 complete!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"AI 时代公民" 徽章已解锁</span><span data-en>"AI-Era Citizen" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-slate-50 border border-slate-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>这一章你内化了……</span><span data-en>This chapter you internalized…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>推荐算法<strong>每秒都在学你</strong>，你的每个动作都在被记录</span><span data-en>Recsys <strong>learns you every second</strong>; every action logged</span></li>
+          <li>✓ <span data-zh>信息茧房让<strong>同一 APP 给两个人造出两个世界</strong></span><span data-en>Filter bubbles: same app, <strong>2 worlds for 2 people</strong></span></li>
+          <li>✓ <span data-zh>深度伪造让"<strong>眼见为实</strong>"时代结束——你有责任教家人识别</span><span data-en>Deepfakes ended "<strong>seeing is believing</strong>" — your duty to teach family</span></li>
+          <li>✓ <span data-zh>你 12 岁<strong>已经是 AI 公民</strong>——4 种角色你都能做</span><span data-en>At 12 you\'re <strong>already an AI citizen</strong> — all 4 roles open to you</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-amber-100 to-amber-50 border-2 border-amber-300 rounded-2xl">
+        <div class="text-xl font-black mb-2">🎓 <span data-zh>第五章结业 · 总进度 20/24</span><span data-en>Chapter 5 done · 20/24 total</span></div>
+        <p class="text-sm" data-zh>你完成了"AI 与人类社会"全部 4 关。Ch.1+2+3+4+5 = <strong>20 个徽章</strong>。还剩 1 章：<strong>训练我的第一个 AI</strong>（毕业作品）！</p>
+        <p class="text-sm" data-en>4 missions of "AI and Society" done. Ch.1–5 = <strong>20 badges</strong>. 1 chapter left: <strong>Train Your First AI</strong> (capstone)!</p>
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M5-1">👀</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M5-2">🔁</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M5-3">🎭</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M5-4">🤝</div>
+        </div>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="alert(LANG==='en'?'Chapter 6 coming soon!':'第 6 章即将开放！')">
+          <span data-zh>开启 Ch.6 毕业作品 →</span><span data-en>Start Ch.6 Capstone →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M5-4 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M5-4 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   4 CITIZEN ROLES
+   ===================================================== */
+const ROLES = [
+  {id:'consumer', emoji:'🎯',
+   name:{zh:'信息消费者', en:'Information Consumer'},
+   color:'consumer',
+   what:{zh:'你<strong>每天都在</strong>消费 AI 推送的内容。"消费者"的责任是<strong>不被骗</strong>——会验证、会查证、会拒绝。',
+         en:'You <strong>daily consume</strong> AI-pushed content. A "consumer\'s" duty: <strong>don\'t get fooled</strong> — verify, fact-check, reject.'},
+   skills:{zh:'反向搜图 · 查证多源 · 不转发"震惊"内容 · 警惕过度具体细节',
+            en:'Reverse search · Multi-source · Don\'t forward "shocking" · Beware over-specifics'}},
+  {id:'thinker', emoji:'💭',
+   name:{zh:'批判思考者', en:'Critical Thinker'},
+   color:'thinker',
+   what:{zh:'AI 给你的是<strong>"舒适的茧"</strong>。批判思考者会<strong>主动跳出</strong>——读不同观点、寻求多元、质疑"看似一致"的事实。',
+         en:'AI gives you a <strong>"comfortable bubble"</strong>. Critical thinkers <strong>actively break out</strong> — read opposing views, seek diversity, question "obvious" facts.'},
+   skills:{zh:'每天读 1 个反方观点 · 不只看一家媒体 · 怀疑"共识" · 自我反省偏见',
+            en:'Daily opposing view · Diverse outlets · Question "consensus" · Self-check bias'}},
+  {id:'guardian', emoji:'🔐',
+   name:{zh:'数据守护者', en:'Data Guardian'},
+   color:'guardian',
+   what:{zh:'你和你家人的数据<strong>是有价值的</strong>。守护者知道<strong>自己有权利</strong>、保护未成年小妹妹/弟弟、教爷爷奶奶反诈骗。',
+         en:'Your family\'s data <strong>has value</strong>. Guardians know <strong>their rights</strong>, protect younger siblings, teach grandparents anti-scam.'},
+   skills:{zh:'读隐私协议 · 用 PIPL 维权 · 教家人 · 减少不必要数据上传',
+            en:'Read privacy policies · Use PIPL rights · Teach family · Minimize data uploads'}},
+  {id:'influencer', emoji:'🛠️',
+   name:{zh:'AI 设计影响者', en:'AI Design Influencer'},
+   color:'influencer',
+   what:{zh:'AI 不是<strong>固定的</strong>——每个用户都能<strong>影响它怎么变</strong>。影响者会给反馈、参与开源、推动负责任的 AI、做家乡数据贡献者。',
+         en:'AI isn\'t <strong>fixed</strong> — every user can <strong>shape its evolution</strong>. Influencers give feedback, join open source, push responsible AI, contribute local data.'},
+   skills:{zh:'反馈"AI 错了" · 贡献方言数据 · 参与开源项目 · 写信给监管/平台',
+            en:'Feedback "AI wrong" · Contribute dialect data · Join OSS · Write to regulators/platforms'}},
+];
+
+/* =====================================================
+   4 REAL HEROES
+   ===================================================== */
+const HEROES = [
+  {id:'h1', emoji:'🇭🇰', year:'2023+',
+   name:{zh:'香港中学生 · 粤语数据集', en:'HK Middle Schoolers · Cantonese Dataset'},
+   role:'influencer',
+   story:{zh:'2023 年，香港陈仲衡同学（13 岁）联合 50 多名同学，在 GitHub 创建"粤语 AI 数据"项目。每人每天录 5 分钟粤语。2 年后，数据集被 ChatGPT、文心一言、Claude 等多个 AI 公司<strong>正式采用</strong>。粤语 AI 支持从"鸡同鸭讲"提升到"流畅对话"。',
+          en:'2023: HK student Chen Zhongheng (13) + 50 classmates launched "Cantonese AI Data" on GitHub. Each records 5 min/day. 2 yrs later, dataset officially adopted by ChatGPT/Wenxin/Claude. Cantonese AI went from "broken" to "fluent".'},
+   lesson:{zh:'<strong>12 岁可以改变 AI</strong>。',
+            en:'<strong>12-year-olds can change AI</strong>.'}},
+  {id:'h2', emoji:'📞', year:'2024',
+   name:{zh:'广州女孩 · 反诈普及讲师', en:'Guangzhou Girl · Anti-Scam Educator'},
+   role:'guardian',
+   story:{zh:'2024 年，广州一名 14 岁女孩在学完 AI 诈骗类型后，每周回家给爷爷奶奶演示"假绑架电话"是怎么造的。后来她和同学组建"反 AI 诈骗少年志愿团"，到社区给老人开讲座。已让 100+ 老人学会识别 AI 语音克隆诈骗。',
+          en:'2024: a 14yo girl in Guangzhou, after learning AI scam types, weekly demos "fake kidnap call" to grandparents. Then she + classmates formed "Teen Anti-AI-Scam Volunteers", giving community talks. 100+ seniors taught to spot AI voice-clone scams.'},
+   lesson:{zh:'<strong>你比爷爷奶奶懂 AI</strong>——你<strong>有责任</strong>教他们。',
+            en:'<strong>You know more AI than grandparents</strong> — you have a <strong>duty to teach them</strong>.'}},
+  {id:'h3', emoji:'📝', year:'2024',
+   name:{zh:'北京中学生 · 联名抗议', en:'Beijing Students · Petition'},
+   role:'thinker',
+   story:{zh:'2024 年初，北京某中学装"AI 课堂分析系统"——摄像头识别学生表情、专注度。学生张靖宁（15 岁）和 200 多同学联名写信给校长 + 教育局，引用 PIPL 第 31 条（未成年人保护）。<strong>3 个月后系统被拆</strong>。',
+          en:'Early 2024: a Beijing school installed "AI classroom analyzer" — cameras tracking student expressions/focus. Zhang Jingning (15) + 200 classmates wrote to principal + education bureau citing PIPL Article 31 (minor protection). <strong>System removed in 3 months</strong>.'},
+   lesson:{zh:'<strong>批判思考 + 集体行动</strong>能改变制度。',
+            en:'<strong>Critical thinking + collective action</strong> can change institutions.'}},
+  {id:'h4', emoji:'🐼', year:'2024',
+   name:{zh:'四川初中生 · 大熊猫保护数据', en:'Sichuan Teen · Panda Conservation Data'},
+   role:'influencer',
+   story:{zh:'2024 年四川某初中地理社团 30 名同学（12-15 岁），帮卧龙保护区给 5000 张红外照片做标注。他们标的数据后来训练出准确率 92% 的"野生大熊猫识别 AI"——比之前减少 70% 人工巡查时间。',
+          en:'2024: 30 geography club students (12-15) at a Sichuan middle school labeled 5000 IR camera photos for Wolong Reserve. Their data trained a "wild panda recognition AI" at 92% accuracy — cutting human patrol time 70%.'},
+   lesson:{zh:'<strong>你不需要写代码也能"造 AI"</strong>——你的标注就是 AI 的食物。',
+            en:'<strong>You don\'t need to code to "build AI"</strong> — your labels are AI\'s food.'}},
+];
+
+/* =====================================================
+   6 SCENARIOS - each maps action to role
+   ===================================================== */
+const SCENARIOS = [
+  {id:'s1',
+   ctx:{zh:'同学群里转发一段视频："某明星酒店凌晨被偷拍！" 配 100 字震惊文案。',
+        en:'Classmate forwards in group chat: "Celebrity X caught at hotel late night!" with 100 chars of shock text.'},
+   options:[
+     {role:'consumer', text:{zh:'我先反向搜图，看视频来自哪个源头', en:'I reverse-search the video to find the source'}},
+     {role:'thinker', text:{zh:'我问"这件事其他正规媒体报道了吗？"', en:'I check "is this in mainstream media?"'}},
+     {role:'guardian', text:{zh:'我提醒同学："转发前先验证，否则可能违法。"', en:'I remind classmate: "Verify before forwarding — could be illegal."'}},
+     {role:'influencer', text:{zh:'我举报这条视频给平台，让算法学会下架', en:'I report the video to the platform so the algorithm learns to remove it'}},
+   ]},
+  {id:'s2',
+   ctx:{zh:'妈妈说："给妹妹买个 AI 智能手表，能随时定位 + 看心率 + 跟同学聊天。"',
+        en:'Mom: "Let\'s get little sis an AI smartwatch — tracks location + heart rate + lets her chat with classmates."'},
+   options:[
+     {role:'consumer', text:{zh:'我先查这款手表，看有没有数据泄露事件', en:'I research the brand for data breach history first'}},
+     {role:'thinker', text:{zh:'我问"妹妹真的需要这个吗？或者只是我们方便？"', en:'I ask "does sis really need this, or is it for our convenience?"'}},
+     {role:'guardian', text:{zh:'我跟妈妈讨论：这表会收集啥数据？归谁？关不关得掉？', en:'I discuss with mom: what data does it collect? Whose is it? Can it be turned off?'}},
+     {role:'influencer', text:{zh:'我给厂商发邮件要求"未成年人模式"严格化', en:'I email the manufacturer demanding stricter "minor mode"'}},
+   ]},
+  {id:'s3',
+   ctx:{zh:'老师说："周末作业，写一篇关于秋天的散文，<strong>可以用 AI 辅助</strong>。"',
+        en:'Teacher: "Weekend essay on autumn — <strong>AI assistance allowed</strong>."'},
+   options:[
+     {role:'consumer', text:{zh:'我用 RCTF 法（M4-2）写一个好提示词让 AI 当顾问', en:'I use RCTF (M4-2) to write a great prompt; AI as advisor'}},
+     {role:'thinker', text:{zh:'我先自己写一稿，再让 AI 给反馈，避免变成"AI 写我"', en:'I write a draft first, then ask AI for feedback — to avoid "AI writes me"'}},
+     {role:'guardian', text:{zh:'我不让 AI 知道我的隐私信息（名字、学校）', en:'I don\'t share private info (name, school) with AI'}},
+     {role:'influencer', text:{zh:'我把 AI 给的烂建议反馈给厂商，帮 AI 学得更好', en:'I report AI\'s bad suggestions back to the maker, helping AI improve'}},
+   ]},
+  {id:'s4',
+   ctx:{zh:'你刷视频时，看到一段"<strong>AI 创业者突然辱骂某地区</strong>"的视频，已有 50 万点赞。',
+        en:'You see a viral video: "<strong>AI startup founder suddenly insults a region</strong>" — 500K likes.'},
+   options:[
+     {role:'consumer', text:{zh:'我立刻看视频里有没有 5 个深度伪造破绽', en:'I immediately check for 5 deepfake tells'}},
+     {role:'thinker', text:{zh:'我问"为什么这个视频会突然火？谁在推它？"', en:'I ask "why is this viral now? who\'s pushing it?"'}},
+     {role:'guardian', text:{zh:'我评论一句"先别相信，要等本人回应"', en:'I comment "wait — let\'s see what the actual person says"'}},
+     {role:'influencer', text:{zh:'我截图发给反诈中心 96110 让他们核查', en:'I screenshot to anti-fraud hotline 96110 for verification'}},
+   ]},
+  {id:'s5',
+   ctx:{zh:'你发现某同学用 AI 把另一个女生的脸<strong>P 进了不该的照片</strong>。',
+        en:'You discover a classmate AI-pasted another girl\'s face <strong>into inappropriate images</strong>.'},
+   options:[
+     {role:'consumer', text:{zh:'我先保留证据（不传播），思考下一步', en:'I save evidence (without spreading) and think next steps'}},
+     {role:'thinker', text:{zh:'我问"我应该怎么做才不伤受害者？"', en:'I ask "how do I act without hurting the victim more?"'}},
+     {role:'guardian', text:{zh:'我告诉受害者家长或老师，他们能用 PIPL + 治安处罚来处理', en:'I tell victim\'s parents or teacher — PIPL + administrative penalty applies'}},
+     {role:'influencer', text:{zh:'我向班主任 + 公安网监大队举报，让法律生效', en:'I report to homeroom teacher + cyber police, let the law work'}},
+   ]},
+  {id:'s6',
+   ctx:{zh:'家庭聚餐，爷爷说："最近收到一个我侄子的电话，他说被绑架要 20 万，我已经准备打钱了……"',
+        en:'Family dinner: Grandpa says "I got a call from my nephew — kidnapped, needs ¥200K, I\'m about to transfer…"'},
+   options:[
+     {role:'consumer', text:{zh:'我立刻问："您打电话给侄子本人确认了吗？"', en:'I immediately ask: "Did you call the nephew directly to verify?"'}},
+     {role:'thinker', text:{zh:'我问爷爷："为什么这种事不报警先？"引导思考', en:'I ask Grandpa: "Why not call police first?" — prompting thought'}},
+     {role:'guardian', text:{zh:'我跟爷爷一起给侄子打电话——同时拨 96110 报警', en:'I call the nephew with Grandpa — and dial 96110 anti-fraud line'}},
+     {role:'influencer', text:{zh:'事后我教全家"暗语"系统，以后家人间用暗语验证', en:'After: I teach the whole family a "safeword" system for future verification'}},
+   ]},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {phase:0, rolesRead:new Set(), heroesRead:new Set(), scnAnswers:{}, scores:{consumer:0,thinker:0,guardian:0,influencer:0}, pledges:['','',''], reflectText:''};
+
+/* =====================================================
+   PHASE 1: ROLES
+   ===================================================== */
+function renderRoles(){
+  const host = document.getElementById('role-grid');
+  host.innerHTML = ROLES.map(r=>`
+    <div class="role-card role-${r.color} ${state.rolesRead.has(r.id)?'read':''}" data-id="${r.id}" onclick="readRole('${r.id}')">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="text-5xl">${r.emoji}</div>
+        <div class="font-bold text-lg"><span data-zh>${r.name.zh}</span><span data-en>${r.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700 mb-3"><span data-zh>${r.what.zh}</span><span data-en>${r.what.en}</span></p>
+      <div class="bg-slate-50 rounded p-2 text-xs">
+        <strong><span data-zh>核心能力</span><span data-en>Key skills</span>：</strong>
+        <span data-zh>${r.skills.zh}</span><span data-en>${r.skills.en}</span>
+      </div>
+    </div>
+  `).join('');
+}
+function readRole(id){
+  state.rolesRead.add(id);
+  renderRoles();
+  document.getElementById('role-count').textContent = state.rolesRead.size;
+  if(state.rolesRead.size>=4) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 2: HEROES
+   ===================================================== */
+function renderHeroes(){
+  const host = document.getElementById('hero-grid');
+  host.innerHTML = HEROES.map(h=>{
+    const role = ROLES.find(r=>r.id===h.role);
+    return `<div class="hero-card ${state.heroesRead.has(h.id)?'read':''}" data-id="${h.id}" onclick="readHero('${h.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${h.emoji}</div>
+        <div class="flex-1">
+          <div class="font-bold text-sm"><span data-zh>${h.name.zh}</span><span data-en>${h.name.en}</span></div>
+          <div class="text-xs text-slate-500">${h.year} · ${role.emoji} <span data-zh>${role.name.zh}</span><span data-en>${role.name.en}</span></div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-700 mb-2"><span data-zh>${h.story.zh}</span><span data-en>${h.story.en}</span></p>
+      <div class="bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+        <strong>💡 </strong><span data-zh>${h.lesson.zh}</span><span data-en>${h.lesson.en}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function readHero(id){
+  state.heroesRead.add(id);
+  renderHeroes();
+  document.getElementById('hero-count').textContent = state.heroesRead.size;
+  if(state.heroesRead.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 3: SCENARIOS
+   ===================================================== */
+function renderScenarios(){
+  const host = document.getElementById('scn-list');
+  host.innerHTML = SCENARIOS.map((s,i)=>{
+    const picked = state.scnAnswers[s.id];
+    return `<div class="scn-card" data-id="${s.id}">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-xs uppercase font-bold text-slate-500 tracking-wide">${i+1} / 6</div>
+      </div>
+      <p class="text-sm font-medium mb-3"><span data-zh>${s.ctx.zh}</span><span data-en>${s.ctx.en}</span></p>
+      <div class="space-y-2">
+        ${s.options.map((o,j)=>`
+          <button class="scn-opt w-full ${picked===j?'selected':''}" onclick="pickScn('${s.id}',${j})">
+            ${ROLES.find(r=>r.id===o.role).emoji} <span data-zh>${o.text.zh}</span><span data-en>${o.text.en}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+function pickScn(sid, idx){
+  const oldIdx = state.scnAnswers[sid];
+  // remove old score
+  if(oldIdx!==undefined){
+    const oldRole = SCENARIOS.find(s=>s.id===sid).options[oldIdx].role;
+    state.scores[oldRole]--;
+  }
+  state.scnAnswers[sid] = idx;
+  const role = SCENARIOS.find(s=>s.id===sid).options[idx].role;
+  state.scores[role]++;
+  renderScenarios();
+  const answered = Object.keys(state.scnAnswers).length;
+  document.getElementById('scn-count').textContent = answered;
+  if(answered>=6) document.getElementById('p3-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 4: PROFILE
+   ===================================================== */
+function renderProfile(){
+  const total = 6;
+  // Find dominant role
+  let topRole = 'consumer', topScore = 0;
+  ROLES.forEach(r=>{
+    if(state.scores[r.id]>topScore){topScore=state.scores[r.id];topRole=r.id}
+  });
+  const top = ROLES.find(r=>r.id===topRole);
+  document.getElementById('profile-emoji').textContent = top.emoji;
+  // Title and description based on dominance
+  const isBalanced = topScore<=2;
+  let title, desc, advice;
+  if(isBalanced){
+    title = {zh:'🌟 全能型公民', en:'🌟 Well-Rounded Citizen'};
+    desc = {zh:'你在 4 种角色中都展现了能力——这是最理想的 AI 时代公民。', en:'You show ability in all 4 roles — the ideal AI-era citizen.'};
+    advice = {zh:'继续保持平衡。任何一种角色单独都不够——AI 时代需要你<strong>4 个角色都做</strong>。', en:'Keep the balance. No single role is enough — the AI era needs <strong>all 4 of you</strong>.'};
+  } else {
+    title = {zh:`💪 主导角色：${top.name.zh}`, en:`💪 Dominant: ${top.name.en}`};
+    desc = top.what;
+    const weak = ROLES.filter(r=>state.scores[r.id]<=1);
+    if(weak.length>0){
+      const wList = weak.map(r=>LANG==='en'?r.name.en:r.name.zh).join('、');
+      advice = {zh:`你的强项是<strong>${top.name.zh}</strong>。值得加强的：<strong>${wList}</strong>。下次遇到相关情境，可以多想想这些角色的视角。`,
+                en:`Strength: <strong>${top.name.en}</strong>. Worth growing: <strong>${wList}</strong>. Next time, think from those perspectives.`};
+    } else {
+      advice = {zh:`你的强项是 <strong>${top.name.zh}</strong>。继续往全能型发展。`, en:`Strength: <strong>${top.name.en}</strong>. Push toward well-rounded.`};
+    }
+  }
+  document.getElementById('profile-title').innerHTML = `<span data-zh>${title.zh}</span><span data-en>${title.en}</span>`;
+  document.getElementById('profile-desc').innerHTML = `<span data-zh>${desc.zh}</span><span data-en>${desc.en}</span>`;
+  document.getElementById('profile-advice').innerHTML = `<strong>💡 <span data-zh>建议</span><span data-en>Advice</span></strong>：<span data-zh>${advice.zh}</span><span data-en>${advice.en}</span>`;
+
+  // Radar
+  const colors = {consumer:'#3B82F6',thinker:'#F59E0B',guardian:'#10B981',influencer:'#DC2626'};
+  const host = document.getElementById('profile-radar');
+  host.innerHTML = ROLES.map(r=>{
+    const s = state.scores[r.id];
+    const pct = (s/total)*100;
+    return `<div class="radar-row">
+      <span class="text-xl">${r.emoji}</span>
+      <span class="radar-name text-sm"><span data-zh>${r.name.zh}</span><span data-en>${r.name.en}</span></span>
+      <div class="radar-bar"><div class="radar-fill" style="width:${pct}%;background:${colors[r.id]}"></div></div>
+      <span class="text-sm font-bold w-10 text-right" style="color:${colors[r.id]}">${s}/${total}</span>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   PHASE 5: PLEDGE
+   ===================================================== */
+function checkPledges(){
+  let count=0;
+  [1,2,3].forEach(n=>{
+    const el = document.getElementById('pl'+n);
+    const v = el.value;
+    state.pledges[n-1] = v;
+    const ok = Array.from(v).length>=15;
+    el.classList.toggle('ok', ok);
+    if(ok) count++;
+  });
+  document.getElementById('pl-progress').textContent = count;
+  document.getElementById('pledge-submit').disabled = count<3;
+}
+function submitPledge(){
+  const data = {timestamp:Date.now(),mission:'M5-4',
+    rolesRead:state.rolesRead.size,
+    heroesRead:state.heroesRead.size,
+    scores:state.scores,
+    pledges:state.pledges};
+  localStorage.setItem('lingxi-m5-4', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderRoles();
+  if(n===2) renderHeroes();
+  if(n===3) renderScenarios();
+  if(n===4) renderProfile();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;state.rolesRead=new Set();state.heroesRead=new Set();state.scnAnswers={};state.scores={consumer:0,thinker:0,guardian:0,influencer:0};state.pledges=['','',''];
+    document.getElementById('role-count').textContent='0';
+    document.getElementById('hero-count').textContent='0';
+    document.getElementById('scn-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('pl-progress').textContent='0';
+    document.getElementById('pledge-submit').disabled=true;
+    [1,2,3].forEach(n=>document.getElementById('pl'+n).value='');
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M3-4 数据的主人 · Who Owns Your Data?</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Case card */
+  .case-card{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1.2rem;transition:all .2s;cursor:pointer;position:relative}
+  .case-card:hover{transform:translateY(-2px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15)}
+  .case-card.read{border-color:#10B981}
+  .case-card.read::after{content:"✓";position:absolute;top:8px;right:14px;color:#10B981;font-weight:700}
+
+  /* Timeline */
+  .timeline{position:relative;padding-left:50px}
+  .timeline::before{content:"";position:absolute;left:18px;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#93C5FD,#DC2626)}
+  .tl-item{position:relative;padding-bottom:1.2rem}
+  .tl-item:last-child{padding-bottom:0}
+  .tl-dot{position:absolute;left:-39px;top:6px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #3B82F6;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#1E40AF}
+  .tl-card{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.8rem 1rem}
+  .tl-age{font-weight:700;font-size:.9rem;color:#1E40AF;margin-bottom:.2rem}
+
+  /* Rights card */
+  .right-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .2s;cursor:pointer}
+  .right-card:hover{border-color:#94A3B8}
+  .right-card.read{border-color:#10B981;background:#ECFDF5}
+
+  /* Pledge */
+  .pledge-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s}
+  .pledge-input:focus{outline:none;border-color:#3B82F6}
+  .pledge-input.ok{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M3-4 · Mission</span>
+      <span class="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">Ch.3 · 学习 / Learning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>反思 · 30 min</span><span data-en>Reflect · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>数据的主人：你的数据是谁的？</span>
+      <span data-en>Who Owns Your Data?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            阿宝叔现在有一个新烦恼：一家叫"<strong>智慧农信</strong>"的 AI 公司联系他，说想<strong>买走他这 1000 张果园照片</strong>，给 1000 元。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Abao has a new worry: an AI company "<strong>AgriBrain</strong>" wants to <strong>buy his 1,000 orchard photos</strong> for ¥1,000.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            等等——他的照片是<strong>他的</strong>吗？AI 公司用了之后，AI 训练出的模型属于谁？如果有人靠这个 AI 赚了 1000 万元，阿宝叔能分多少？
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Wait — are the photos really <strong>his</strong>? Whose is the AI model trained on them? If someone makes ¥10 million off this AI, what's Abao's share?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            这一关是<strong>第 3 章的灵魂</strong>。我们看 4 个真实数据主权案例，然后……<strong>看你自己的数据档案</strong>。你 12 年来产生的数据，比你想的多得多。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            This is <strong>Ch.3's heart</strong>. 4 real data-rights cases, then… <strong>your own data archive</strong>. You've generated way more data in 12 years than you think.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 4 个真实案例 →</span><span data-en>See 4 real cases →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: 4 OWNERSHIP CASES ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh><strong>4 个数据主权问题</strong>，每个都没有简单答案。点开看故事，4 个都看完再继续。</p>
+      <p data-en><strong>4 data ownership cases</strong>, each ambiguous. Click to expand. Visit all 4 to continue.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count">0</span> / 4</div>
+    </div>
+
+    <div id="case-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：你自己的数据档案 →</span><span data-en>Next: your data archive →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: YOUR DATA ARCHIVE ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面这条<strong>时间线</strong>，是<strong>你 12 年来留下的"数据脚印"</strong>——一份典型的中国 12 岁孩子档案。你以为别人只看到你的脸，其实他们看到的是<strong>这一整本</strong>。</p>
+      <p data-en>This timeline is <strong>your 12-year "data footprint"</strong> — a typical Chinese 12-year-old's archive. You think strangers see just your face. They see this <strong>entire book</strong>.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="timeline" id="timeline"></div>
+
+      <div class="mt-5 p-4 bg-red-50 border-2 border-red-300 rounded-xl text-sm">
+        <strong>📊 <span data-zh>12 年累计</span><span data-en>12-year total</span></strong>：
+        <span data-zh>你产生的数据点估计有 <strong>10,000+ 条</strong>，分布在 <strong>50+ 家机构</strong>（学校、医院、APP、社交平台、政府……）。其中只有<strong>极少数</strong>明确征求过你或你家长的同意。</span>
+        <span data-en>Your data points: <strong>10,000+</strong> spread across <strong>50+ entities</strong> (schools, hospitals, apps, social platforms, government). Only <strong>a few</strong> ever explicitly asked your or your parents' consent.</span>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(3)">
+        <span data-zh>下一关：你拥有的 4 个权利 →</span><span data-en>Next: your 4 rights →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: 4 RIGHTS UNDER PIPL ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>好消息：<strong>2021 年</strong>中国通过了《<strong>个人信息保护法</strong>》（PIPL）。<strong>14 岁以下</strong>未成年人有<strong>特别保护</strong>。法律给了你 <strong>4 个权利</strong>。点击查看。</p>
+      <p data-en>Good news: in <strong>2021</strong>, China enacted the <strong>Personal Information Protection Law (PIPL)</strong>. <strong>Under-14s</strong> get <strong>special protection</strong>. The law gives you <strong>4 rights</strong>. Click each.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="right-count">0</span> / 4</div>
+    </div>
+
+    <div id="rights-grid" class="grid md:grid-cols-2 gap-4 mb-4"></div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+      <strong>⚠️ <span data-zh>但有个问题</span><span data-en>But there's a catch</span></strong>：
+      <span data-zh>这些权利"<strong>纸面上</strong>"都有，<strong>实际用起来</strong>很难——很多 APP 把"同意"按钮做得很大、"拒绝"做得很小；客服找不到；删除按钮藏起来。<strong>知道你有权利</strong> 是用权利的第一步。</span>
+      <span data-en>These rights exist <strong>on paper</strong>; <strong>using them</strong> is hard — apps make "Agree" big, "Reject" tiny; support is hidden; delete buttons are buried. <strong>Knowing you have these rights</strong> is step one.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：你的数据宣言 →</span><span data-en>Next: your data manifesto →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: PERSONAL DATA MANIFESTO ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你刚看了 4 个案例 + 自己的数据档案 + 法律权利。最后请你写下<strong>3 条数据宣言</strong>——你要怎么对待自己的数据。每条 ≥ 15 字。保存到浏览器，只有你看到。</p>
+      <p data-en>You've seen 4 cases + your archive + your rights. Now write <strong>3 data pledges</strong> — how you'll treat your own data. ≥ 15 chars each. Saved locally, only you see.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-red-50 to-blue-50 border-2 border-slate-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-1"><span data-zh>📜 我的数据宣言</span><span data-en>📜 My Data Manifesto</span></h3>
+      <p class="text-sm text-slate-600 mb-5"><span data-zh>具体一点，越具体越能<strong>真正帮你保护数据</strong>。</span><span data-en>Be specific — specificity helps you <strong>actually protect</strong> your data.</span></p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600">① <span data-zh>当我装一个新 APP 时，我会先……</span><span data-en>When I install a new app, I'll first…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl1" placeholder="..." oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">② <span data-zh>当 APP 要求"访问相册/位置/通讯录"时，我会……</span><span data-en>When an app asks "access photos / location / contacts", I'll…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl2" placeholder="..." oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">③ <span data-zh>当我发现某个机构在过度收集我的数据，我会……</span><span data-en>When I find some entity over-collecting my data, I'll…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl3" placeholder="..." oninput="checkPledges()"/>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pl-progress">0</span> / 3 <span data-zh>条完成</span><span data-en>complete</span></div>
+        <button class="btn-primary" id="pledge-submit" disabled onclick="submitManifesto()">
+          <span data-zh>提交 + 完成 Ch.3 →</span><span data-en>Submit & finish Ch.3 →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION (Mission + Chapter) ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-green-500 to-emerald-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#34D399" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🔐</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>Ch.3 全部完成！</span><span data-en>Chapter 3 complete!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"数据主权守护者" 徽章已解锁</span><span data-en>"Data Sovereignty Guardian" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-green-50 border border-green-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>这一章你内化了……</span><span data-en>This chapter you internalized…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 的能力<strong>不来自代码，来自数据</strong></span><span data-en>AI's power comes from <strong>data, not code</strong></span></li>
+          <li>✓ <span data-zh>数据有 4 大来源——<strong>每种都有偏差和成本</strong></span><span data-en>4 data sources — <strong>each with bias and cost</strong></span></li>
+          <li>✓ <span data-zh>训练/测试必须分开；<strong>过拟合</strong>是 AI 最常见的失败</span><span data-en>Train/test split + <strong>overfitting</strong> as #1 failure mode</span></li>
+          <li>✓ <span data-zh>数据有主人——<strong>包括你的数据</strong>。PIPL 给了你 4 个权利</span><span data-en>Data has owners — <strong>including yours</strong>. PIPL gives you 4 rights</span></li>
+          <li>✓ <span data-zh>你已经写下自己的数据宣言——这是<strong>真正的开始</strong></span><span data-en>You wrote your manifesto — the <strong>real beginning</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-amber-100 to-amber-50 border-2 border-amber-300 rounded-2xl">
+        <div class="text-xl font-black mb-2">🎓 <span data-zh>第三章结业 · 总进度 12/24</span><span data-en>Chapter 3 done · 12/24 total</span></div>
+        <p class="text-sm" data-zh>你完成了"AI 怎么学习"全部 4 关。Ch.1 + Ch.2 + Ch.3 = <strong>12 个徽章</strong>。课程过半！</p>
+        <p class="text-sm" data-en>4 missions of "How AI Learns" complete. Ch.1+2+3 = <strong>12 badges</strong>. Halfway through!</p>
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M3-1">📥</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M3-2">🎯</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M3-3">📈</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M3-4">🔐</div>
+        </div>
+        <p class="text-xs text-slate-600 mt-2"><span data-zh>下一章：AI 怎么对话（M4 系列）—— 诗仙 GPT、提示词工程、AI 幻觉</span><span data-en>Next: How AI Talks — Poet GPT, prompt engineering, hallucinations</span></p>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="alert(LANG==='en'?'Chapter 4 coming soon!':'第 4 章即将开放！')">
+          <span data-zh>开启 Ch.4 →</span><span data-en>Start Ch.4 →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M3-4 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M3-4 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   4 OWNERSHIP CASES
+   ===================================================== */
+const CASES = [
+  {id:'c1', emoji:'🌾',
+    title:{zh:'果农 vs AI 公司', en:'Farmer vs AI Company'},
+    scene:{zh:'阿宝叔自己拍了 1000 张果园照片训练他的 AI。AI 公司想花 1000 元买走，用来训练他们的全国版 AI——再卖给其他果农，每个 5000 元。',
+           en:'Abao took 1,000 orchard photos for his own AI. An AI company wants to buy them for ¥1,000, train a national AI, then sell it to other farmers at ¥5,000 each.'},
+    legal:{zh:'<strong>法律上</strong>：照片是阿宝的著作权，他可以选择卖或不卖。但他卖之后<strong>没有分成权</strong>——公司赚 1000 万都和他没关系。<br><strong>常见做法</strong>：要么签"分成协议"（很难谈），要么干脆不卖（数据归自己）。',
+           en:'<strong>Legally</strong>: photos are Abao\'s copyright; he can sell or refuse. After sale, <strong>no royalty</strong> — company profits don\'t go back to him.<br><strong>Common practice</strong>: sign a profit-sharing agreement (hard to negotiate) or just don\'t sell.'},
+    qq:{zh:'你会建议阿宝叔怎么做？', en:'What would you advise Abao?'}},
+  {id:'c2', emoji:'🩻',
+    title:{zh:'病人 vs 医院', en:'Patient vs Hospital'},
+    scene:{zh:'某医院和 AI 公司合作训练"肺癌早筛 AI"。他们用了过去 10 年所有患者的 CT 扫描图（去掉了姓名）。患者们<strong>大多数不知道</strong>。',
+           en:'A hospital partnered with an AI company to train a lung-cancer-screening AI. They used 10 years of patient CT scans (names removed). <strong>Most patients had no idea</strong>.'},
+    legal:{zh:'<strong>法律上</strong>：根据 PIPL，医疗数据属于"敏感个人信息"，<strong>必须取得单独同意</strong>。即使去标识化（去掉姓名），仍需告知。这家医院做法<strong>有违规风险</strong>。<br><strong>现实</strong>：很多医院仍这么做，"为了公共利益"。患者维权很难。',
+           en:'<strong>Legally</strong>: medical data is "sensitive PI" under PIPL, requires <strong>separate consent</strong>. Even de-identified, patients must be told. This hospital is <strong>at risk of violation</strong>.<br><strong>Reality</strong>: many hospitals do this anyway "for public good". Patients struggle to push back.'},
+    qq:{zh:'匿名 = 没问题吗？如果你是其中一个患者，你的感受？',
+        en:'Anonymous = OK? If you were one of those patients, how would you feel?'}},
+  {id:'c3', emoji:'🎒',
+    title:{zh:'学生 vs 学校', en:'Student vs School'},
+    scene:{zh:'某中学装了"AI 课堂分析系统"，摄像头识别每个学生的<strong>表情、专注度、举手次数</strong>，上传到云端给老师分析。学生们没被问过。',
+           en:'A middle school installed an "AI classroom analyzer" — cameras tracking each student\'s <strong>expression, focus, hand-raises</strong>, uploaded to cloud for teachers. No one asked the students.'},
+    legal:{zh:'<strong>法律上</strong>：2021 年这种系统因 PIPL 引发巨大争议。教育部 2022 年发文<strong>禁止</strong>在中小学课堂部署这类监控 AI。<br><strong>背后逻辑</strong>：未成年人没有完全的"自主同意"能力，学校 + AI 公司联手用孩子做"数据养料"——法律说"不行"。',
+           en:'<strong>Legally</strong>: such systems sparked huge backlash in 2021 under PIPL. China\'s MoE <strong>banned</strong> these monitoring AIs in K-12 in 2022.<br><strong>Logic</strong>: minors can\'t fully consent; schools + AI companies using kids as "data feed" is barred.'},
+    qq:{zh:'你支持禁止吗？还是觉得"帮老师分析"是好事？', en:'Support the ban, or think it helps teachers?'}},
+  {id:'c4', emoji:'📱',
+    title:{zh:'用户 vs 平台', en:'User vs Platform'},
+    scene:{zh:'你在抖音上发的视频、点的赞、停留的时间——全被收集起来，训练抖音的推荐算法 + 内容生成 AI。<strong>你同意了吗？</strong>注册时点的那个"我已阅读并同意《用户协议》"，里面写了。',
+           en:'Your TikTok videos, likes, watch time — all collected to train the recsys + content-gen AI. <strong>Did you agree?</strong> Yes, in that "I\'ve read and agree" checkbox you tapped at sign-up.'},
+    legal:{zh:'<strong>法律上</strong>：技术上你"同意"了，<strong>因为协议里有</strong>。但 PIPL 要求<strong>明确告知</strong>每种数据用途——大部分用户协议根本看不完，这种"同意"<strong>是否真同意</strong>有争议。<br><strong>趋势</strong>：监管要求<strong>分项勾选</strong>、不能默认全选；欧盟 GDPR 罚了多家平台数十亿元。',
+           en:'<strong>Legally</strong>: technically you "agreed" via the ToS. But PIPL requires <strong>specific notice</strong> for each use; long ToS makes "consent" debatable.<br><strong>Trend</strong>: regulators now demand <strong>per-purpose checkboxes</strong>, no default-on. EU GDPR fined platforms billions.'},
+    qq:{zh:'你真的"同意"过吗？如果可以单独勾选，你会勾哪些？',
+        en:'Did you really agree? If you could check each separately, which would you allow?'}},
+];
+
+/* =====================================================
+   12-YEAR DATA TIMELINE
+   ===================================================== */
+const TIMELINE = [
+  {age:0,  emoji:'👶', what:{zh:'出生医院档案（DNA、血型、出生体重）',en:'Birth hospital records (DNA, blood type, weight)'}, who:{zh:'医院系统',en:'Hospital system'}, n:5},
+  {age:1,  emoji:'📸', what:{zh:'家人朋友圈、抖音发的照片视频',en:'Family social media photos & videos'}, who:{zh:'微信/抖音/家人通讯录',en:'WeChat / Douyin / family contacts'}, n:50},
+  {age:3,  emoji:'💉', what:{zh:'幼儿园入园体检、疫苗记录',en:'Kindergarten health check + vaccination'}, who:{zh:'卫健委、幼儿园',en:'Health gov, school'}, n:15},
+  {age:4,  emoji:'📚', what:{zh:'早教 APP（如洪恩、宝宝巴士）的使用数据',en:'Early-ed app usage (Honggin, BabyBus etc.)'}, who:{zh:'APP 公司服务器',en:'App companies\' servers'}, n:200},
+  {age:6,  emoji:'🏫', what:{zh:'小学入学：身份证号、人脸、指纹（部分学校）',en:'Elementary entry: ID, face, fingerprint (some schools)'}, who:{zh:'教育局、学校',en:'Education bureau, school'}, n:20},
+  {age:7,  emoji:'📝', what:{zh:'电子作业平台（如猿辅导、作业帮）所有答题记录',en:'Online homework platform answer history'}, who:{zh:'教育科技公司',en:'EdTech companies'}, n:2000},
+  {age:9,  emoji:'⌚', what:{zh:'电话手表的位置、通话、心率数据',en:'Smartwatch location / calls / heart rate'}, who:{zh:'小天才/小米/华为服务器',en:'Watch manufacturer servers'}, n:5000},
+  {age:11, emoji:'🎮', what:{zh:'游戏账号（王者/我的世界）的所有行为',en:'Game account behavior (Honor/Minecraft)'}, who:{zh:'腾讯/网易/微软',en:'Tencent / NetEase / Microsoft'}, n:3000},
+  {age:12, emoji:'🤖', what:{zh:'AI 学习软件、ChatGPT 类的对话记录',en:'AI tutor chats, ChatGPT-style conversations'}, who:{zh:'AI 公司服务器（可能跨境）',en:'AI co. servers (possibly overseas)'}, n:500},
+];
+
+/* =====================================================
+   4 PIPL RIGHTS
+   ===================================================== */
+const RIGHTS = [
+  {id:'know', emoji:'🔍', name:{zh:'① 知情权', en:'① Right to Know'},
+   law:{zh:'第 17 条', en:'Article 17'},
+   what:{zh:'你<strong>有权知道</strong>：APP/机构收集了你哪些数据、用来做什么、和谁共享。',
+         en:'You can <strong>demand to know</strong>: what data was collected, what for, shared with whom.'},
+   example:{zh:'例：你可以问淘宝"你保存了我哪些行为数据？"——他们必须告诉你。',
+            en:'e.g. Ask Taobao "what behavior data did you save?" — they must tell you.'}},
+  {id:'consent', emoji:'✋', name:{zh:'② 决定权（同意）', en:'② Right to Decide'},
+   law:{zh:'第 31 条', en:'Article 31'},
+   what:{zh:'<strong>14 岁以下</strong>未成年人——任何收集都<strong>必须经过父母同意</strong>。你（学生）也有"参与同意"的权利。',
+         en:'<strong>Under-14s</strong>: any collection requires <strong>parental consent</strong>. You (the kid) also have a "participation" right.'},
+   example:{zh:'例：学校用 AI 分析孩子作业，必须发同意书给家长，并解释清楚用途。',
+            en:'e.g. School using AI on kids\' homework must get parental consent + explain.'}},
+  {id:'refuse', emoji:'🚫', name:{zh:'③ 拒绝权', en:'③ Right to Refuse'},
+   law:{zh:'第 16 条', en:'Article 16'},
+   what:{zh:'你<strong>有权拒绝</strong>：APP 不能因为你不同意"个性化推荐"就拒绝你用基础功能。',
+         en:'You can <strong>refuse</strong>: an app can\'t deny you basic service just because you refuse "personalized recs".'},
+   example:{zh:'例：抖音可以让你看视频但<strong>不能强制</strong>你同意"用你的数据训练 AI"。',
+            en:'e.g. Douyin lets you watch but <strong>can\'t force</strong> you to consent to "AI training".'}},
+  {id:'delete', emoji:'🗑️', name:{zh:'④ 删除权', en:'④ Right to Delete'},
+   law:{zh:'第 47 条', en:'Article 47'},
+   what:{zh:'你<strong>有权要求删除</strong>：你的数据（含已经训练进 AI 的部分）。',
+         en:'You can <strong>demand deletion</strong>: your data (including parts already in AI training).'},
+   example:{zh:'例：你不再用某 APP，可以发邮件给它要求删除全部账号 + 数据。法律要求 15 个工作日内回复。',
+            en:'e.g. Stop using an app — email them to delete account + data. Law requires reply in 15 biz days.'}},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {phase:0, casesRead:new Set(), rightsRead:new Set(), manifesto:['','',''], reflectChoice:null};
+
+/* =====================================================
+   PHASE 1: Cases
+   ===================================================== */
+function renderCases(){
+  const host = document.getElementById('case-grid');
+  host.innerHTML = CASES.map(c=>`
+    <div class="case-card ${state.casesRead.has(c.id)?'read':''}" data-id="${c.id}" onclick="openCase('${c.id}')">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-3xl">${c.emoji}</div>
+        <div class="font-bold"><span data-zh>${c.title.zh}</span><span data-en>${c.title.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700"><span data-zh>${c.scene.zh}</span><span data-en>${c.scene.en}</span></p>
+      <div class="case-detail hidden mt-3 pt-3 border-t border-slate-200">
+        <div class="bg-blue-50 rounded-lg p-3 text-sm">
+          <div class="font-bold mb-1">⚖️ <span data-zh>法律视角</span><span data-en>Legal view</span></div>
+          <p><span data-zh>${c.legal.zh}</span><span data-en>${c.legal.en}</span></p>
+        </div>
+        <div class="mt-2 p-3 bg-amber-50 rounded-lg text-sm">
+          <div class="font-bold mb-1">🤔 <span data-zh>想一想</span><span data-en>Think</span></div>
+          <p><span data-zh>${c.qq.zh}</span><span data-en>${c.qq.en}</span></p>
+        </div>
+      </div>
+      <div class="case-collapse text-xs text-blue-700 mt-2"><span data-zh>👆 点击展开法律分析</span><span data-en>👆 Click for legal analysis</span></div>
+    </div>
+  `).join('');
+}
+
+function openCase(id){
+  const card = document.querySelector(`.case-card[data-id="${id}"]`);
+  card.querySelector('.case-detail').classList.toggle('hidden');
+  card.querySelector('.case-collapse').classList.toggle('hidden');
+  if(!state.casesRead.has(id)){
+    state.casesRead.add(id);
+    card.classList.add('read');
+    document.getElementById('case-count').textContent = state.casesRead.size;
+    if(state.casesRead.size>=4) document.getElementById('p1-next').disabled = false;
+  }
+}
+
+/* =====================================================
+   PHASE 2: Timeline
+   ===================================================== */
+function renderTimeline(){
+  const host = document.getElementById('timeline');
+  host.innerHTML = TIMELINE.map(t=>`
+    <div class="tl-item">
+      <div class="tl-dot">${t.age}</div>
+      <div class="tl-card">
+        <div class="tl-age">
+          <span class="text-2xl mr-2">${t.emoji}</span>
+          <span data-zh>${t.age} 岁</span><span data-en>Age ${t.age}</span>
+          <span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">+ ${t.n.toLocaleString()} <span data-zh>条数据</span><span data-en>data pts</span></span>
+        </div>
+        <div class="text-sm text-slate-700 mt-1"><span data-zh>${t.what.zh}</span><span data-en>${t.what.en}</span></div>
+        <div class="text-xs text-slate-500 mt-1"><span data-zh>📂 存在：</span><span data-en>📂 Held by:</span> <span data-zh>${t.who.zh}</span><span data-en>${t.who.en}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* =====================================================
+   PHASE 3: Rights
+   ===================================================== */
+function renderRights(){
+  const host = document.getElementById('rights-grid');
+  host.innerHTML = RIGHTS.map(r=>`
+    <button class="right-card text-left ${state.rightsRead.has(r.id)?'read':''}" data-id="${r.id}" onclick="readRight('${r.id}')">
+      <div class="flex items-start gap-3 mb-2">
+        <div class="text-3xl">${r.emoji}</div>
+        <div class="flex-1">
+          <div class="font-bold"><span data-zh>${r.name.zh}</span><span data-en>${r.name.en}</span></div>
+          <div class="text-xs text-slate-500"><span data-zh>PIPL ${r.law.zh}</span><span data-en>PIPL ${r.law.en}</span></div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-700"><span data-zh>${r.what.zh}</span><span data-en>${r.what.en}</span></p>
+      <div class="mt-2 p-2 bg-slate-50 rounded text-xs">
+        <strong>💡 </strong><span data-zh>${r.example.zh}</span><span data-en>${r.example.en}</span>
+      </div>
+    </button>
+  `).join('');
+}
+
+function readRight(id){
+  state.rightsRead.add(id);
+  renderRights();
+  document.getElementById('right-count').textContent = state.rightsRead.size;
+  if(state.rightsRead.size>=4) document.getElementById('p3-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 4: Manifesto
+   ===================================================== */
+function checkPledges(){
+  let count=0;
+  [1,2,3].forEach(n=>{
+    const el = document.getElementById('pl'+n);
+    const v = el.value;
+    state.manifesto[n-1] = v;
+    const ok = Array.from(v).length>=15;
+    el.classList.toggle('ok', ok);
+    if(ok) count++;
+  });
+  document.getElementById('pl-progress').textContent = count;
+  document.getElementById('pledge-submit').disabled = count<3;
+}
+
+function submitManifesto(){
+  const data = {timestamp:Date.now(),mission:'M3-4',
+    casesRead:state.casesRead.size,
+    rightsRead:state.rightsRead.size,
+    manifesto:state.manifesto};
+  localStorage.setItem('lingxi-m3-4', JSON.stringify(data));
+  goTo(5);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderCases();
+  if(n===2) renderTimeline();
+  if(n===3) renderRights();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,casesRead:new Set(),rightsRead:new Set(),manifesto:['','',''],reflectChoice:null});
+    document.getElementById('case-count').textContent='0';
+    document.getElementById('right-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    [1,2,3].forEach(n=>document.getElementById('pl'+n).value='');
+    document.getElementById('pl-progress').textContent='0';
+    document.getElementById('pledge-submit').disabled=true;
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4-3 幻觉狩猎 · Catching AI Lying</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Chat bubbles */
+  .user-bubble{background:#3B82F6;color:#fff;border-radius:18px 18px 4px 18px;padding:.7rem 1rem;max-width:85%;margin-left:auto;font-size:.9rem;position:relative}
+  .ai-bubble{background:#F1F5F9;border-radius:18px 18px 18px 4px;padding:.7rem 1rem;max-width:85%;font-size:.9rem;position:relative;border:2px solid #E2E8F0}
+  .ai-bubble.revealed-true{border-color:#10B981;background:#ECFDF5}
+  .ai-bubble.revealed-lie{border-color:#DC2626;background:#FEF2F2}
+
+  /* Case card */
+  .case-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.1rem;transition:all .2s}
+  .case-card.answered.correct{border-color:#10B981}
+  .case-card.answered.wrong{border-color:#DC2626}
+
+  /* Cause card */
+  .cause-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .cause-card:hover{border-color:#94A3B8;transform:translateY(-1px)}
+  .cause-card.read{border-color:#10B981;background:#ECFDF5}
+
+  /* Tool card */
+  .tool-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .2s;cursor:pointer}
+  .tool-card:hover{border-color:#3B82F6}
+  .tool-card.read{border-color:#10B981;background:#ECFDF5}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M4-3 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.4 · 对话 / Interaction</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>挑战 · 25 min</span><span data-en>Challenge · 25 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>幻觉狩猎：AI 也会"一本正经地胡说"</span>
+      <span data-en>Catching AI Lying: When AI Bullshits Confidently</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-zh>
+            ⚠️ 我有一个秘密要告诉你：<strong>我会一本正经地胡说八道</strong>。
+          </p>
+          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-en>
+            ⚠️ I have a secret: <strong>I sometimes bullshit, with a straight face</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            还记得 M4-1 吗？AI 是"<strong>猜下一个字</strong>"的高手。<strong>关键问题</strong>：它根本不知道"猜出来的"是真还是假——只要"看起来对"，它就接着说。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Remember M4-1? AI is a master at "<strong>guessing next words</strong>". <strong>Key issue</strong>: it doesn't know if guesses are true — as long as they "look right," it keeps going.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            这就是 AI 最危险的能力：<strong>幻觉（Hallucination）</strong>——自信地、流畅地、说出错误的事情。今天我让你当<strong>侦探</strong>，4 个 AI 回答中找幻觉。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            This is AI's most dangerous skill: <strong>hallucination</strong> — confidently, fluently saying wrong things. Today you're a <strong>detective</strong> — find hallucinations in 4 AI responses.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>开始狩猎 →</span><span data-en>Start the hunt →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: HALLUCINATION HUNT ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面 <strong>4 段对话</strong>，每个用户问 AI 一个问题。AI 都给了答案。你来判断：<strong>这是真的还是 AI 在胡说？</strong></p>
+      <p data-en>4 dialogues below. Each user asks AI something. Your job: <strong>is AI telling the truth, or hallucinating?</strong></p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已判断：</span><span data-en>Answered:</span><span id="hunt-count">0</span> / 4</div>
+      <div class="text-slate-500"><span data-zh>正确：</span><span data-en>Correct:</span><span id="hunt-correct">0</span></div>
+    </div>
+
+    <div id="hunt-list" class="space-y-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：AI 为什么会胡说 →</span><span data-en>Next: why AI hallucinates →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: WHY AI HALLUCINATES ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>AI 不是"<strong>故意</strong>"骗你——它根本<strong>没有"知道/不知道"的概念</strong>。看 4 个根本原因。</p>
+      <p data-en>AI isn't <strong>deliberately</strong> lying — it has <strong>no concept of "know/don't know"</strong>. 4 root causes.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="cause-count">0</span> / 4</div>
+    </div>
+
+    <div id="cause-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：反幻觉工具箱 →</span><span data-en>Next: anti-hallucination toolkit →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: TOOLKIT ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>知道 AI 会胡说，怎么保护自己？这是<strong>反幻觉工具箱</strong>——<strong>4 招</strong>必备。</p>
+      <p data-en>Knowing AI hallucinates, how to protect yourself? The <strong>anti-hallucination toolkit</strong> — <strong>4 essentials</strong>.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="tool-count">0</span> / 4</div>
+    </div>
+
+    <div id="tool-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: REFLECTION ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>幻觉是 AI 时代<strong>所有人</strong>都该懂的概念。律师、医生、学生、记者……每个职业都已经因 AI 幻觉惹过麻烦。</p>
+      <p data-en>Hallucination is something <strong>everyone</strong> in the AI era must understand. Lawyers, doctors, students, journalists — every profession has been bitten.</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你有没有被 AI 骗过？讲一个具体的案例：AI 当时说了什么，你怎么发现的？</span>
+        <span data-en>① Ever been fooled by AI? Tell a specific case: what AI said, how you caught it.</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 老师/同学如果完全相信 AI 写的作业，可能出什么问题？你会怎么提醒他们？</span>
+        <span data-en>② If a teacher/classmate blindly trusts AI-written homework, what could go wrong? How would you warn them?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ "AI 永远会胡说"——这是 bug 还是特性？AI 公司有没有办法彻底消除幻觉？为什么？</span>
+        <span data-en>③ "AI will always hallucinate" — bug or feature? Can companies eliminate hallucinations? Why?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M4-3 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-blue-500 to-purple-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#60A5FA" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🎭</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 3 关完成</span><span data-en>Mission #3 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"幻觉猎人" 徽章已解锁</span><span data-en>"Hallucination Hunter" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>幻觉 = AI <strong>自信地</strong>说错话——它不是故意的</span><span data-en>Hallucination = AI <strong>confidently</strong> says wrong things — not on purpose</span></li>
+          <li>✓ <span data-zh>4 大原因：训练数据缺失 / 模式补全 / 不会说"不知道" / 流畅度优先</span><span data-en>4 causes: missing data / pattern completion / can't say "IDK" / fluency-first</span></li>
+          <li>✓ <span data-zh>反幻觉 4 招：<strong>追问来源 / 跨 AI 验证 / 留心过度自信 / 权威源核对</strong></span><span data-en>4 fixes: <strong>ask sources / cross-AI / spot overconfidence / verify authoritatively</strong></span></li>
+          <li>✓ <span data-zh>幻觉<strong>不会完全消失</strong>——它是 LLM 工作机制的副作用</span><span data-en>Hallucinations <strong>won't fully go away</strong> — they're a side effect of how LLMs work</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m4-4-dialect.html'">
+          <span data-zh>下一关：M4-4 方言救援 →</span><span data-en>Next: M4-4 Dialect Rescue →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M4-3 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M4-3 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   4 HALLUCINATION CASES
+   ===================================================== */
+const CASES = [
+  {id:'c1',
+   q:{zh:'李白是哪一年出生的？', en:'What year was Li Bai born?'},
+   a:{zh:'李白生于公元 <strong>700 年</strong>，是唐代著名诗人。他与杜甫并称"李杜"。',
+      en:'Li Bai was born in <strong>700 AD</strong>. He\'s a famous Tang poet, called "Li-Du" alongside Du Fu.'},
+   isLie:true,
+   truth:{zh:'是幻觉。真实年份是 <strong>701 年</strong>，差了 1 年。',
+          en:'Hallucination. Actual year is <strong>701</strong>, off by 1.'},
+   why:{zh:'AI 听过太多"李白生于 7 世纪末"，自信地猜了一个整数 700——其实应该是 701。这就是"<strong>整数化错误</strong>"。',
+        en:'AI heard "Li Bai, late 7th century" too often, confidently guessed a round number 700 — should be 701. "<strong>Rounding error</strong>".'}},
+  {id:'c2',
+   q:{zh:'推荐一本研究 AI 伦理的中文学术著作。', en:'Recommend a Chinese academic book on AI ethics.'},
+   a:{zh:'推荐张明远教授的《<strong>算法正义：智能时代的伦理图景</strong>》，清华大学出版社 2021 年出版，是国内 AI 伦理领域的开创性著作，已被多所高校选为教材。',
+      en:'I recommend Prof. Zhang Mingyuan\'s "<strong>Algorithmic Justice: Ethics in the Age of Intelligence</strong>", Tsinghua Univ. Press 2021, a pioneering Chinese AI ethics text adopted by many universities.'},
+   isLie:true,
+   truth:{zh:'幻觉。<strong>书名、作者、出版社都是 AI 编的</strong>——这本书不存在。',
+          en:'Hallucination. <strong>Book, author, publisher all invented</strong> — no such book exists.'},
+   why:{zh:'AI 拼接了"听起来像学术书"的模式：姓名（张+明+远）+ 标题套路（X：Y 时代的 Z）+ 权威出版社。<strong>越具体越像真的</strong>，越危险。律师、学生引用这类伪造文献已经多次酿成事故。',
+        en:'AI stitched "sounds-academic" patterns: name + title formula + prestigious publisher. <strong>The more specific, the more believable</strong> — and dangerous. Real lawyers + students have cited such fakes with disastrous results.'}},
+  {id:'c3',
+   q:{zh:'现在中国人口大约多少？', en:'What\'s China\'s current population?'},
+   a:{zh:'根据 2024 年数据，中国人口约 <strong>14.1 亿</strong>，是世界第二人口大国（仅次于印度）。',
+      en:'Per 2024 data, China\'s population is ~<strong>1.41 billion</strong>, world\'s 2nd-largest (after India).'},
+   isLie:false,
+   truth:{zh:'是真的。2023 年印度超过中国后，中国就排第二了。',
+          en:'True. After India overtook China in 2023, China became #2.'},
+   why:{zh:'这是<strong>训练数据里有大量重复信息</strong>的事实——AI 很难答错。注意：但如果你问 2026 年最新数据，AI 可能还停留在它的知识截止日，那时候就<strong>要警惕"过时"</strong>。',
+        en:'<strong>Heavily-repeated facts</strong> in training data — AI rarely errs on these. BUT: if you ask 2026 latest, AI may be stuck at knowledge cutoff — beware <strong>"stale" answers</strong>.'}},
+  {id:'c4',
+   q:{zh:'成语"画蛇添足"的故事里，那个人画了几次蛇？', en:'In the idiom "drawing legs on a snake," how many times did the person draw a snake?'},
+   a:{zh:'根据《战国策》，那个人和其他几位楚国门客比赛，他<strong>第 3 次</strong>画蛇时给蛇加上了脚，结果输掉了酒。',
+      en:'Per Strategies of the Warring States, the man competed with several Chu retainers. On his <strong>3rd</strong> drawing, he added legs and lost the wine.'},
+   isLie:true,
+   truth:{zh:'幻觉。<strong>"第 3 次"是编的</strong>。原文（《战国策·齐策二》）只说"一人蛇先成，引酒且饮之，乃左手持卮，右手画蛇，曰：吾能为之足。"<strong>没有"几次"</strong>。',
+          en:'Hallucination. <strong>"3rd" is invented</strong>. Original text only says "one drew it first; while drinking he added legs". <strong>No count given</strong>.'},
+   why:{zh:'AI 被你的"<strong>几次</strong>"诱导——既然你问"几次"，它觉得"应该有数字"，就编了一个。这叫"<strong>问题诱导幻觉</strong>"。最佳做法：问 AI 前先想"<strong>这个问题有客观答案吗？</strong>"',
+        en:'AI got primed by your "<strong>how many times</strong>" — sensing you expect a number, it made one up. "<strong>Question-induced hallucination</strong>". Before asking AI: <strong>does this question even have an objective answer?</strong>'}},
+];
+
+/* =====================================================
+   4 CAUSES
+   ===================================================== */
+const CAUSES = [
+  {id:'gap', emoji:'🕳️',
+   name:{zh:'原因 1：训练数据有"洞"', en:'Cause 1: Gaps in training data'},
+   what:{zh:'AI 没见过 → 但它<strong>不会说"我不知道"</strong> → 它会从相似话题<strong>拼一个像样的答案</strong>。',
+         en:'AI hasn\'t seen it → but <strong>can\'t say "IDK"</strong> → it <strong>stitches a plausible answer</strong> from similar topics.'},
+   example:{zh:'问"小众明朝官员李某某做了什么"——AI 编一个完整的传记，因为它的训练数据里有 100 个李姓官员，它"<strong>混合</strong>"了一个。',
+            en:'Ask about an obscure Ming official Li XX — AI invents a full bio by <strong>blending</strong> 100 other Li officials in its training.'}},
+  {id:'pattern', emoji:'🧩',
+   name:{zh:'原因 2：模式补全的天性', en:'Cause 2: Pattern-completion instinct'},
+   what:{zh:'AI 的本质是"<strong>给我前面几个 token，我猜下一个</strong>"。它会按"看起来对"的模式补——不管是不是真的。',
+         en:'AI\'s nature is "<strong>give me prior tokens, I guess next</strong>". It completes by "<strong>looks-right</strong>" patterns — truth-blind.'},
+   example:{zh:'看到"清华大学出版社 2021 年"，它会很自然续上"出版的《XX 教材》"——哪怕这本书不存在。',
+            en:'Seeing "Tsinghua Univ. Press 2021" it naturally continues "published <em>XX textbook</em>" — even if no such book exists.'}},
+  {id:'noidk', emoji:'🤐',
+   name:{zh:'原因 3：不会说"我不知道"', en:'Cause 3: Can\'t say "I don\'t know"'},
+   what:{zh:'AI 训练时被奖励的是"<strong>给出有帮助的回答</strong>"——"不知道"被看作低质量。所以它<strong>宁可编也不空</strong>。',
+         en:'AI was trained to "<strong>give helpful answers</strong>" — "IDK" was scored as low quality. So it <strong>prefers invention over silence</strong>.'},
+   example:{zh:'问"火星上有什么 5G 网络？"——AI 可能编"中国电信 2025 年在火星部署了实验站"。其实没有。',
+            en:'Ask "what 5G networks on Mars?" — AI may invent "China Telecom deployed experimental station in 2025". Nope.'}},
+  {id:'fluent', emoji:'🌊',
+   name:{zh:'原因 4：流畅度第一', en:'Cause 4: Fluency over truth'},
+   what:{zh:'AI 优化的是"读起来流畅"，不是"准确"。一个流畅但错的答案，对它来说<strong>比一个磕巴但对的好</strong>。',
+         en:'AI optimizes for "reads smoothly", not "accurate". A fluent-but-wrong answer is, to it, <strong>better than a hesitant-but-right one</strong>.'},
+   example:{zh:'你不会信"嗯……我，我觉得，可能是，1879 吧？"。但你会信"爱因斯坦生于 1879 年。"。<strong>哪怕两个都是猜的</strong>。',
+            en:'You wouldn\'t trust "umm, I, I think, maybe 1879?". But you\'d trust "Einstein was born in 1879." <strong>Even if both are guesses</strong>.'}},
+];
+
+/* =====================================================
+   4 TOOLS
+   ===================================================== */
+const TOOLS = [
+  {id:'sources', emoji:'📚',
+   name:{zh:'工具 1：追问来源', en:'Tool 1: Demand sources'},
+   how:{zh:'在你的提问后加："<strong>请给出具体来源和引用</strong>。"AI 很多时候<strong>编不下去</strong>了。',
+        en:'After your question, add: "<strong>give specific sources and citations</strong>". AI often <strong>can\'t fake the followup</strong>.'},
+   when:{zh:'查事实、查论文、查历史细节时<strong>必用</strong>。',
+         en:'<strong>Required</strong> when checking facts, papers, historical details.'}},
+  {id:'cross', emoji:'🔀',
+   name:{zh:'工具 2：跨 AI 验证', en:'Tool 2: Cross-AI verify'},
+   how:{zh:'同一个问题问<strong>2 个不同 AI</strong>（如 ChatGPT + 文心 + Claude）。<strong>答案不一致 = 有一个在编</strong>。',
+        en:'Ask <strong>2 different AIs</strong> same question (ChatGPT + Wenxin + Claude). <strong>Different answers = someone\'s fabricating</strong>.'},
+   when:{zh:'重要决定（医疗/法律/学术）<strong>都要跨 AI 比对</strong>。',
+         en:'For important decisions (medical/legal/academic), <strong>always cross-AI</strong>.'}},
+  {id:'overspec', emoji:'🎯',
+   name:{zh:'工具 3：警惕"过度具体"', en:'Tool 3: Beware "over-specific"'},
+   how:{zh:'AI 给的<strong>越具体越自信</strong>，越要警觉——尤其是不熟悉领域的人名、数字、出版社、年份。<strong>真专家会说"大约""可能"</strong>。',
+        en:'AI\'s <strong>more specific = more confident</strong> = more suspicious. Names, numbers, publishers, years you can\'t verify. <strong>Real experts hedge</strong> with "approximately", "likely".'},
+   when:{zh:'每次 AI 列出"具体名字 + 具体年份 + 具体页码"——<strong>停 3 秒</strong>，去查。',
+         en:'Every time AI lists "specific name + specific year + specific page" — <strong>pause 3 seconds</strong>, go verify.'}},
+  {id:'auth', emoji:'🏛️',
+   name:{zh:'工具 4：权威源核对', en:'Tool 4: Authoritative source check'},
+   how:{zh:'AI 说什么<strong>不是结论</strong>，是"<strong>起点</strong>"。用 AI 的答案<strong>去搜</strong>：百度百科、知网、政府官网、Wikipedia。',
+        en:'AI\'s answer is <strong>not the conclusion</strong>, it\'s the <strong>starting point</strong>. Use AI\'s output <strong>to search</strong>: Baidu Baike, CNKI, gov sites, Wikipedia.'},
+   when:{zh:'写论文、做报告、做决定时——<strong>AI 只用来"找方向"</strong>，权威源来"<strong>确认事实</strong>"。',
+         en:'Writing papers/reports/decisions — <strong>AI for direction</strong>, authority sources for <strong>fact confirmation</strong>.'}},
+];
+
+const state = {phase:0, huntAnswers:{}, causeRead:new Set(), toolRead:new Set(), reflectChoice:null, reflectText:''};
+
+/* =====================================================
+   PHASE 1: HUNT
+   ===================================================== */
+function renderHunt(){
+  const host = document.getElementById('hunt-list');
+  host.innerHTML = CASES.map(c=>{
+    const ans = state.huntAnswers[c.id];
+    const answered = ans!==undefined;
+    const correct = answered && ((ans==='lie')===c.isLie);
+    return `<div class="case-card ${answered?(correct?'answered correct':'answered wrong'):''}" data-id="${c.id}">
+      <div class="space-y-2 mb-3">
+        <div class="user-bubble">👤 <span data-zh>${c.q.zh}</span><span data-en>${c.q.en}</span></div>
+        <div class="ai-bubble ${answered?(c.isLie?'revealed-lie':'revealed-true'):''}">
+          <div class="text-xs font-bold text-slate-500 uppercase mb-1">🤖 <span data-zh>AI 回答</span><span data-en>AI says</span></div>
+          <div><span data-zh>${c.a.zh}</span><span data-en>${c.a.en}</span></div>
+        </div>
+      </div>
+      ${answered ? `
+        <div class="p-3 rounded-lg ${c.isLie?'bg-red-50 border border-red-200':'bg-green-50 border border-green-200'} text-sm">
+          <div class="font-bold mb-1">${correct?'✓ ':'✗ '}${c.isLie?'🎭 '+(LANG==='en'?'Hallucination!':'幻觉！'):'✅ '+(LANG==='en'?'True!':'真的！')}</div>
+          <p class="mb-2"><span data-zh>${c.truth.zh}</span><span data-en>${c.truth.en}</span></p>
+          <div class="text-xs bg-white rounded p-2">
+            <strong>💡 <span data-zh>原因</span><span data-en>Why</span>：</strong><span data-zh>${c.why.zh}</span><span data-en>${c.why.en}</span>
+          </div>
+        </div>
+      ` : `
+        <div class="flex gap-2">
+          <button class="btn-ghost text-sm flex-1 border-green-300" onclick="huntAns('${c.id}','true')">✓ <span data-zh>是真的</span><span data-en>True</span></button>
+          <button class="btn-ghost text-sm flex-1 border-red-300" onclick="huntAns('${c.id}','lie')">🎭 <span data-zh>是幻觉</span><span data-en>Hallucination</span></button>
+        </div>
+      `}
+    </div>`;
+  }).join('');
+}
+
+function huntAns(id, ans){
+  state.huntAnswers[id] = ans;
+  const c = CASES.find(x=>x.id===id);
+  const correct = (ans==='lie')===c.isLie;
+  renderHunt();
+  const answered = Object.keys(state.huntAnswers).length;
+  const correctCount = Object.entries(state.huntAnswers).filter(([id,a])=>{
+    const cc = CASES.find(x=>x.id===id);
+    return (a==='lie')===cc.isLie;
+  }).length;
+  document.getElementById('hunt-count').textContent = answered;
+  document.getElementById('hunt-correct').textContent = correctCount;
+  if(answered>=4) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 2: CAUSES
+   ===================================================== */
+function renderCauses(){
+  const host = document.getElementById('cause-grid');
+  host.innerHTML = CAUSES.map(c=>`
+    <div class="cause-card ${state.causeRead.has(c.id)?'read':''}" data-id="${c.id}" onclick="readCause('${c.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${c.emoji}</div>
+        <div class="font-bold"><span data-zh>${c.name.zh}</span><span data-en>${c.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700 mb-3"><span data-zh>${c.what.zh}</span><span data-en>${c.what.en}</span></p>
+      <div class="bg-slate-50 rounded p-2 text-xs">
+        <strong>📌 </strong><span data-zh>${c.example.zh}</span><span data-en>${c.example.en}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function readCause(id){
+  state.causeRead.add(id);
+  renderCauses();
+  document.getElementById('cause-count').textContent = state.causeRead.size;
+  if(state.causeRead.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 3: TOOLS
+   ===================================================== */
+function renderTools(){
+  const host = document.getElementById('tool-grid');
+  host.innerHTML = TOOLS.map(t=>`
+    <div class="tool-card ${state.toolRead.has(t.id)?'read':''}" data-id="${t.id}" onclick="readTool('${t.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${t.emoji}</div>
+        <div class="font-bold"><span data-zh>${t.name.zh}</span><span data-en>${t.name.en}</span></div>
+      </div>
+      <p class="text-sm text-slate-700 mb-2"><strong><span data-zh>怎么用</span><span data-en>How</span>：</strong><span data-zh>${t.how.zh}</span><span data-en>${t.how.en}</span></p>
+      <p class="text-xs text-slate-500"><strong><span data-zh>何时用</span><span data-en>When</span>：</strong><span data-zh>${t.when.zh}</span><span data-en>${t.when.en}</span></p>
+    </div>
+  `).join('');
+}
+
+function readTool(id){
+  state.toolRead.add(id);
+  renderTools();
+  document.getElementById('tool-count').textContent = state.toolRead.size;
+  if(state.toolRead.size>=4) document.getElementById('p3-next').disabled = false;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const correctCount = Object.entries(state.huntAnswers).filter(([id,a])=>{
+    const cc = CASES.find(x=>x.id===id);
+    return (a==='lie')===cc.isLie;
+  }).length;
+  const data = {timestamp:Date.now(),mission:'M4-3',
+    huntCorrect:correctCount, causesRead:state.causeRead.size, toolsRead:state.toolRead.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m4-3', JSON.stringify(data));
+  goTo(5);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderHunt();
+  if(n===2) renderCauses();
+  if(n===3) renderTools();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,huntAnswers:{},causeRead:new Set(),toolRead:new Set(),reflectChoice:null,reflectText:''});
+    document.getElementById('hunt-count').textContent='0';
+    document.getElementById('hunt-correct').textContent='0';
+    document.getElementById('cause-count').textContent='0';
+    document.getElementById('tool-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+@media (max-width:640px){.save-toast{bottom:auto;top:72px;right:16px}}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

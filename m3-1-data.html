@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M3-1 数据从哪来 · Where Does AI's Food Come From?</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  /* Source card */
+  .src-card{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1.2rem;cursor:pointer;transition:all .25s;position:relative;display:flex;flex-direction:column}
+  .src-card:hover{transform:translateY(-3px);box-shadow:0 16px 32px -16px rgba(15,23,42,.15);border-color:#94A3B8}
+  .src-card.visited{border-color:#10B981}
+  .src-card.visited::after{content:"✓";position:absolute;top:10px;right:14px;background:#10B981;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .pro{color:#047857}
+  .con{color:#B91C1C}
+  /* Choice tile (for selecting sources) */
+  .ctile{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.85rem;cursor:pointer;transition:all .15s;text-align:left}
+  .ctile:hover{border-color:#94A3B8;transform:translateY(-1px)}
+  .ctile.picked{border-color:#3B82F6;background:#EFF6FF;box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+  /* Bias scenario */
+  .bias-scene{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .bias-scene:hover{border-color:#94A3B8}
+  .bias-scene.answered.correct{border-color:#10B981;background:#ECFDF5}
+  .bias-scene.answered.wrong{border-color:#DC2626;background:#FEF2F2}
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M3-1 · Mission</span>
+      <span class="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">Ch.3 · 学习 / Learning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>热身 · 20 min</span><span data-en>Warm-up · 20 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>数据从哪来：AI 的"粮食"是怎么收的</span>
+      <span data-en>Where Does AI's "Food" Come From?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 5 关</span><span data-en>Step 1 / 5</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            欢迎来到 <strong>第 3 章</strong>！前两章看了 AI 怎么"看"和"想"——但它们能力的源头其实是<strong>数据</strong>。这一章我们看 AI 怎么"学"。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Welcome to <strong>Chapter 3</strong>! We've seen AI "see" and "think." But the secret behind both is <strong>data</strong>. Now: how does AI <em>learn</em>?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            我介绍一位新朋友：<strong>山西果农阿宝叔</strong>。他家有 200 亩苹果园，每年因为虫害损失 <strong>15-20%</strong> 的产量。他听说 AI 能帮他在虫害爆发前 7 天发现迹象——但要训练这个 AI，需要……<strong>大量虫害照片</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Meet <strong>Uncle Abao</strong>, an apple farmer in Shanxi. His 200-acre orchard loses <strong>15–20%</strong> of yield to pests every year. He's heard AI can spot trouble 7 days earlier — but training that AI needs… <strong>lots of pest photos</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            <strong>问题</strong>：这些照片<strong>从哪来</strong>？谁拍？怎么标？拍错了会怎样？今天你帮阿宝叔搞定数据问题。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            <strong>Question</strong>: where do these photos <strong>come from</strong>? Who shoots? Who labels? What if it's wrong? Today you help Abao solve the data problem.
+          </p>
+        </div>
+        <div class="mt-5 grid grid-cols-3 gap-3 text-center">
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">📥</div><div class="text-xs font-bold">Source</div><div class="text-xs text-slate-500"><span data-zh>来源</span></div></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">🏷️</div><div class="text-xs font-bold">Label</div><div class="text-xs text-slate-500"><span data-zh>标注</span></div></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-200"><div class="text-3xl mb-1">⚠️</div><div class="text-xs font-bold">Bias</div><div class="text-xs text-slate-500"><span data-zh>偏差</span></div></div>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 4 种数据来源 →</span><span data-en>See 4 data sources →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: 4 DATA SOURCES ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>AI 数据有 <strong>4 大主要来源</strong>。每种都有优缺点。<strong>点击每张卡片</strong>看故事——4 张都看完再继续。</p>
+      <p data-en>AI gets its data from <strong>4 main sources</strong>, each with trade-offs. <strong>Click each card</strong> — visit all 4 to continue.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已查看：</span><span data-en>Visited:</span><span id="src-count">0</span> / 4</div>
+    </div>
+
+    <div id="source-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：帮阿宝选数据 →</span><span data-en>Next: help Abao choose →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: CHOOSE DATA FOR ABAO ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>阿宝叔的需求很<strong>具体</strong>：</p>
+      <p data-en>Abao has <strong>specific needs</strong>:</p>
+      <ul class="text-sm mt-2 space-y-1 ml-5 list-disc">
+        <li data-zh>识别 <strong>10 种山西本地常见虫害</strong>（很多虫只在北方有）</li>
+        <li data-en>Detect <strong>10 pests common in Shanxi</strong> (many are northern-only)</li>
+        <li data-zh>预算：<strong>5000 元以内</strong>（农民买不起昂贵数据）</li>
+        <li data-en>Budget: <strong>under ¥5,000</strong> (farmers can't afford pricey data)</li>
+        <li data-zh>时间：<strong>2 个月内</strong>要出第一版 AI</li>
+        <li data-en>Time: <strong>first AI version within 2 months</strong></li>
+        <li data-zh>合规：<strong>不能侵犯任何人的隐私</strong></li>
+        <li data-en>Compliance: <strong>no privacy violations</strong></li>
+      </ul>
+      <p class="mt-3" data-zh><strong>你建议他选哪些数据来源？</strong>（可多选，建议选 2-3 个组合）</p>
+      <p class="mt-3" data-en><strong>Which sources would you recommend?</strong> (multi-select, 2–3 is best)</p>
+    </div>
+
+    <div id="choice-grid" class="grid md:grid-cols-2 gap-3 mb-5"></div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="text-slate-600"><span data-zh>已选 </span><span data-en>Picked </span><strong id="picked-count">0</strong></div>
+      <button class="btn-primary" id="check-choice" disabled onclick="checkChoice()">
+        ✓ <span data-zh>看专家建议</span><span data-en>See expert advice</span>
+      </button>
+    </div>
+
+    <div id="choice-feedback" class="hidden"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：数据偏差预警 →</span><span data-en>Next: bias alert →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: BIAS WARNINGS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>选好数据来源还不够——<strong>收集过程</strong>也藏着偏差。下面 4 个场景，<strong>哪些会让 AI 翻车</strong>？点你认为有问题的（可多选）。</p>
+      <p data-en>Picking sources isn't enough — the <strong>collection process</strong> hides bias too. Which of these 4 scenarios will <strong>break AI</strong>? Tap any that worry you.</p>
+    </div>
+
+    <div id="bias-grid" class="space-y-3 mb-5"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>最后：反思 →</span><span data-en>Final: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: REFLECTION ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这一关你学到：<strong>数据 = AI 的食物</strong>。但食物从哪来、谁种的、有没有被污染——AI 自己不知道。它<strong>吃什么</strong>，决定它<strong>是什么</strong>。请写下你的想法：</p>
+      <p data-en>You learned: <strong>data = AI's food</strong>. But where it comes from, who grew it, whether it's contaminated — AI doesn't know. What it <strong>eats</strong> determines what it <strong>is</strong>. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你常用的 AI（如小爱、ChatGPT）的数据从哪来？你能查到吗？应该让你知道吗？</span>
+        <span data-en>① Where does the data of AIs you use (Xiaoai, ChatGPT) come from? Can you find out? Should you?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 你自己发的朋友圈、抖音视频，会不会成为某个 AI 的训练数据？你愿意吗？</span>
+        <span data-en>② Could your social media posts become AI training data? Are you OK with that?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 如果阿宝叔的虫害数据只能从山东果园拿到，给山西用，会有什么风险？</span>
+        <span data-en>③ If Abao can only get pest data from Shandong (not Shanxi), what risks emerge?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M3-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-green-500 to-emerald-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#34D399" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">📥</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 1 关完成</span><span data-en>Mission #1 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"数据猎人" 徽章已解锁</span><span data-en>"Data Hunter" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-green-50 border border-green-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 数据有 4 大来源：<strong>公开数据集 / 网络爬虫 / 用户贡献 / 自己采集</strong></span><span data-en>4 sources: <strong>public datasets / web crawl / crowdsource / self-collect</strong></span></li>
+          <li>✓ <span data-zh>每种来源都有优缺点——<strong>不是免费的就是好的</strong></span><span data-en>Each has trade-offs — <strong>free doesn't mean good</strong></span></li>
+          <li>✓ <span data-zh>数据收集过程<strong>本身就藏着偏差</strong>（时间、地区、天气）</span><span data-en>Collection itself <strong>hides bias</strong> (time, region, weather)</span></li>
+          <li>✓ <span data-zh>你给阿宝叔的建议——影响了山西果农们能否吃饱饭</span><span data-en>Your advice to Abao — affects whether Shanxi farmers eat</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m3-2-split.html'">
+          <span data-zh>下一关：M3-2 训练 vs 测试 →</span><span data-en>Next: M3-2 Train vs Test →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M3-1 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M3-1 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   DATA SOURCES
+   ===================================================== */
+const SOURCES = [
+  {id:'public', emoji:'📚', name:{zh:'公开数据集', en:'Public Dataset'},
+    examples:{zh:'例：ImageNet、COCO、清华 ICPC 农作物数据集', en:'e.g. ImageNet, COCO, Tsinghua agro datasets'},
+    desc:{zh:'科研机构/政府/公司公开的、整理好的数据。',
+          en:'Curated data published by research labs / governments / companies.'},
+    pros:[
+      {zh:'通常免费或低价', en:'Usually free or cheap'},
+      {zh:'已经标注好了', en:'Already labeled'},
+      {zh:'被很多人验证过', en:'Battle-tested by others'},
+    ],
+    cons:[
+      {zh:'数据可能<strong>不够新</strong>（几年前的）', en:'May be <strong>outdated</strong> (years old)'},
+      {zh:'<strong>不一定符合你的具体需求</strong>（如山西本地虫害）', en:'May <strong>not fit your specific case</strong> (e.g. Shanxi pests)'},
+      {zh:'可能有未发现的偏见', en:'May have hidden biases'},
+    ]
+  },
+  {id:'crawl', emoji:'🕷️', name:{zh:'网络爬虫', en:'Web Crawl'},
+    examples:{zh:'例：从百度图片、知乎、抖音抓农业图片', en:'e.g. scraping Baidu, social media for ag images'},
+    desc:{zh:'用程序从互联网上自动收集图片/文字。',
+          en:'Auto-collect images / text from the internet using a script.'},
+    pros:[
+      {zh:'数据量<strong>大</strong>，覆盖广', en:'<strong>Huge</strong> volume, broad coverage'},
+      {zh:'更新快', en:'Fresh data'},
+      {zh:'技术成本低', en:'Low technical cost'},
+    ],
+    cons:[
+      {zh:'<strong>版权问题严重</strong>（很多人没授权）', en:'<strong>Serious copyright issues</strong>'},
+      {zh:'数据<strong>质量参差不齐</strong>，要大量清洗', en:'<strong>Quality varies wildly</strong>; needs heavy cleaning'},
+      {zh:'<strong>没有标签</strong>，要自己标', en:'<strong>Unlabeled</strong>; must label yourself'},
+    ]
+  },
+  {id:'crowd', emoji:'👥', name:{zh:'用户贡献 / 众包', en:'Crowdsource'},
+    examples:{zh:'例：让 500 个果农用 APP 拍照、上传，每张给 5 元', en:'e.g. 500 farmers upload via app, ¥5 per photo'},
+    desc:{zh:'付费请很多普通人帮你采集和标注。',
+          en:'Pay many regular people to collect and label.'},
+    pros:[
+      {zh:'数据<strong>非常贴近真实场景</strong>', en:'<strong>Highly realistic</strong> data'},
+      {zh:'多样性好（不同人不同地区）', en:'Good diversity'},
+      {zh:'可以快速扩大规模', en:'Scales fast'},
+    ],
+    cons:[
+      {zh:'<strong>需要预算</strong>付费', en:'<strong>Costs money</strong>'},
+      {zh:'要设计 APP、培训用户', en:'Needs app + user training'},
+      {zh:'<strong>标注质量不稳定</strong>', en:'<strong>Labeling quality varies</strong>'},
+    ]
+  },
+  {id:'self', emoji:'📸', name:{zh:'自己采集', en:'Self-collect'},
+    examples:{zh:'例：阿宝叔自己拿手机，每天拍 50 张果园', en:'e.g. Abao snaps 50 orchard photos daily'},
+    desc:{zh:'你（或你的团队）亲自去拍/录/写。',
+          en:'You (or your team) collect personally.'},
+    pros:[
+      {zh:'<strong>完全契合</strong>你的需求', en:'<strong>Perfect fit</strong> for your needs'},
+      {zh:'质量可控', en:'Controlled quality'},
+      {zh:'<strong>版权 100% 你的</strong>', en:'<strong>100% your copyright</strong>'},
+    ],
+    cons:[
+      {zh:'<strong>慢</strong>，规模小', en:'<strong>Slow</strong>, small scale'},
+      {zh:'<strong>很容易有自己的偏见</strong>（只拍一种树/一种天气）', en:'<strong>Easy to inject personal bias</strong>'},
+      {zh:'要花大量时间', en:'Time-intensive'},
+    ]
+  },
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {
+  phase:0,
+  visited:new Set(),
+  picked:new Set(),
+  checkedChoice:false,
+  biasAnswers:{},
+  reflectChoice:null,
+  reflectText:''
+};
+
+/* =====================================================
+   PHASE 1: Source cards
+   ===================================================== */
+function renderSources(){
+  const host = document.getElementById('source-grid');
+  host.innerHTML = SOURCES.map(s=>`
+    <div class="src-card ${state.visited.has(s.id)?'visited':''}" data-id="${s.id}" onclick="visitSource('${s.id}')">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-4xl">${s.emoji}</div>
+        <div>
+          <div class="font-bold"><span data-zh>${s.name.zh}</span><span data-en>${s.name.en}</span></div>
+          <div class="text-xs text-slate-500"><span data-zh>${s.examples.zh}</span><span data-en>${s.examples.en}</span></div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-700 mb-3"><span data-zh>${s.desc.zh}</span><span data-en>${s.desc.en}</span></p>
+      <div class="text-xs space-y-1 flex-1">
+        ${s.pros.map(p=>`<div class="pro">✓ <span data-zh>${p.zh}</span><span data-en>${p.en}</span></div>`).join('')}
+        ${s.cons.map(c=>`<div class="con">✗ <span data-zh>${c.zh}</span><span data-en>${c.en}</span></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+function visitSource(id){
+  state.visited.add(id);
+  renderSources();
+  document.getElementById('src-count').textContent = state.visited.size;
+  if(state.visited.size>=4) document.getElementById('p1-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 2: Choose
+   ===================================================== */
+const CHOICES = [
+  {id:'public', label:{zh:'📚 公开数据集', en:'📚 Public dataset'}, good:true,
+   why:{zh:'好——免费、快、有现成标签。但要查清是否包含<strong>山西本地虫害</strong>。', en:'Good — free, fast, labeled. But check it covers <strong>Shanxi-specific pests</strong>.'}},
+  {id:'crowd', label:{zh:'👥 众包 (付果农拍照)', en:'👥 Crowdsource (pay farmers)'}, good:true,
+   why:{zh:'好——5000 元能请 500 个山西果农各拍 10 张，刚好契合本地需求。', en:'Good — ¥5,000 buys 500 farmers × 10 photos each — perfect local fit.'}},
+  {id:'self', label:{zh:'📸 阿宝自己拍', en:'📸 Abao self-collect'}, good:true,
+   why:{zh:'好——成本最低，质量他自己把关。但 2 个月内可能拍不够 10 种虫害。<strong>适合作为补充</strong>。', en:'Good — cheapest, he controls quality. May not cover 10 pests in 2 months. <strong>Best as supplement</strong>.'}},
+  {id:'crawl', label:{zh:'🕷️ 网络爬虫', en:'🕷️ Web crawl'}, good:false,
+   why:{zh:'不推荐——<strong>版权风险大</strong>、质量乱、还要自己标。免费的看起来便宜，实际很贵。', en:'Not recommended — <strong>copyright risk</strong>, messy quality, still needs labeling. "Free" turns expensive.'}},
+];
+
+function renderChoices(){
+  const host = document.getElementById('choice-grid');
+  host.innerHTML = CHOICES.map(c=>`
+    <button class="ctile ${state.picked.has(c.id)?'picked':''}" data-id="${c.id}" onclick="pickChoice('${c.id}')">
+      <div class="font-bold mb-1"><span data-zh>${c.label.zh}</span><span data-en>${c.label.en}</span></div>
+      <div class="text-xs text-slate-500"><span data-zh>${SOURCES.find(s=>s.id===c.id).desc.zh}</span><span data-en>${SOURCES.find(s=>s.id===c.id).desc.en}</span></div>
+    </button>
+  `).join('');
+  document.getElementById('picked-count').textContent = state.picked.size;
+  document.getElementById('check-choice').disabled = state.picked.size===0 || state.checkedChoice;
+}
+
+function pickChoice(id){
+  if(state.checkedChoice) return;
+  if(state.picked.has(id)) state.picked.delete(id);
+  else state.picked.add(id);
+  renderChoices();
+}
+
+function checkChoice(){
+  state.checkedChoice = true;
+  const goodPicks = CHOICES.filter(c=>c.good).map(c=>c.id);
+  const userGood = [...state.picked].filter(id=>goodPicks.includes(id)).length;
+  const userBad = [...state.picked].filter(id=>!goodPicks.includes(id)).length;
+  const score = userGood - userBad;
+  const fb = document.getElementById('choice-feedback');
+  fb.classList.remove('hidden');
+  fb.innerHTML = `
+    <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5">
+      <div class="font-bold mb-3">📊 <span data-zh>专家建议</span><span data-en>Expert advice</span></div>
+      <div class="space-y-2">
+        ${CHOICES.map(c=>`
+          <div class="flex items-start gap-3 p-3 rounded-lg ${state.picked.has(c.id)?(c.good?'bg-green-50 border border-green-200':'bg-red-50 border border-red-200'):'bg-white border border-slate-200'}">
+            <span class="text-xl">${c.good?'✓':'⚠️'}</span>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-sm"><span data-zh>${c.label.zh}</span><span data-en>${c.label.en}</span> ${state.picked.has(c.id)?'<span class="text-xs text-slate-500">('+(LANG==='en'?'you picked':'你选了')+')</span>':''}</div>
+              <div class="text-xs mt-1"><span data-zh>${c.why.zh}</span><span data-en>${c.why.en}</span></div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="mt-4 p-3 bg-white rounded-lg text-sm">
+        <strong>💡 <span data-zh>最佳组合</span><span data-en>Best combo</span></strong>：
+        <span data-zh>公开数据集（快速启动）+ 众包（本地化）+ 阿宝自采（精细补充）。爬虫风险大不推荐。</span>
+        <span data-en>Public dataset (fast start) + crowdsource (local fit) + self-collect (precise additions). Skip web crawl — too risky.</span>
+      </div>
+    </div>
+  `;
+  document.getElementById('check-choice').disabled = true;
+  document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   PHASE 3: Bias warnings
+   ===================================================== */
+const BIAS_SCENES = [
+  {id:'b1', emoji:'☀️', risky:true,
+   scene:{zh:'阿宝叔只在晴天拍照，因为雨天不愿出门。', en:'Abao only shoots on sunny days; rainy weather kept him in.'},
+   why:{zh:'⚠️ 风险大——AI 会在阴雨天表现差，而虫害恰恰在阴雨后爆发。<strong>偏差：天气</strong>', en:'⚠️ Risky — AI fails on rainy days, but pests <em>peak</em> after rain. <strong>Bias: weather</strong>'}},
+  {id:'b2', emoji:'🌳', risky:true,
+   scene:{zh:'数据只来自<strong>一种</strong>苹果品种（红富士），不包括其他 8 个品种。', en:'Data covers only <strong>one</strong> apple variety (Fuji), missing the other 8.'},
+   why:{zh:'⚠️ 风险大——别的品种叶子形状不同，AI 会误判。<strong>偏差：品种</strong>', en:'⚠️ Risky — other varieties look different; AI will misjudge. <strong>Bias: cultivar</strong>'}},
+  {id:'b3', emoji:'📅', risky:true,
+   scene:{zh:'所有照片都是<strong>夏季 6-8 月</strong>拍的。', en:'All photos taken in <strong>June–August summer</strong>.'},
+   why:{zh:'⚠️ 风险大——春秋虫害不同，AI 在这些季节会盲。<strong>偏差：季节</strong>', en:'⚠️ Risky — spring/fall pests differ; AI goes blind in those seasons. <strong>Bias: season</strong>'}},
+  {id:'b4', emoji:'📷', risky:false,
+   scene:{zh:'每张照片都用<strong>同一台手机</strong>拍的——这台手机是市面上最流行的型号之一。', en:'All photos taken with <strong>the same phone</strong> — a popular common model.'},
+   why:{zh:'✓ 风险小——只要这款手机普及（大多数用户也用类似的），AI 部署后不会有大问题。<strong>但如果用稀有型号才有风险</strong>。', en:'✓ Low risk — if it\'s a common model (most users have similar), no big issue. <strong>Rare hardware would risk</strong>.'}},
+];
+
+function renderBias(){
+  const host = document.getElementById('bias-grid');
+  host.innerHTML = BIAS_SCENES.map(b=>`
+    <div class="bias-scene" data-id="${b.id}">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-3xl">${b.emoji}</div>
+        <p class="text-sm flex-1"><span data-zh>${b.scene.zh}</span><span data-en>${b.scene.en}</span></p>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn-ghost text-xs" onclick="biasAns('${b.id}',true,event)">⚠️ <span data-zh>有风险</span><span data-en>Risky</span></button>
+        <button class="btn-ghost text-xs" onclick="biasAns('${b.id}',false,event)">✓ <span data-zh>没问题</span><span data-en>OK</span></button>
+      </div>
+      <div class="bias-fb hidden mt-3 p-3 rounded-lg text-sm"></div>
+    </div>
+  `).join('');
+}
+
+function biasAns(id, picked, ev){
+  if(state.biasAnswers[id]!==undefined) return;
+  state.biasAnswers[id] = picked;
+  const b = BIAS_SCENES.find(x=>x.id===id);
+  const row = document.querySelector(`.bias-scene[data-id="${id}"]`);
+  const correct = picked===b.risky;
+  row.classList.add('answered', correct?'correct':'wrong');
+  const fb = row.querySelector('.bias-fb');
+  fb.classList.remove('hidden');
+  fb.className = 'bias-fb mt-3 p-3 rounded-lg text-sm ' + (correct?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  fb.innerHTML = `<strong>${correct?'✓ '+(LANG==='en'?'Sharp eye!':'看得准！'):'🤔 '+(LANG==='en'?'Not quite. Real answer: ':'再想想。正确答案：')}</strong> <span data-zh>${b.why.zh}</span><span data-en>${b.why.en}</span>`;
+  if(Object.keys(state.biasAnswers).length===4){
+    document.getElementById('p3-next').disabled = false;
+  }
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M3-1',
+    sourcesVisited:state.visited.size,
+    picked:[...state.picked],
+    biasCorrect:Object.entries(state.biasAnswers).filter(([id,a])=>{
+      const b = BIAS_SCENES.find(x=>x.id===id);
+      return a===b.risky;
+    }).length,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m3-1', JSON.stringify(data));
+  goTo(5);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,5);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 5 关</span><span data-en>Step ${shown} / 5</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderSources();
+  if(n===2) renderChoices();
+  if(n===3) renderBias();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,visited:new Set(),picked:new Set(),checkedChoice:false,biasAnswers:{},reflectChoice:null,reflectText:''});
+    document.getElementById('src-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('check-choice').disabled=true;
+    document.getElementById('choice-feedback').classList.add('hidden');
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

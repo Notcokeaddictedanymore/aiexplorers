@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>从0开始学AI · 课程地图 / AI Literacy Courses for Beginners · Course Map</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .hero-grad{background:radial-gradient(1200px 600px at 20% 0%,#FEE2E2 0%,transparent 50%),radial-gradient(900px 500px at 90% 10%,#DBEAFE 0%,transparent 55%),linear-gradient(180deg,#FFF8F0 0%,#FAF8F4 100%)}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Chapter card */
+  .ch-card{background:#fff;border:2px solid #E2E8F0;border-radius:24px;padding:1.5rem;transition:all .3s;overflow:hidden;position:relative}
+  .ch-card.locked{opacity:.6;background:#F8FAFC}
+  .ch-card.completed{border-color:#10B981}
+  .ch-card.completed::after{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#10B981,#3B82F6)}
+
+  /* Mission tile */
+  .m-card{position:relative;background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1rem;transition:all .25s;cursor:pointer;display:flex;flex-direction:column}
+  .m-card:hover{transform:translateY(-3px);box-shadow:0 18px 36px -16px rgba(15,23,42,.15);border-color:#94A3B8}
+  .m-card.completed{border-color:#10B981}
+  .m-card.completed::after{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#10B981}
+  .m-card.locked{opacity:.5;cursor:not-allowed;background:#F8FAFC}
+  .m-card.locked:hover{transform:none;box-shadow:none}
+
+  .status-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .65rem;border-radius:9999px;font-size:.7rem;font-weight:700}
+  .status-todo{background:#F1F5F9;color:#64748B}
+  .status-now{background:#FEE2E2;color:#B91C1C;animation:pulse2 2s ease infinite}
+  .status-done{background:#D1FAE5;color:#065F46}
+  .status-locked{background:#E2E8F0;color:#94A3B8}
+  @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.6}}
+
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.65rem 1.3rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4);display:inline-flex;align-items:center;gap:.4rem}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.55rem 1.1rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+
+  .progress-bar{height:10px;border-radius:5px;background:#E2E8F0;overflow:hidden}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#10B981,#3B82F6,#DC2626);transition:width .6s ease}
+
+  .chip{display:inline-flex;align-items:center;gap:.35rem;padding:.25rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:600}
+
+  /* Game-feel additions */
+  .back-home{position:fixed;left:16px;top:16px;z-index:50;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s}
+  .back-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1)}
+  .avatar-img{width:180px;height:180px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 12px 28px rgba(99,179,255,.35),0 0 0 6px rgba(99,179,255,.12)}
+  .avatar-fallback{width:180px;height:180px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:80px;color:#fff;box-shadow:0 12px 28px rgba(99,179,255,.35)}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 12px 28px rgba(99,179,255,.35),0 0 0 6px rgba(99,179,255,.12)}50%{box-shadow:0 12px 28px rgba(167,139,250,.5),0 0 0 10px rgba(167,139,250,.15)}}
+  .avatar-img,.avatar-fallback{animation:pulseGlow 4s ease-in-out infinite}
+  .m-card.completed::after{height:4px;background:linear-gradient(90deg,#10B981,#3B82F6,#a855f7);background-size:200% 100%;animation:shimmer 3s linear infinite}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  .m-card.completed:hover{box-shadow:0 24px 48px -16px rgba(16,185,129,.3);border-color:#10B981}
+  .ch-card{transition:transform .3s, box-shadow .3s, border-color .3s}
+  .ch-card:hover{transform:translateY(-2px);box-shadow:0 18px 36px -16px rgba(15,23,42,.1)}
+  .ch-card.completed{background:linear-gradient(180deg,#F0FDF4 0%,#fff 30%)}
+
+  /* Confetti on milestone (28/28) */
+  @keyframes confettiFall{from{transform:translateY(-20px) rotate(0);opacity:1}to{transform:translateY(110vh) rotate(720deg);opacity:0}}
+  .confetti-piece{position:fixed;top:-10px;width:8px;height:12px;z-index:60;pointer-events:none;animation:confettiFall 4s linear forwards}
+
+  /* Title shimmer */
+  .h1-glow{background:linear-gradient(120deg,#0F172A 0%,#3B82F6 30%,#a855f7 60%,#0F172A 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:hueDrift 8s linear infinite}
+  @keyframes hueDrift{from{background-position:0 0}to{background-position:200% 0}}
+
+  /* Status chip 'start here' bouncier */
+  .status-now{animation:pulseNow 1.5s ease-in-out infinite}
+  @keyframes pulseNow{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+
+  /* Progress bar pop */
+  .progress-fill{transition:width .8s cubic-bezier(.16,1,.3,1)}
+
+  /* XP bubble next to total progress */
+  .xp-bubble{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:9999px;background:linear-gradient(135deg,#FCD34D,#F59E0B);color:#7C2D12;font-size:.7rem;font-weight:700;margin-left:.5rem}
+</style>
+</head>
+<body class="grain">
+
+<a class="back-home" href="welcome.html">
+  <span>←</span>
+  <span data-zh>入口</span><span data-en>Home</span>
+</a>
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<!-- HERO -->
+<section class="hero-grad relative overflow-hidden">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12 relative z-10">
+    <div class="grid md:grid-cols-[200px_1fr] gap-6 items-center">
+      <div class="text-center order-2 md:order-1">
+        <img src="lingxi-avatar.png" alt="小京灵" class="avatar-img mx-auto bob" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="avatar-fallback mx-auto bob">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-2"><span data-zh>小京灵 · 你的 AI 向导</span><span data-en>Jingling · Your AI guide</span></div>
+      </div>
+      <div class="order-1 md:order-2">
+        <div class="flex items-center gap-2 mb-3 flex-wrap">
+          <span class="chip bg-red-100 text-red-700">v1.0</span>
+          <span class="chip bg-blue-100 text-blue-700">AI4K12 · UNESCO · MoE 2025</span>
+          <span class="chip bg-amber-100 text-amber-800"><span data-zh>中英双语</span><span data-en>Bilingual</span></span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-black tracking-tight leading-tight h1-glow">
+          <span data-zh>从 0 开始学 AI</span>
+          <span data-en>AI Literacy Courses for Beginners</span>
+        </h1>
+        <p class="text-lg text-slate-700 mt-3 leading-relaxed" data-zh>
+          为中国中小学生打造的 AI 素养课程。<strong>共 7 章，28 个互动任务，在情景中学习</strong>。<br><span class="text-sm text-blue-700">小京灵会一路陪你，从认 AI、用 AI 到训练你自己的 AI。</span>
+        </p>
+        <p class="text-lg text-slate-700 mt-3 leading-relaxed" data-en>
+          AI literacy for Chinese students. <strong>7 chapters, 28 interactive missions, learning through real scenarios</strong>.<br><span class="text-sm text-blue-700">Jingling guides you from knowing AI, to using AI, to training your own.</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Overall progress -->
+    <div class="mt-8 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div>
+          <div class="text-xs uppercase text-slate-500 tracking-wide font-bold"><span data-zh>总进度</span><span data-en>Total progress</span></div>
+          <div class="text-3xl font-black mt-1"><span id="total-done">0</span> / 28 <span class="text-base font-normal text-slate-500"><span data-zh>任务完成</span><span data-en>missions done</span></span><span class="xp-bubble" id="xp">+0 XP</span></div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs uppercase text-slate-500 tracking-wide font-bold"><span data-zh>获得徽章</span><span data-en>Badges</span></div>
+          <div class="text-2xl mt-1" id="badge-summary">⚪×28</div>
+        </div>
+      </div>
+      <div class="progress-bar mt-3"><div id="prog-fill" class="progress-fill" style="width:0%"></div></div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button class="btn-primary" id="continue-btn" onclick="continueQuest()">
+          ▶ <span data-zh>从上次继续</span><span data-en>Continue</span>
+        </button>
+        <button class="btn-ghost" onclick="resetAll()">
+          🔄 <span data-zh>重置全部进度</span><span data-en>Reset all</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHAPTERS -->
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8" id="chapters"></main>
+
+<!-- LEARNING OBJECTIVES -->
+<section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+  <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+    <div class="text-sm font-bold text-blue-900 mb-2">📚 <span data-zh>课程对齐</span><span data-en>Aligned with</span></div>
+    <div class="text-xs text-slate-700 space-y-1">
+      <div>• <strong>AI4K12 Five Big Ideas</strong>: Perception · Reasoning · Learning · Interaction · Societal Impact</div>
+      <div>• <strong><span data-zh>中国教育部《中小学人工智能通识教育指南 2025 版》</span><span data-en>China MoE AI Education Guideline 2025</span></strong>: 知识—技能—思维—价值观四维</div>
+      <div>• <strong>UNESCO K-12 AI Curricula Framework</strong></div>
+    </div>
+  </div>
+</section>
+
+<footer class="max-w-6xl mx-auto px-6 py-10 text-xs text-slate-400 text-center">
+  <span data-zh>从0开始学AI · v1.0 · 开发者：辜月晗 · 2026</span>
+  <span data-en>AI Literacy Courses for Beginners · v1.0 · Developer: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   COURSE STRUCTURE
+   ===================================================== */
+const COURSE = [
+  {ch:1, status:'open',
+   title:{zh:'AI 怎么看见世界', en:'How AI Sees the World'},
+   subtitle:{zh:'感知 · Perception · 大熊猫识别', en:'Perception · Panda recognition'},
+   color:'from-red-400 to-red-600',
+   missions:[
+     {id:'m1-1', file:'m1-1-intro.html', emoji:'👁️',
+      title:{zh:'AI 视觉初识', en:'World Through AI Eyes'},
+      sub:{zh:'热身 · 15min', en:'Warm-up · 15min'},
+      desc:{zh:'AI 视觉博物馆 + 你 vs AI 速度对比', en:'AI vision museum + you vs AI'},
+      key:'lingxi-m1-1'},
+     {id:'m1-2', file:'m1-2-pixels.html', emoji:'🏷️',
+      title:{zh:'像素与标签', en:'Pixels & Labels'},
+      sub:{zh:'探索 · 25min', en:'Explore · 25min'},
+      desc:{zh:'像素侦探 + 特征猎手 + 哈士奇偏差', en:'Pixel detective + feature hunter + bias'},
+      key:'lingxi-m1-2'},
+     {id:'m1-3', file:'m1-3-panda.html', emoji:'🐼',
+      title:{zh:'熊猫不是浣熊', en:'Pandas ≠ Raccoons'},
+      sub:{zh:'挑战 · 25min', en:'Challenge · 25min'},
+      desc:{zh:'真正训练一个 AI 分类器', en:'Truly train an AI classifier'},
+      key:'lingxi-m1-3'},
+     {id:'m1-4', file:'m1-4-cost.html', emoji:'⚖️',
+      title:{zh:'误识别的代价', en:'Cost of Being Wrong'},
+      sub:{zh:'反思 · 30min', en:'Reflect · 30min'},
+      desc:{zh:'4 个真实案例 + 假阳假阴 + 个人承诺', en:'Real cases + FP/FN + your pledge'},
+      key:'lingxi-m1-4'},
+   ]},
+  {ch:2, status:'open',
+   title:{zh:'AI 怎么思考', en:'How AI Thinks'},
+   subtitle:{zh:'推理 · Reasoning · 故宫文物', en:'Reasoning · Palace Museum'},
+   color:'from-amber-400 to-amber-600',
+   missions:[
+     {id:'m2-1', file:'m2-1-graph.html', emoji:'🗂️',
+      title:{zh:'文物族谱', en:'Artifact Family Tree'},
+      sub:{zh:'热身 · 20min', en:'Warm-up · 20min'},
+      desc:{zh:'用知识图谱把 6 件故宫文物连成网', en:'Weave 6 artifacts into a knowledge graph'},
+      key:'lingxi-m2-1'},
+     {id:'m2-2', file:'m2-2-tree.html', emoji:'🌳',
+      title:{zh:'鉴宝师的决策树', en:'Appraiser\'s Decision Tree'},
+      sub:{zh:'探索 · 25min', en:'Explore · 25min'},
+      desc:{zh:'跟林师傅走一遍 + 鉴定 3 件神秘文物', en:'Walk with Master Lin + appraise 3 mysteries'},
+      key:'lingxi-m2-2'},
+     {id:'m2-3', file:'m2-3-tour.html', emoji:'🏛️',
+      title:{zh:'AI 故宫导游', en:'AI Tour Guide'},
+      sub:{zh:'挑战 · 25min', en:'Challenge · 25min'},
+      desc:{zh:'4 位游客的提问 + AI 的边界', en:'4 visitors + AI\'s boundaries'},
+      key:'lingxi-m2-3'},
+     {id:'m2-4', file:'m2-4-labels.html', emoji:'⚖️',
+      title:{zh:'谁来定标签', en:'Who Decides Labels'},
+      sub:{zh:'反思 · 30min', en:'Reflect · 30min'},
+      desc:{zh:'穿越 4 个时代 + 你的标签宣言', en:'4 eras + your manifesto'},
+      key:'lingxi-m2-4'},
+   ]},
+  {ch:3, status:'open',
+   title:{zh:'AI 怎么学习', en:'How AI Learns'},
+   subtitle:{zh:'学习 · Learning · 智慧农业', en:'Learning · Smart farming'},
+   color:'from-green-400 to-green-600',
+   missions:[
+     {id:'m3-1', file:'m3-1-data.html', emoji:'📥',
+      title:{zh:'数据从哪来', en:'Where Data Comes From'},
+      sub:{zh:'热身 · 20min',en:'Warm-up · 20min'},
+      desc:{zh:'4 种数据来源 + 帮阿宝叔选数据 + 偏差预警', en:'4 data sources + advise Abao + bias alerts'},
+      key:'lingxi-m3-1'},
+     {id:'m3-2', file:'m3-2-split.html', emoji:'🎯',
+      title:{zh:'训练 vs 测试', en:'Train vs Test'},
+      sub:{zh:'探索 · 25min',en:'Explore · 25min'},
+      desc:{zh:'作弊式考试 → 揭穿 → 80/20 分法实验', en:'Cheat-test → reveal → 80/20 split lab'},
+      key:'lingxi-m3-2'},
+     {id:'m3-3', file:'m3-3-overfit.html', emoji:'📈',
+      title:{zh:'过拟合陷阱', en:'Overfitting Trap'},
+      sub:{zh:'挑战 · 25min',en:'Challenge · 25min'},
+      desc:{zh:'3 个 AI 对比 + 训练曲线 + 4 大对策', en:'3 AIs + training curve + 4 fixes'},
+      key:'lingxi-m3-3'},
+     {id:'m3-4', file:'m3-4-owner.html', emoji:'🔐',
+      title:{zh:'数据的主人', en:'Who Owns Data'},
+      sub:{zh:'反思 · 30min',en:'Reflect · 30min'},
+      desc:{zh:'4 个案例 + 你的 12 年数据档案 + PIPL 权利', en:'4 cases + your 12-yr archive + PIPL rights'},
+      key:'lingxi-m3-4'},
+   ]},
+  {ch:4, status:'open',
+   title:{zh:'AI 怎么对话', en:'How AI Talks'},
+   subtitle:{zh:'交互 · Interaction · 诗仙 GPT', en:'Interaction · Poet GPT'},
+   color:'from-blue-400 to-blue-600',
+   missions:[
+     {id:'m4-1', file:'m4-1-poet.html', emoji:'📜',
+      title:{zh:'诗仙 GPT', en:'Poet GPT'},
+      sub:{zh:'热身 · 20min',en:'Warm-up · 20min'},
+      desc:{zh:'AI 怎么"猜下一个字" + 4 种身份的诗', en:'How AI "guesses next words" + 4 personas'},
+      key:'lingxi-m4-1'},
+     {id:'m4-2', file:'m4-2-prompt.html', emoji:'💬',
+      title:{zh:'提示词工程', en:'Prompt Engineering'},
+      sub:{zh:'探索 · 25min',en:'Explore · 25min'},
+      desc:{zh:'RCTF 四要素 + 改造烂提示 + 进阶 3 招', en:'RCTF + fix bad prompts + 3 advanced tricks'},
+      key:'lingxi-m4-2'},
+     {id:'m4-3', file:'m4-3-hallucinate.html', emoji:'🎭',
+      title:{zh:'幻觉狩猎', en:'Hallucination Hunt'},
+      sub:{zh:'挑战 · 25min',en:'Challenge · 25min'},
+      desc:{zh:'4 个 AI 回答找幻觉 + 反幻觉工具箱', en:'4 cases + anti-hallucination toolkit'},
+      key:'lingxi-m4-3'},
+     {id:'m4-4', file:'m4-4-dialect.html', emoji:'🗣️',
+      title:{zh:'方言救援', en:'Dialect Rescue'},
+      sub:{zh:'反思 · 30min',en:'Reflect · 30min'},
+      desc:{zh:'8 种方言 AI 覆盖度 + 你能做的 4 件事', en:'8 dialects coverage + 4 actions you can take'},
+      key:'lingxi-m4-4'},
+   ]},
+  {ch:5, status:'open',
+   title:{zh:'AI 与人类社会', en:'AI and Society'},
+   subtitle:{zh:'社会影响 · Society · 回音壁', en:'Societal Impact · Echo chamber'},
+   color:'from-slate-400 to-slate-600',
+   missions:[
+     {id:'m5-1', file:'m5-1-recsys.html', emoji:'👀',
+      title:{zh:'谁在替我选', en:'Who\'s Choosing for Me'},
+      sub:{zh:'热身 · 20min',en:'Warm-up · 20min'},
+      desc:{zh:'刷模拟短视频流 + 亲眼看算法画像形成', en:'Scroll fake feed + see your AI profile form'},
+      key:'lingxi-m5-1'},
+     {id:'m5-2', file:'m5-2-echo.html', emoji:'🔁',
+      title:{zh:'算法回音壁', en:'Echo Chamber'},
+      sub:{zh:'探索 · 30min',en:'Explore · 30min'},
+      desc:{zh:'扮演 2 个虚拟身份 → 看到 2 个不同世界', en:'Play 2 identities → see 2 different worlds'},
+      key:'lingxi-m5-2'},
+     {id:'m5-3', file:'m5-3-deepfake.html', emoji:'🎭',
+      title:{zh:'深度伪造识别', en:'Deepfake Detection'},
+      sub:{zh:'挑战 · 25min',en:'Challenge · 25min'},
+      desc:{zh:'4 真实事件 + 6 真假测试 + 5 破绽 + 4 工具', en:'4 cases + 6 tests + 5 telltales + 4 tools'},
+      key:'lingxi-m5-3'},
+     {id:'m5-4', file:'m5-4-citizen.html', emoji:'🤝',
+      title:{zh:'AI 时代公民', en:'AI-Era Citizen'},
+      sub:{zh:'反思 · 30min',en:'Reflect · 30min'},
+      desc:{zh:'4 公民角色 + 4 少年榜样 + 你的画像 + 承诺', en:'4 roles + 4 teen heroes + your profile + pledge'},
+      key:'lingxi-m5-4'},
+   ]},
+  {ch:6, status:'open',
+   title:{zh:'暴雨中的 AI', en:'AI in the Rainstorm'},
+   subtitle:{zh:'城市级 AI · Research · 北京内涝', en:'City-scale AI · Beijing flooding'},
+   color:'from-cyan-500 to-blue-700',
+   missions:[
+     {id:'m6-1', file:'m6-1-rainstorm.html', emoji:'⛈️',
+      title:{zh:'暴雨预警背后的 AI', en:'AI Behind Storm Warnings'},
+      sub:{zh:'热身 · 20min',en:'Warm-up · 20min'},
+      desc:{zh:'2023·7·31 真实事件 + 4 类数据源 + 蝴蝶效应 + 国家级 vs 城市级 AI', en:'2023 Beijing flood + 4 data sources + butterfly effect + national vs city AI'},
+      key:'lingxi-m6-1'},
+     {id:'m6-2', file:'m6-2-floodmap.html', emoji:'🗺️',
+      title:{zh:'北京内涝地图', en:'Beijing Flood Map'},
+      sub:{zh:'探索 · 25min',en:'Explore · 25min'},
+      desc:{zh:'8 个真实积水点 + 降雨量滑块 + 风险扩散 + 时间维度对比', en:'8 historical hotspots + rainfall slider + risk spread + time dimension'},
+      key:'lingxi-m6-2'},
+     {id:'m6-3', file:'m6-3-allocate.html', emoji:'🚨',
+      title:{zh:'资源分配挑战', en:'Resource Allocation'},
+      sub:{zh:'核心关 · 30min',en:'Core · 30min'},
+      desc:{zh:'你是防汛指挥官 · 12 风险点 + 8 车辆 + 8 队伍 + 5 避难所', en:'You direct Beijing flood response · 12 risks + 8 vehicles + 8 teams + 5 shelters'},
+      key:'lingxi-m6-3'},
+     {id:'m6-4', file:'m6-4-warning.html', emoji:'📣',
+      title:{zh:'AI 说撤离但居民不信', en:'AI Says Evacuate, People Don\'t'},
+      sub:{zh:'反思 · 25min',en:'Reflect · 25min'},
+      desc:{zh:'5 利益相关方 + 给奶奶写撤离短信 + FP/FN 政策滑块 + 5 原则', en:'5 stakeholders + write SMS for grandma + FP/FN slider + 5 principles'},
+      key:'lingxi-m6-4'},
+   ]},
+  {ch:7, status:'open',
+   title:{zh:'训练我的第一个 AI', en:'Train Your Own AI'},
+   subtitle:{zh:'毕业作品 · Capstone', en:'Capstone'},
+   color:'from-purple-400 to-red-500',
+   missions:[
+     {id:'m7-1', file:'m7-1-pick.html', emoji:'❓',
+      title:{zh:'选问题', en:'Pick a Problem'},
+      sub:{zh:'设计 · 30min',en:'Design · 30min'},
+      desc:{zh:'AI 适用性测试 + 8 个灵感库 + 项目意图书 + PM 评审', en:'AI suitability + 8 inspirations + intent doc + PM review'},
+      key:'lingxi-m7-1'},
+     {id:'m7-2', file:'m7-2-collect.html', emoji:'📥',
+      title:{zh:'收数据', en:'Collect Data'},
+      sub:{zh:'采集 · 40min',en:'Collect · 40min'},
+      desc:{zh:'需求清单 + 来源选择 + 采集计划 + 偏差自检 + 标注体验', en:'Needs list + sources + plan + bias check + labeling'},
+      key:'lingxi-m7-2'},
+     {id:'m7-3', file:'m7-3-train.html', emoji:'🚀',
+      title:{zh:'训练 + 评估', en:'Train + Evaluate'},
+      sub:{zh:'制作 · 40min',en:'Build · 40min'},
+      desc:{zh:'分割比例 + 3 种训练对比 + 混淆矩阵 + Teachable Machine 7 步', en:'Split + 3 trainings + confusion matrix + TM 7 steps'},
+      key:'lingxi-m7-3'},
+     {id:'m7-4', file:'m7-4-launch.html', emoji:'🎤',
+      title:{zh:'发布会 + 结业', en:'Launch + Graduate'},
+      sub:{zh:'分享 · 30min',en:'Share · 30min'},
+      desc:{zh:'5 张演示 + 10 项负责任清单 + 4 记者会 + 给奶奶的话 + 🎓 证书', en:'5 slides + 10 checks + 4 reporters + grandma line + 🎓 cert'},
+      key:'lingxi-m7-4'},
+   ]},
+];
+
+/* =====================================================
+   RENDER
+   ===================================================== */
+function getStatus(m){
+  if(!m.key) return 'todo'; // future missions
+  const data = localStorage.getItem(m.key);
+  return data ? 'done' : 'todo';
+}
+
+function renderAll(){
+  const host = document.getElementById('chapters');
+  let totalDone = 0;
+  let firstTodo = null;
+
+  host.innerHTML = COURSE.map(ch=>{
+    const isLocked = ch.status==='locked';
+    let chDone = 0;
+    const missionsHTML = ch.missions.map(m=>{
+      if(isLocked){
+        return `<div class="m-card locked">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${ch.color} opacity-50 flex items-center justify-center text-2xl shadow-md">${m.emoji}</div>
+            <span class="status-chip status-locked">🔒 <span data-zh>即将开放</span><span data-en>Soon</span></span>
+          </div>
+          <div class="text-xs text-slate-400 uppercase font-bold tracking-wide">${m.id.toUpperCase()}</div>
+          <div class="text-base font-bold mt-1"><span data-zh>${m.title.zh}</span><span data-en>${m.title.en}</span></div>
+          <div class="text-xs text-slate-400 mt-0.5"><span data-zh>${m.sub.zh}</span><span data-en>${m.sub.en}</span></div>
+          <p class="text-xs text-slate-500 mt-2 flex-1"><span data-zh>${m.desc.zh}</span><span data-en>${m.desc.en}</span></p>
+        </div>`;
+      }
+      const status = getStatus(m);
+      if(status==='done') chDone++;
+      if(status==='todo' && !firstTodo) firstTodo = m;
+      return `<a href="${m.file}" class="m-card ${status==='done'?'completed':''}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${ch.color} flex items-center justify-center text-2xl shadow-md">${m.emoji}</div>
+          ${status==='done'
+            ? '<span class="status-chip status-done">✓ <span data-zh>完成</span><span data-en>Done</span></span>'
+            : (firstTodo && firstTodo.id===m.id ? '<span class="status-chip status-now">▶ <span data-zh>从这开始</span><span data-en>Start here</span></span>' : '<span class="status-chip status-todo">○ <span data-zh>未做</span><span data-en>To do</span></span>')}
+        </div>
+        <div class="text-xs text-slate-500 uppercase font-bold tracking-wide">${m.id.toUpperCase()}</div>
+        <div class="text-base font-bold mt-1"><span data-zh>${m.title.zh}</span><span data-en>${m.title.en}</span></div>
+        <div class="text-xs text-slate-500 mt-0.5"><span data-zh>${m.sub.zh}</span><span data-en>${m.sub.en}</span></div>
+        <p class="text-xs text-slate-600 mt-2 flex-1"><span data-zh>${m.desc.zh}</span><span data-en>${m.desc.en}</span></p>
+        <div class="mt-2 text-xs font-semibold text-blue-600">${status==='done'?'<span data-zh>🔄 重玩 →</span><span data-en>🔄 Replay →</span>':'<span data-zh>开始 →</span><span data-en>Start →</span>'}</div>
+      </a>`;
+    }).join('');
+
+    totalDone += chDone;
+    const chCompleted = chDone===4 && !isLocked;
+    return `<div class="ch-card ${isLocked?'locked':''} ${chCompleted?'completed':''}">
+      <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <span class="chip bg-gradient-to-br ${ch.color} text-white">Chapter ${ch.ch}</span>
+            ${isLocked?'<span class="chip bg-slate-100 text-slate-500">🔒 <span data-zh>即将开放</span><span data-en>Coming soon</span></span>':''}
+            ${chCompleted?'<span class="chip bg-green-100 text-green-700">🎉 <span data-zh>本章完成</span><span data-en>Chapter done</span></span>':''}
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black"><span data-zh>${ch.title.zh}</span><span data-en>${ch.title.en}</span></h2>
+          <p class="text-sm text-slate-600 mt-1"><span data-zh>${ch.subtitle.zh}</span><span data-en>${ch.subtitle.en}</span></p>
+        </div>
+        ${!isLocked?`<div class="text-right">
+          <div class="text-xs uppercase text-slate-500 font-bold tracking-wide"><span data-zh>本章进度</span><span data-en>Chapter progress</span></div>
+          <div class="text-2xl font-black">${chDone}/4</div>
+        </div>`:''}
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-3">${missionsHTML}</div>
+    </div>`;
+  }).join('');
+
+  // Total progress
+  document.getElementById('total-done').textContent = totalDone;
+  document.getElementById('prog-fill').style.width = (totalDone/28*100) + '%';
+  // XP display (100 XP per mission)
+  const xpEl = document.getElementById('xp');
+  if(xpEl) xpEl.textContent = `+${totalDone*100} XP`;
+  // Trigger confetti on 28/28
+  if(totalDone===28 && !localStorage.getItem('lingxi-confetti-shown')){
+    localStorage.setItem('lingxi-confetti-shown', '1');
+    launchConfetti();
+  }
+  // Badge summary
+  const badges = COURSE.flatMap(ch=>ch.missions.map(m=>{
+    if(ch.status==='locked' || !m.key) return '⚪';
+    return getStatus(m)==='done' ? '🟢' : '⚪';
+  }));
+  const earnedCount = badges.filter(b=>b==='🟢').length;
+  document.getElementById('badge-summary').textContent = `${earnedCount} / ${badges.length}`;
+
+  // Continue button
+  const btn = document.getElementById('continue-btn');
+  if(totalDone===0){
+    btn.innerHTML = '<span data-zh>▶ 开始第一关：M1-1 AI 视觉初识</span><span data-en>▶ Start M1-1: World Through AI Eyes</span>';
+    btn.onclick = ()=>{ location.href = 'm1-1-intro.html'; };
+  } else if(firstTodo){
+    btn.innerHTML = `<span data-zh>▶ 继续：${firstTodo.title.zh}</span><span data-en>▶ Continue: ${firstTodo.title.en}</span>`;
+    btn.onclick = ()=>{ location.href = firstTodo.file; };
+  } else {
+    // All open chapters done
+    btn.innerHTML = '<span data-zh>🎉 已完成所有开放任务！等待新章节</span><span data-en>🎉 All open missions done! Waiting for new chapters</span>';
+    btn.onclick = ()=>alert(LANG==='en'?'🎓 All 28 missions done — full course complete!':'🎓 全部 28 个任务已完成 · 全课程结业！');
+  }
+}
+
+function continueQuest(){ /* handled in renderAll */ }
+
+function resetAll(){
+  if(confirm(LANG==='en'?'Erase ALL progress across all 7 chapters?':'重置全部进度（全部 7 章 · 28 个任务）？这会删掉你所有的徽章和反思日志。')){
+    COURSE.forEach(ch=>{
+      ch.missions.forEach(m=>{
+        if(m.key) localStorage.removeItem(m.key);
+      });
+    });
+    renderAll();
+  }
+}
+
+function launchConfetti(){
+  const colors=['#DC2626','#F59E0B','#10B981','#3B82F6','#a855f7','#FBBF24','#EC4899'];
+  for(let i=0;i<60;i++){
+    const c=document.createElement('div');
+    c.className='confetti-piece';
+    c.style.left=Math.random()*100+'%';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDelay=Math.random()*2+'s';
+    c.style.animationDuration=(3+Math.random()*2)+'s';
+    if(Math.random()>.5) c.style.borderRadius='50%';
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),6000);
+  }
+}
+
+renderAll();
+</script>
+
+</body>
+</html>

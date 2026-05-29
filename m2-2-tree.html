@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M2-2 鉴宝师的决策树 · The Appraiser's Decision Tree</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .svg-wide-700{min-width:700px}
+  .svg-wide-680{min-width:680px}
+  @media (max-width:640px){.svg-wide-700,.svg-wide-680{min-width:0}}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  /* Decision tree visualization */
+  .tnode-q rect{fill:#fff;stroke:#94A3B8;stroke-width:2}
+  .tnode-q.active rect{fill:#EFF6FF;stroke:#3B82F6;stroke-width:3;filter:drop-shadow(0 4px 10px rgba(59,130,246,.3))}
+  .tnode-q.passed rect{fill:#F8FAFC;stroke:#10B981;stroke-width:2}
+  .tnode-leaf rect{stroke-width:2}
+  .tnode-leaf.good rect{fill:#FEF3C7;stroke:#F59E0B}
+  .tnode-leaf.fake rect{fill:#FEE2E2;stroke:#DC2626}
+  .tnode-leaf.active rect{stroke-width:4;filter:drop-shadow(0 8px 18px rgba(220,38,38,.35))}
+  .tedge{stroke:#CBD5E1;stroke-width:2;fill:none}
+  .tedge.passed{stroke:#10B981;stroke-width:3}
+  .tedge-label{font-size:11px;font-weight:700;fill:#64748B}
+  .tedge-label.passed{fill:#10B981}
+  /* Q/A buttons */
+  .qa-btn{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.55rem 1.1rem;font-weight:600;cursor:pointer;transition:all .15s}
+  .qa-btn:hover:not(:disabled){transform:translateY(-1px);border-color:#94A3B8}
+  .qa-btn.yes{border-color:#10B981;color:#047857}
+  .qa-btn.yes:hover:not(:disabled){background:#ECFDF5}
+  .qa-btn.no{border-color:#DC2626;color:#B91C1C}
+  .qa-btn.no:hover:not(:disabled){background:#FEF2F2}
+  .qa-btn:disabled{opacity:.5;cursor:not-allowed}
+  /* Comparison cards */
+  .cmp-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1.1rem}
+  .cmp-card .head{font-weight:800;font-size:1.1rem;margin-bottom:.4rem}
+  /* Mystery artifact card */
+  .myst-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;transition:all .2s}
+  .myst-card.solved{border-color:#10B981;background:#ECFDF5}
+  .myst-card.solved-wrong{border-color:#DC2626;background:#FEF2F2}
+  .feat-row{display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px dashed #E2E8F0;font-size:.85rem}
+  .feat-row:last-child{border-bottom:none}
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M2-2 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.2 · 推理 / Reasoning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>探索 · 25 min</span><span data-en>Explore · 25 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>鉴宝师的决策树：AI 怎么"一步步想清楚"</span>
+      <span data-en>The Appraiser's Decision Tree</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            上一关你做了图谱，AI 有了"<strong>记忆</strong>"。但光有记忆不够——它还得会"<strong>推理</strong>"。今天我请来一位老师：<strong>故宫的玉器鉴定师 林师傅</strong>。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Last time you built a graph — AI got <strong>memory</strong>. But memory isn't enough — it needs <strong>reasoning</strong>. Today, meet <strong>Master Lin, Palace Museum jade appraiser</strong>.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            林师傅一辈子见过 10 万件玉器。他鉴定一件玉，<strong>不是一眼看出来的</strong>——而是脑子里有一棵"<strong>决策树</strong>"：从最关键的问题开始问，一步步往下走，直到走到一个答案。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Master Lin has seen 100,000 jades in his life. He doesn't judge at a glance — he runs a <strong>decision tree</strong> in his head: ask the most decisive question first, branch, repeat, until you hit an answer.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            这是 AI 最古老、最透明的推理方式——叫 <strong>决策树（Decision Tree）</strong>。今天你来跟林师傅走一遍，然后亲手用它鉴定 3 件神秘文物。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            This is AI's oldest, most transparent way of reasoning — the <strong>decision tree</strong>. Today: walk through it with Master Lin, then use it on 3 mystery artifacts.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>跟林师傅走一遍 →</span><span data-en>Walk with Master Lin →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: WALK WITH MASTER LIN ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>林师傅拿到了 <strong>一件玉器</strong>（编号 #001）。他要决定它是<strong>御用玉、普通真玉、还是假货</strong>。看他怎么一步步问。<strong>点"是 / 否"看下一步</strong>。</p>
+      <p data-en>Master Lin holds <strong>jade #001</strong>. He must decide: <strong>imperial jade? common jade? fake?</strong> Watch him step through. <strong>Click "Yes/No"</strong>.</p>
+    </div>
+
+    <div class="grid md:grid-cols-[280px_1fr] gap-5">
+      <!-- Artifact card -->
+      <div class="bg-white border-2 border-amber-300 rounded-2xl p-4">
+        <div class="text-xs uppercase text-amber-700 font-bold mb-1">Jade #001</div>
+        <div class="aspect-square bg-gradient-to-br from-emerald-100 to-emerald-300 rounded-xl flex items-center justify-center text-7xl mb-3">🥬</div>
+        <div class="text-xs space-y-1 text-slate-700">
+          <div class="feat-row"><span><span data-zh>重量</span><span data-en>Weight</span></span><span class="font-bold">623 g</span></div>
+          <div class="feat-row"><span><span data-zh>大小</span><span data-en>Size</span></span><span class="font-bold">19 cm</span></div>
+          <div class="feat-row"><span><span data-zh>看上去</span><span data-en>Looks</span></span><span class="font-bold"><span data-zh>翠绿，半透</span><span data-en>Green, semi-translucent</span></span></div>
+        </div>
+      </div>
+
+      <!-- Decision tree visualization -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-3 overflow-x-auto">
+        <svg id="tree-svg" viewBox="0 0 800 460" class="w-full svg-wide-680" style="height:460px"></svg>
+      </div>
+    </div>
+
+    <!-- Current step / dialog -->
+    <div id="tree-step" class="mt-5 bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+      <!-- filled by JS -->
+    </div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-ghost" onclick="resetWalk()">🔄 <span data-zh>重走一遍</span><span data-en>Restart walk</span></button>
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：决策树 vs 神经网络 →</span><span data-en>Next: Tree vs Neural Net →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: COMPARISON ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>决策树是 AI 最早的"思考方式"之一。和我们 M1-3 用的<strong>神经网络</strong>比一比——它们各有所长。</p>
+      <p data-en>Decision trees are one of AI's oldest reasoning styles. Compared to the <strong>neural network</strong> we used in M1-3, each shines differently.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="cmp-card border-amber-300">
+        <div class="head">🌳 <span data-zh>决策树</span><span data-en>Decision Tree</span></div>
+        <div class="text-xs uppercase text-amber-700 font-bold mb-3"><span data-zh>白盒 · 看得见怎么想的</span><span data-en>White-box · transparent</span></div>
+        <ul class="text-sm space-y-2">
+          <li>✅ <span data-zh><strong>可解释</strong>：每个判断都能"指给你看"——非常适合医疗、法律、金融</span><span data-en><strong>Explainable</strong>: every decision can be shown — perfect for medicine/law/finance</span></li>
+          <li>✅ <span data-zh><strong>不需要大量数据</strong>：几条规则就能开始用</span><span data-en><strong>Low data hunger</strong>: a handful of rules works</span></li>
+          <li>❌ <span data-zh><strong>很难处理图像/声音</strong>：因为这些数据有上百万维特征</span><span data-en><strong>Bad at images/sound</strong>: too many feature dimensions</span></li>
+          <li>❌ <span data-zh><strong>遇到新情况会卡住</strong>：树没分到的就不会答</span><span data-en><strong>Brittle on novelty</strong>: any input not in the tree breaks it</span></li>
+        </ul>
+      </div>
+      <div class="cmp-card border-blue-300">
+        <div class="head">🧠 <span data-zh>神经网络</span><span data-en>Neural Network</span></div>
+        <div class="text-xs uppercase text-blue-700 font-bold mb-3"><span data-zh>黑盒 · 它自己也"说不清"</span><span data-en>Black-box · it "just feels right"</span></div>
+        <ul class="text-sm space-y-2">
+          <li>✅ <span data-zh><strong>擅长高维数据</strong>：图像、声音、视频，神经网络无敌</span><span data-en><strong>Crushes high-dim data</strong>: images, audio, video</span></li>
+          <li>✅ <span data-zh><strong>泛化能力强</strong>：见过几张猫的照片，能认出从没见过的猫</span><span data-en><strong>Generalizes</strong>: learns abstract patterns</span></li>
+          <li>❌ <span data-zh><strong>难解释</strong>：医生听 AI 说"是癌症"，没法问"为什么"</span><span data-en><strong>Hard to explain</strong>: "why?" gets a shrug</span></li>
+          <li>❌ <span data-zh><strong>很吃数据</strong>：动辄需要几千几万个例子才能训好</span><span data-en><strong>Data hungry</strong>: needs thousands of examples</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+      <strong>💡 <span data-zh>关键洞察</span><span data-en>Key insight</span></strong>
+      <span data-zh>：现代 AI 经常<strong>组合两者</strong>——神经网络看图像、决策树做最后的可解释判断。比如医院的 AI 先用神经网络分析 CT，再用决策树告诉医生"为什么"。</span>
+      <span data-en>: Modern AI often <strong>combines both</strong> — neural nets do perception, decision trees do final explainable judgments. Hospitals run NN on CT scans, then a tree explains the "why" to doctors.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(3)">
+        <span data-zh>下一关：用决策树鉴定 3 件神秘文物 →</span><span data-en>Next: Use the tree on 3 mystery artifacts →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: APPLY TREE TO MYSTERIES ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>3 件神秘玉器送到。<strong>看特征卡片，回答每一步的"是 / 否"</strong>。看你能不能把 3 件都鉴定对。</p>
+      <p data-en>3 mystery jades arrived. <strong>Read the feature card, answer Yes/No at each step</strong>. Can you nail all 3?</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 mb-5" id="myst-cards"></div>
+
+    <!-- Active mystery walkthrough -->
+    <div id="myst-active" class="hidden">
+      <div class="bg-white border-2 border-blue-300 rounded-2xl p-4 mb-3">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <div class="text-xs uppercase text-blue-700 font-bold"><span data-zh>正在鉴定</span><span data-en>Appraising</span></div>
+            <div class="font-bold text-lg" id="myst-active-name">—</div>
+          </div>
+          <button class="btn-ghost text-sm" onclick="cancelMyst()">✕ <span data-zh>取消</span><span data-en>Cancel</span></button>
+        </div>
+        <div class="grid sm:grid-cols-[120px_1fr] gap-4 items-start">
+          <div class="aspect-square rounded-xl flex items-center justify-center text-6xl" id="myst-active-emoji-wrap">
+            <span id="myst-active-emoji">🥬</span>
+          </div>
+          <div class="text-xs space-y-1 text-slate-700" id="myst-active-feats"></div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-3 overflow-x-auto mb-3">
+        <svg id="tree-svg-2" viewBox="0 0 800 460" class="w-full svg-wide-680" style="height:460px"></svg>
+      </div>
+
+      <div id="myst-step" class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：决策树的弱点 →</span><span data-en>Next: Tree's weakness →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: WHEN TREES BREAK ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>决策树看起来这么好——可解释、透明、稳。但它也有<strong>致命弱点</strong>。来一个真实情境，你来判断：</p>
+      <p data-en>Trees look great — explainable, transparent, sturdy. But they have a <strong>fatal weakness</strong>. Real scenario, your call:</p>
+    </div>
+
+    <div class="bg-white border-2 border-red-300 rounded-2xl p-5 mb-4">
+      <div class="text-2xl mb-2">⚠️ <span data-zh>案例：玉器市场出现一种新材料</span><span data-en>Case: a new jade-like material appears on the market</span></div>
+      <p class="text-sm text-slate-700"><span data-zh>某商家把一种新合成材料做得：<strong>重量像玉、半透明像玉、雕工精细、表面有人工"包浆"</strong>。林师傅那棵 4 个问题的决策树——会怎么判？</span><span data-en>A vendor synthesizes new material that's: <strong>jade-weight, jade-translucent, intricately carved, artificially "patinated"</strong>. What will Master Lin's 4-question tree say?</span></p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-3 mb-4" id="break-choices">
+      <button class="cmp-card border-amber-300 text-left" onclick="breakAns('a')">
+        <div class="font-bold">A</div>
+        <div class="text-sm mt-1"><span data-zh>"🏆 御用玉"——4 个问题全是 Yes，树就给这个答案</span><span data-en>"🏆 Royal jade" — all 4 yes, that's what the tree gives</span></div>
+      </button>
+      <button class="cmp-card border-blue-300 text-left" onclick="breakAns('b')">
+        <div class="font-bold">B</div>
+        <div class="text-sm mt-1"><span data-zh>"❌ 假货"——AI 会感觉到不对</span><span data-en>"❌ Fake" — AI senses something off</span></div>
+      </button>
+      <button class="cmp-card border-slate-300 text-left" onclick="breakAns('c')">
+        <div class="font-bold">C</div>
+        <div class="text-sm mt-1"><span data-zh>"🤔 我不确定"——树会承认它没遇到过</span><span data-en>"🤔 Unsure" — tree admits novelty</span></div>
+      </button>
+    </div>
+
+    <div id="break-result" class="hidden">
+      <div class="bg-red-50 border-2 border-red-300 rounded-2xl p-5">
+        <div class="font-bold text-red-700 mb-2">📌 <span data-zh>真实答案：A</span><span data-en>Real answer: A</span></div>
+        <p class="text-sm" data-zh>树会<strong>非常自信</strong>地说"御用玉"——因为它走完了 4 个 Yes 的路径，根本不会"怀疑"。这就是决策树的盲区：<strong>规则之外的世界，它认不出</strong>。</p>
+        <p class="text-sm" data-en>The tree confidently says "royal jade" — because all 4 yeses path there. It never "doubts." That's the blind spot: <strong>outside its rules, the tree can't see</strong>.</p>
+        <p class="text-sm mt-3" data-zh>这也是为什么真正的鉴定师会:<strong>1）多问"我有没有见过类似的"</strong>；<strong>2）借助显微镜、化学测试</strong>；<strong>3）和其他师傅讨论</strong>——这些都是树<strong>装不进去</strong>的能力。</p>
+        <p class="text-sm mt-3" data-en>That's why real appraisers <strong>1)</strong> ask "have I seen this before?"; <strong>2)</strong> use microscopes & chemistry; <strong>3)</strong> consult colleagues — abilities trees <strong>can't represent</strong>.</p>
+        <div class="mt-4 p-3 bg-white rounded-lg text-xs">
+          <strong>📚 <span data-zh>真实事件</span><span data-en>True story</span></strong>：
+          <span data-zh>2010 年代翡翠造假技术（合成、染色、注胶）大爆发，许多用决策树的早期鉴定 AI 集体失灵，被骗子用来背书假货。后来行业引入光谱分析+神经网络组合，才扛住。</span>
+          <span data-en>In the 2010s, jade-faking tech (synthesis, dyeing, gel injection) exploded. Many early decision-tree AIs failed and were used to "certify" fakes. Industry shifted to spectroscopy + NN hybrids.</span>
+        </div>
+      </div>
+      <div class="mt-5 text-right">
+        <button class="btn-primary" onclick="goTo(5)">
+          <span data-zh>最后：反思 →</span><span data-en>Final: Reflect →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: REFLECTION ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>决策树教会你一件事：<strong>"AI 思考"不是魔术——是问对问题的顺序</strong>。最后请你写下：</p>
+      <p data-en>Trees taught us: <strong>"AI thinking" isn't magic — it's asking questions in the right order</strong>. Final reflection:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 如果你给医生设计一个 AI 诊断助手，你想要决策树还是神经网络？为什么？</span>
+        <span data-en>① For a doctor's AI diagnostic helper, would you choose a decision tree or a neural net? Why?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 想一个你生活中已经在用决策树思考的场景（比如选餐厅、选学校）。把它画一画。</span>
+        <span data-en>② Pick a moment when you use decision-tree thinking (e.g. picking a restaurant). Sketch it.</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ "决策树太死板"——同意吗？什么时候"死板"反而是优点？</span>
+        <span data-en>③ "Decision trees are too rigid" — agree? When is rigidity actually a virtue?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M2-2 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-amber-500 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#FBBF24" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🌳</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 2 关完成</span><span data-en>Mission #2 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"鉴宝学徒" 徽章已解锁</span><span data-en>"Appraiser Apprentice" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-amber-50 border border-amber-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>决策树 = <strong>一连串 yes/no 问题</strong>，最后走到一个答案</span><span data-en>Decision tree = <strong>a chain of yes/no questions</strong> ending in an answer</span></li>
+          <li>✓ <span data-zh>决策树是 <strong>白盒</strong>——每个判断都能解释</span><span data-en>Trees are <strong>white-box</strong> — every step is explainable</span></li>
+          <li>✓ <span data-zh>神经网络擅长<strong>感知</strong>，决策树擅长<strong>解释</strong>——现代 AI 把它们组合</span><span data-en>Neural nets <strong>perceive</strong>, trees <strong>explain</strong> — modern AI combines them</span></li>
+          <li>✓ <span data-zh>树的盲区：<strong>规则之外的世界</strong>它认不出</span><span data-en>Tree's blind spot: <strong>anything outside the rules</strong></span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m2-3-tour.html'">
+          <span data-zh>下一关：M2-3 AI 故宫导游 →</span><span data-en>Next: M2-3 AI Tour Guide →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M2-2 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M2-2 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   DECISION TREE
+   =====================================================
+   Tree structure:
+   q1: weight ok? (heavy enough)
+     yes → q2: translucent?
+       yes → q3: intricate carving?
+         yes → q4: old patina?
+           yes → ROYAL JADE 🏆
+           no  → COMMON JADE 💎
+         no → COMMON JADE 💎
+       no → FAKE STONE ❌ (marble?)
+     no → FAKE GLASS ❌ (glass/plastic)
+*/
+
+const TREE_NODES = {
+  q1:{type:'q', x:400, y:50,
+    q:{zh:'重量符合玉的密度吗？(玉很沉，玻璃和塑料很轻)', en:'Weight matches jade\'s density? (Jade is heavy, glass/plastic light)'},
+    yes:'q2', no:'leaf_fake_glass'},
+  q2:{type:'q', x:280, y:160,
+    q:{zh:'拿到光下，半透明吗？', en:'Hold to light — semi-translucent?'},
+    yes:'q3', no:'leaf_fake_stone'},
+  q3:{type:'q', x:200, y:280,
+    q:{zh:'雕工是否极其精细（如发丝、皱纹）？', en:'Is the carving extremely fine (hair, wrinkles)?'},
+    yes:'q4', no:'leaf_common2'},
+  q4:{type:'q', x:140, y:390,
+    q:{zh:'表面有古朴包浆（年代感的光泽）？', en:'Old patina (aged glow) on surface?'},
+    yes:'leaf_royal', no:'leaf_common1'},
+
+  // Leaves
+  leaf_royal:       {type:'leaf', x:60,  y:430, kind:'good', label:{zh:'🏆 御用玉', en:'🏆 Royal Jade'}},
+  leaf_common1:     {type:'leaf', x:240, y:430, kind:'good', label:{zh:'💎 普通真玉', en:'💎 Common Jade'}},
+  leaf_common2:     {type:'leaf', x:330, y:330, kind:'good', label:{zh:'💎 普通真玉', en:'💎 Common Jade'}},
+  leaf_fake_stone:  {type:'leaf', x:430, y:230, kind:'fake', label:{zh:'❌ 假玉(大理石)', en:'❌ Fake (marble)'}},
+  leaf_fake_glass:  {type:'leaf', x:600, y:160, kind:'fake', label:{zh:'❌ 假玉(玻璃)', en:'❌ Fake (glass)'}},
+};
+
+const TREE_EDGES = [
+  {from:'q1', to:'q2',              label:{zh:'是',en:'Yes'}},
+  {from:'q1', to:'leaf_fake_glass', label:{zh:'否',en:'No'}},
+  {from:'q2', to:'q3',              label:{zh:'是',en:'Yes'}},
+  {from:'q2', to:'leaf_fake_stone', label:{zh:'否',en:'No'}},
+  {from:'q3', to:'q4',              label:{zh:'是',en:'Yes'}},
+  {from:'q3', to:'leaf_common2',    label:{zh:'否',en:'No'}},
+  {from:'q4', to:'leaf_royal',      label:{zh:'是',en:'Yes'}},
+  {from:'q4', to:'leaf_common1',    label:{zh:'否',en:'No'}},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {
+  phase:0,
+  // P1: walk
+  walkCur:'q1',
+  walkPath:[],
+  walkDone:false,
+  // P3: mystery
+  mysteries:[],
+  activeMyst:null,
+  mystCur:'q1',
+  mystPath:[],
+  // P4
+  breakAns:null,
+  // P5
+  reflectChoice:null,
+  reflectText:''
+};
+
+/* =====================================================
+   TREE RENDERER
+   ===================================================== */
+function renderTree(svgId, activeNode, passedPath){
+  const svg = document.getElementById(svgId);
+  svg.innerHTML = '';
+
+  // Edges first
+  TREE_EDGES.forEach(e=>{
+    const a = TREE_NODES[e.from], b = TREE_NODES[e.to];
+    const passed = passedPath.includes(e.from) && passedPath.includes(e.to);
+    const midX = (a.x+b.x)/2;
+    const midY = (a.y+b.y)/2;
+    svg.insertAdjacentHTML('beforeend', `
+      <path class="tedge ${passed?'passed':''}" d="M ${a.x} ${a.y+18} C ${a.x} ${a.y+50}, ${b.x} ${b.y-30}, ${b.x} ${b.y-18}"/>
+      <text class="tedge-label ${passed?'passed':''}" x="${midX}" y="${midY-2}" text-anchor="middle">${LANG==='en'?e.label.en:e.label.zh}</text>
+    `);
+  });
+
+  // Nodes
+  Object.entries(TREE_NODES).forEach(([id, n])=>{
+    const isPassed = passedPath.includes(id);
+    const isActive = id===activeNode;
+    if(n.type==='q'){
+      const w = 200, h = 36;
+      const text = LANG==='en'?n.q.en:n.q.zh;
+      const display = text.length>22 ? text.substring(0,20)+'…' : text;
+      svg.insertAdjacentHTML('beforeend', `
+        <g class="tnode-q ${isPassed?'passed':''} ${isActive?'active':''}" data-id="${id}">
+          <rect x="${n.x-w/2}" y="${n.y-h/2}" width="${w}" height="${h}" rx="8"/>
+          <text x="${n.x}" y="${n.y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">${display}</text>
+        </g>
+      `);
+    } else {
+      const w = 130, h = 32;
+      svg.insertAdjacentHTML('beforeend', `
+        <g class="tnode-leaf ${n.kind} ${isActive?'active':''}" data-id="${id}">
+          <rect x="${n.x-w/2}" y="${n.y-h/2}" width="${w}" height="${h}" rx="14"/>
+          <text x="${n.x}" y="${n.y+4}" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">${LANG==='en'?n.label.en:n.label.zh}</text>
+        </g>
+      `);
+    }
+  });
+}
+
+/* =====================================================
+   PHASE 1: WALK WITH MASTER LIN (Cabbage = all yes)
+   ===================================================== */
+function renderWalk(){
+  renderTree('tree-svg', state.walkCur, state.walkPath);
+  const cur = TREE_NODES[state.walkCur];
+  const step = document.getElementById('tree-step');
+  if(cur.type==='q'){
+    // Cabbage features: weight=623g (yes), translucent (yes), intricate (yes), patina (yes)
+    step.innerHTML = `
+      <div class="text-sm font-bold mb-2">🎩 <span data-zh>林师傅问：</span><span data-en>Master Lin asks:</span></div>
+      <div class="text-lg mb-3"><span data-zh>${cur.q.zh}</span><span data-en>${cur.q.en}</span></div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="qa-btn yes" onclick="walkAnswer(true)">✓ <span data-zh>是</span><span data-en>Yes</span></button>
+        <button class="qa-btn no" onclick="walkAnswer(false)">✗ <span data-zh>否</span><span data-en>No</span></button>
+      </div>
+      <div class="text-xs text-slate-500 mt-3"><span data-zh>提示：参考左边卡片上的特征。这件玉重 623g（很重）、翠绿半透、雕工精细、表面有古朴光泽。</span><span data-en>Hint: check the card's features. Heavy 623g, green & semi-translucent, intricate, glossy patina.</span></div>
+    `;
+  } else {
+    // Leaf
+    state.walkDone = true;
+    step.innerHTML = `
+      <div class="text-sm font-bold mb-2 text-green-700">🎉 <span data-zh>走到了终点：</span><span data-en>Reached a leaf:</span></div>
+      <div class="text-2xl font-black mb-2"><span data-zh>${cur.label.zh}</span><span data-en>${cur.label.en}</span></div>
+      <div class="text-sm text-slate-700" data-zh>这件玉器一路所有问题都是 <strong>"是"</strong> ——林师傅判定它是<strong>御用玉</strong>。这就是翠玉白菜真品的鉴定路径！</div>
+      <div class="text-sm text-slate-700" data-en>All four questions answered <strong>"yes"</strong> — Master Lin classifies it as <strong>royal jade</strong>. This is the real path for an authentic Jadeite Cabbage!</div>
+      <div class="text-xs text-slate-500 mt-3">📚 <span data-zh>真实的翠玉白菜现藏于台北故宫博物院</span><span data-en>The real Jadeite Cabbage is in the National Palace Museum, Taipei</span></div>
+    `;
+    document.getElementById('p1-next').disabled = false;
+  }
+}
+
+function walkAnswer(yes){
+  const cur = TREE_NODES[state.walkCur];
+  if(cur.type!=='q') return;
+  // Cabbage is all yes — show feedback if student picks no
+  if(!yes){
+    document.getElementById('tree-step').insertAdjacentHTML('beforeend',
+      `<div class="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+        <span data-zh>🤔 仔细看左边的特征卡——这件玉的答案应该是"是"。再看看？</span>
+        <span data-en>🤔 Check the feature card on the left — the answer for this jade is "Yes". Try again?</span>
+      </div>`);
+    return;
+  }
+  state.walkPath.push(state.walkCur);
+  state.walkCur = cur.yes;
+  state.walkPath.push(state.walkCur);
+  renderWalk();
+}
+
+function resetWalk(){
+  state.walkCur='q1';
+  state.walkPath=[];
+  state.walkDone=false;
+  document.getElementById('p1-next').disabled = true;
+  renderWalk();
+}
+
+/* =====================================================
+   PHASE 3: MYSTERY ARTIFACTS
+   ===================================================== */
+const MYSTERIES = [
+  {id:'m1', emoji:'🥬', bg:'from-emerald-100 to-emerald-300',
+    name:{zh:'神秘文物 #1', en:'Mystery #1'},
+    feats:{
+      heavy:true,        // q1
+      translucent:true,  // q2
+      intricate:false,   // q3 → leads to common2 (Common Jade)
+      patina:false,      // doesn't matter
+    },
+    truth:'leaf_common2'},
+  {id:'m2', emoji:'💍', bg:'from-blue-100 to-purple-200',
+    name:{zh:'神秘文物 #2', en:'Mystery #2'},
+    feats:{
+      heavy:false,       // q1 → fake glass
+      translucent:true,
+      intricate:false,
+      patina:false,
+    },
+    truth:'leaf_fake_glass'},
+  {id:'m3', emoji:'🏺', bg:'from-amber-100 to-amber-300',
+    name:{zh:'神秘文物 #3', en:'Mystery #3'},
+    feats:{
+      heavy:true,
+      translucent:false, // q2 → fake stone
+      intricate:false,
+      patina:true,
+    },
+    truth:'leaf_fake_stone'},
+];
+
+state.mysteries = MYSTERIES.map(m=>({...m, result:null}));
+
+function renderMystCards(){
+  const host = document.getElementById('myst-cards');
+  let solved=0;
+  let correct=0;
+  host.innerHTML = state.mysteries.map(m=>{
+    if(m.result){
+      solved++;
+      const ok = m.result===m.truth;
+      if(ok) correct++;
+      const truth = TREE_NODES[m.truth];
+      const result = TREE_NODES[m.result];
+      return `<div class="myst-card ${ok?'solved':'solved-wrong'}">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="text-3xl">${m.emoji}</div>
+          <div class="font-bold"><span data-zh>${m.name.zh}</span><span data-en>${m.name.en}</span></div>
+        </div>
+        <div class="text-xs space-y-1 text-slate-700">
+          <div class="feat-row"><span><span data-zh>你的判定</span><span data-en>Your verdict</span></span><span class="font-bold">${LANG==='en'?result.label.en:result.label.zh}</span></div>
+          <div class="feat-row"><span><span data-zh>真实答案</span><span data-en>Truth</span></span><span class="font-bold ${ok?'text-green-700':'text-red-700'}">${LANG==='en'?truth.label.en:truth.label.zh}</span></div>
+        </div>
+        ${ok ? '<div class="mt-2 text-xs text-green-700 font-bold">✓ '+(LANG==='en'?'Correct':'答对了')+'</div>'
+             : '<div class="mt-2 text-xs text-red-700 font-bold">✗ '+(LANG==='en'?'Tree got fooled. Try again.':'树被骗了。再试一次。')+'</div>'}
+        <button class="mt-2 btn-ghost text-xs w-full" onclick="startMyst('${m.id}')">🔄 <span data-zh>重新鉴定</span><span data-en>Redo</span></button>
+      </div>`;
+    }
+    return `<div class="myst-card">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${m.emoji}</div>
+        <div class="font-bold"><span data-zh>${m.name.zh}</span><span data-en>${m.name.en}</span></div>
+      </div>
+      <div class="text-xs space-y-1 text-slate-700">
+        <div class="feat-row"><span><span data-zh>重量</span><span data-en>Weight</span></span><span class="font-bold">${m.feats.heavy?(LANG==='en'?'Heavy ✓':'重 ✓'):(LANG==='en'?'Light ✗':'轻 ✗')}</span></div>
+        <div class="feat-row"><span><span data-zh>透光</span><span data-en>Translucent</span></span><span class="font-bold">${m.feats.translucent?(LANG==='en'?'Yes ✓':'是 ✓'):(LANG==='en'?'Opaque ✗':'不透 ✗')}</span></div>
+        <div class="feat-row"><span><span data-zh>雕工</span><span data-en>Carving</span></span><span class="font-bold">${m.feats.intricate?(LANG==='en'?'Fine ✓':'精细 ✓'):(LANG==='en'?'Coarse ✗':'粗糙 ✗')}</span></div>
+        <div class="feat-row"><span><span data-zh>包浆</span><span data-en>Patina</span></span><span class="font-bold">${m.feats.patina?(LANG==='en'?'Old ✓':'有 ✓'):(LANG==='en'?'None ✗':'无 ✗')}</span></div>
+      </div>
+      <button class="mt-3 btn-primary text-xs w-full" onclick="startMyst('${m.id}')">
+        <span data-zh>▶ 开始鉴定</span><span data-en>▶ Appraise</span>
+      </button>
+    </div>`;
+  }).join('');
+  if(solved>=3) document.getElementById('p3-next').disabled = false;
+}
+
+function startMyst(id){
+  state.activeMyst = id;
+  state.mystCur = 'q1';
+  state.mystPath = [];
+  const m = state.mysteries.find(x=>x.id===id);
+  document.getElementById('myst-active').classList.remove('hidden');
+  document.getElementById('myst-active-name').innerHTML = `<span data-zh>${m.name.zh}</span><span data-en>${m.name.en}</span>`;
+  document.getElementById('myst-active-emoji').textContent = m.emoji;
+  document.getElementById('myst-active-emoji-wrap').className = 'aspect-square rounded-xl flex items-center justify-center text-6xl bg-gradient-to-br '+m.bg;
+  document.getElementById('myst-active-feats').innerHTML = `
+    <div class="feat-row"><span><span data-zh>重量</span><span data-en>Weight</span></span><span class="font-bold">${m.feats.heavy?(LANG==='en'?'Heavy ✓':'重 ✓'):(LANG==='en'?'Light ✗':'轻 ✗')}</span></div>
+    <div class="feat-row"><span><span data-zh>透光</span><span data-en>Translucent</span></span><span class="font-bold">${m.feats.translucent?(LANG==='en'?'Yes ✓':'是 ✓'):(LANG==='en'?'Opaque ✗':'不透 ✗')}</span></div>
+    <div class="feat-row"><span><span data-zh>雕工</span><span data-en>Carving</span></span><span class="font-bold">${m.feats.intricate?(LANG==='en'?'Fine ✓':'精细 ✓'):(LANG==='en'?'Coarse ✗':'粗糙 ✗')}</span></div>
+    <div class="feat-row"><span><span data-zh>包浆</span><span data-en>Patina</span></span><span class="font-bold">${m.feats.patina?(LANG==='en'?'Old ✓':'有 ✓'):(LANG==='en'?'None ✗':'无 ✗')}</span></div>
+  `;
+  renderMyst();
+  document.getElementById('myst-active').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function renderMyst(){
+  renderTree('tree-svg-2', state.mystCur, state.mystPath);
+  const cur = TREE_NODES[state.mystCur];
+  const step = document.getElementById('myst-step');
+  const m = state.mysteries.find(x=>x.id===state.activeMyst);
+  if(cur.type==='q'){
+    step.innerHTML = `
+      <div class="text-sm font-bold mb-2"><span data-zh>问题：</span><span data-en>Question:</span></div>
+      <div class="text-lg mb-3"><span data-zh>${cur.q.zh}</span><span data-en>${cur.q.en}</span></div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="qa-btn yes" onclick="mystAnswer(true)">✓ <span data-zh>是</span><span data-en>Yes</span></button>
+        <button class="qa-btn no" onclick="mystAnswer(false)">✗ <span data-zh>否</span><span data-en>No</span></button>
+      </div>
+    `;
+  } else {
+    // Leaf — record result
+    m.result = state.mystCur;
+    const ok = m.result===m.truth;
+    step.innerHTML = `
+      <div class="text-sm font-bold mb-2 text-blue-700">🎯 <span data-zh>决策树判定：</span><span data-en>Tree's verdict:</span></div>
+      <div class="text-2xl font-black mb-2"><span data-zh>${cur.label.zh}</span><span data-en>${cur.label.en}</span></div>
+      <div class="text-sm ${ok?'text-green-700':'text-amber-700'}">${ok?'✓ '+(LANG==='en'?'Correct!':'判对了！'):'⚠️ '+(LANG==='en'?'Hmm — but did you answer the questions matching the feature card?':'再检查一下你的答案是否对应特征卡')}</div>
+    `;
+    setTimeout(()=>{
+      cancelMyst();
+      renderMystCards();
+    },1500);
+  }
+}
+
+function mystAnswer(yes){
+  const cur = TREE_NODES[state.mystCur];
+  state.mystPath.push(state.mystCur);
+  state.mystCur = yes ? cur.yes : cur.no;
+  state.mystPath.push(state.mystCur);
+  renderMyst();
+}
+
+function cancelMyst(){
+  state.activeMyst=null;
+  document.getElementById('myst-active').classList.add('hidden');
+}
+
+/* =====================================================
+   PHASE 4: Break
+   ===================================================== */
+function breakAns(k){
+  state.breakAns=k;
+  document.getElementById('break-result').classList.remove('hidden');
+  document.getElementById('break-choices').querySelectorAll('button').forEach(b=>b.disabled=true);
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M2-2',
+    walkDone:state.walkDone,
+    mystSolved:state.mysteries.filter(m=>m.result).length,
+    mystCorrect:state.mysteries.filter(m=>m.result===m.truth).length,
+    breakAns:state.breakAns,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m2-2', JSON.stringify(data));
+  goTo(6);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderWalk();
+  if(n===3) renderMystCards();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.walkCur='q1';state.walkPath=[];state.walkDone=false;
+    state.mysteries.forEach(m=>m.result=null);
+    state.breakAns=null;state.reflectChoice=null;state.reflectText='';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('break-result').classList.add('hidden');
+    document.getElementById('break-choices').querySelectorAll('button').forEach(b=>b.disabled=false);
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

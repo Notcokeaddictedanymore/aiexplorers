@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M1-4 误识别的代价 · The Cost of Being Wrong</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  /* Case card */
+  .case-card{background:#fff;border:2px solid #E2E8F0;border-radius:16px;padding:1.25rem;transition:all .25s;cursor:pointer;position:relative;overflow:hidden}
+  .case-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px -12px rgba(15,23,42,.15)}
+  .case-card.visited{border-color:#10B981}
+  .case-card.visited::after{content:"✓";position:absolute;top:10px;right:14px;background:#10B981;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .severity-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:3px}
+  /* FP/FN cards */
+  .err-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s}
+  .err-card:hover{border-color:#94A3B8}
+  .err-card.fp{border-color:#F59E0B;background:#FFFBEB}
+  .err-card.fn{border-color:#DC2626;background:#FEF2F2}
+  /* Slider */
+  .slider-wrap{position:relative;background:#F1F5F9;border-radius:9999px;height:48px;display:flex;align-items:center;padding:0 1rem}
+  input[type=range].smart-slider{-webkit-appearance:none;width:100%;background:transparent}
+  input[type=range].smart-slider::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#DC2626,#EF4444);box-shadow:0 4px 10px rgba(220,38,38,.4);cursor:pointer;border:3px solid #fff}
+  input[type=range].smart-slider::-moz-range-thumb{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#DC2626,#EF4444);box-shadow:0 4px 10px rgba(220,38,38,.4);cursor:pointer;border:3px solid #fff}
+  input[type=range].smart-slider::-webkit-slider-runnable-track{background:linear-gradient(90deg,#FCA5A5,#FCD34D,#86EFAC);height:6px;border-radius:3px}
+  /* Pledge */
+  .pledge-input{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.65rem .9rem;width:100%;font-size:.95rem;transition:border .2s}
+  .pledge-input:focus{outline:none;border-color:#3B82F6}
+  .pledge-input.ok{border-color:#10B981;background:#ECFDF5}
+  /* Drag matchers */
+  .role{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.6rem .8rem;font-size:.85rem;cursor:pointer;text-align:left;transition:all .2s}
+  .role:hover{border-color:#94A3B8}
+  .role.selected{border-color:#3B82F6;background:#EFF6FF}
+  .resp-slot{min-height:80px;background:#F8FAFC;border:2px dashed #CBD5E1;border-radius:12px;padding:.6rem;display:flex;align-items:center;justify-content:center;text-align:center;font-size:.8rem;color:#64748B;cursor:pointer;transition:all .2s}
+  .resp-slot:hover{border-color:#3B82F6;background:#EFF6FF}
+  .resp-slot.filled{background:#fff;border-style:solid;color:#0F172A}
+  .resp-slot.filled.correct{border-color:#10B981;background:#ECFDF5}
+  .resp-slot.filled.wrong{border-color:#DC2626;background:#FEF2F2}
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  /* impact bars */
+  .impact-bar{height:8px;border-radius:4px;background:#E2E8F0;overflow:hidden;position:relative;margin:.3rem 0}
+  .impact-fill{height:100%;transition:width .3s ease}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M1-4 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.1 · 感知 / Perception</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>反思 · 30 min</span><span data-en>Reflect · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>误识别的代价：AI 错了，谁来买单？</span>
+      <span data-en>The Cost of Being Wrong: Who Pays When AI Errs?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            还记得 M1-3 那个 90% 准确率的熊猫识别器吗？听起来挺不错。但——
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Remember the 90% panda recognizer from M1-3? Sounds great. But—
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            那剩下的 10% 怎么办？谁在为它买单？
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            What about the other 10%? Who pays for them?
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            一个分类错的熊猫照片，可能让保护区错估种群数量。一个识错的肿瘤，可能让一个病人错过最佳治疗时间。一个误识别的脸，可能让一个无辜的人被错抓。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            One mislabeled panda photo can throw off conservation counts. One missed tumor can cost a life. One face mismatch can put an innocent person in cuffs.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            今天这一关<strong>没有正确答案</strong>，只有沉重的选择。准备好和我一起，看 AI 错的时候世界发生了什么？
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            This mission <strong>has no right answer</strong> — only hard choices. Ready to see what happens when AI gets it wrong?
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>进入真实案例展厅 →</span><span data-en>Enter the case gallery →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: CASE GALLERY ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这里是 <strong>4 个真实事件</strong>。每个都因 AI 误识别造成了真实代价。点击每一张读完，再继续。</p>
+      <p data-en>4 <strong>real-world cases</strong> where AI errors cost real things. Click each to read, then continue.</p>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 text-sm">
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count">0</span> / 4</div>
+    </div>
+
+    <div id="case-grid" class="grid md:grid-cols-2 gap-4"></div>
+
+    <div class="mt-6 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：两种错误 →</span><span data-en>Next: Two kinds of errors →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: FALSE POSITIVE vs FALSE NEGATIVE ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>AI 出错有<strong>两种不一样</strong>的方式。先学这两个词，再用它们看世界：</p>
+      <p data-en>AI errors come in <strong>two flavors</strong>. Learn both, then use them to read the world:</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 mb-5">
+      <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-3xl">⚠️</span>
+          <h3 class="text-lg font-bold text-amber-900"><span data-zh>假阳性（False Positive）</span><span data-en>False Positive</span></h3>
+        </div>
+        <p class="text-sm text-amber-900" data-zh>AI 喊"狼来了"——其实没有。<br><strong>例子</strong>：把无辜路人识别成通缉犯。</p>
+        <p class="text-sm text-amber-900" data-en>AI cries wolf — but there's no wolf.<br><strong>Example</strong>: tagging innocent passersby as wanted criminals.</p>
+      </div>
+      <div class="bg-red-50 border-2 border-red-300 rounded-2xl p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-3xl">🚨</span>
+          <h3 class="text-lg font-bold text-red-900"><span data-zh>假阴性（False Negative）</span><span data-en>False Negative</span></h3>
+        </div>
+        <p class="text-sm text-red-900" data-zh>狼来了——AI 没看见。<br><strong>例子</strong>：CT 里有早期肿瘤，AI 漏诊。</p>
+        <p class="text-sm text-red-900" data-en>Wolf is real — AI missed it.<br><strong>Example</strong>: an early tumor in a CT scan that AI overlooks.</p>
+      </div>
+    </div>
+
+    <div class="lingxi-bubble mb-5">
+      <p data-zh>下面 4 个场景，哪一种错误<strong>代价更大</strong>？点你认为更严重的那种。每题做完会告诉你为什么。</p>
+      <p data-en>For each scenario below, which error has the <strong>worse cost</strong>? Tap your pick. Feedback after each.</p>
+    </div>
+
+    <div id="fpfn-grid" class="space-y-3"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：设计者的滑杆 →</span><span data-en>Next: The designer's dial →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: DESIGNER'S DILEMMA (SLIDER) ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你是熊猫识别器的<strong>设计者</strong>。系统有个"灵敏度"开关——开得越高，AI 越容易喊"是熊猫"。但<strong>你不能两全</strong>。试着拖动滑杆，看选择的代价。</p>
+      <p data-en>You're the <strong>designer</strong> of the panda detector. There's a "sensitivity" dial — higher = more "panda!" calls. But <strong>you can't have it both ways</strong>. Drag and see the cost.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="text-sm font-semibold mb-2"><span data-zh>灵敏度（Sensitivity）</span><span data-en>Sensitivity</span></div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="100" value="50" class="smart-slider" id="sens-slider" oninput="updateSens()"/>
+      </div>
+      <div class="flex justify-between text-xs text-slate-500 mt-1">
+        <span><span data-zh>← 保守 / 宁可漏掉</span><span data-en>← Conservative / miss some</span></span>
+        <span><span data-zh>激进 / 宁可错抓 →</span><span data-en>Aggressive / over-call →</span></span>
+      </div>
+
+      <div class="grid sm:grid-cols-3 gap-3 mt-6">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <div class="text-xs uppercase text-amber-800 font-bold"><span data-zh>误判（假阳）</span><span data-en>False Positives</span></div>
+          <div class="text-3xl font-black mt-1" id="sens-fp">8</div>
+          <div class="impact-bar"><div id="sens-fp-bar" class="impact-fill bg-amber-500" style="width:50%"></div></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>错抓的非熊猫</span><span data-en>Non-pandas flagged</span></div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded-xl p-3">
+          <div class="text-xs uppercase text-red-800 font-bold"><span data-zh>漏掉（假阴）</span><span data-en>False Negatives</span></div>
+          <div class="text-3xl font-black mt-1" id="sens-fn">8</div>
+          <div class="impact-bar"><div id="sens-fn-bar" class="impact-fill bg-red-500" style="width:50%"></div></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>漏掉的真熊猫</span><span data-en>Real pandas missed</span></div>
+        </div>
+        <div class="bg-green-50 border border-green-200 rounded-xl p-3">
+          <div class="text-xs uppercase text-green-800 font-bold"><span data-zh>正确分类</span><span data-en>Correct</span></div>
+          <div class="text-3xl font-black mt-1" id="sens-acc">84</div>
+          <div class="impact-bar"><div id="sens-acc-bar" class="impact-fill bg-green-500" style="width:84%"></div></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>共 100 张测试</span><span data-en>out of 100 tests</span></div>
+        </div>
+      </div>
+
+      <div class="mt-5 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm" id="sens-msg">
+        <span data-zh>拖一下滑杆，看变化。<strong>请把它停在你认为"最好"的位置</strong>。</span>
+        <span data-en>Drag and watch. <strong>Stop where you think it's "best".</strong></span>
+      </div>
+
+      <div class="mt-4">
+        <div class="text-sm font-semibold mb-2"><span data-zh>这是给谁用的？这会改变你的选择吗？</span><span data-en>Who's it for? Does that change your choice?</span></div>
+        <div class="grid sm:grid-cols-3 gap-2">
+          <button class="btn-ghost text-xs" onclick="setContext('reserve')">
+            <span data-zh>🐼 保护区统计</span><span data-en>🐼 Reserve count</span>
+          </button>
+          <button class="btn-ghost text-xs" onclick="setContext('hospital')">
+            <span data-zh>🩺 医院筛查</span><span data-en>🩺 Hospital screening</span>
+          </button>
+          <button class="btn-ghost text-xs" onclick="setContext('court')">
+            <span data-zh>⚖️ 法庭证据</span><span data-en>⚖️ Court evidence</span>
+          </button>
+        </div>
+        <div id="context-msg" class="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 hidden text-sm"></div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>下一关：责任分配 →</span><span data-en>Next: Who's responsible? →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: RESPONSIBILITY MAP ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>当 AI 出错伤害了人，<strong>谁该负责</strong>？这从来不是一个人的事。下面 5 个"行为"，请帮我配对给对应的"角色"。</p>
+      <p data-en>When AI hurts someone, <strong>who is responsible</strong>? Never just one person. Match each <strong>action</strong> to the right <strong>role</strong>.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="text-sm font-semibold mb-3"><span data-zh>请把每个"行为"匹配到一个"角色"：先点行为，再点角色。</span><span data-en>Tap an action, then tap the role you blame.</span></div>
+
+      <div class="grid md:grid-cols-2 gap-5">
+        <div>
+          <div class="text-xs uppercase text-slate-500 mb-2"><span data-zh>5 个行为</span><span data-en>5 actions</span></div>
+          <div id="actions-list" class="space-y-2"></div>
+        </div>
+        <div>
+          <div class="text-xs uppercase text-slate-500 mb-2"><span data-zh>5 个角色</span><span data-en>5 roles</span></div>
+          <div id="roles-list" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div id="resp-feedback" class="hidden mt-5 p-4 rounded-xl"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p4-next" disabled onclick="goTo(5)">
+        <span data-zh>最后：写下你的承诺 →</span><span data-en>Final: Your pledge →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: PERSONAL PLEDGE ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>讨论了这么多，最关键的是：<strong>你</strong>作为 AI 的用户，能做什么？写下你的 <strong>3 条承诺</strong>。每条 ≥ 10 个字。这会保存在你的浏览器里——只有你能看到。</p>
+      <p data-en>The biggest question: what will <strong>you</strong>, an AI user, actually do? Write <strong>3 pledges</strong>, ≥ 10 chars each. Saved locally — only you see them.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-red-50 to-blue-50 border-2 border-slate-200 rounded-2xl p-6">
+      <h3 class="font-bold text-xl mb-1"><span data-zh>📜 我的 AI 用户承诺书</span><span data-en>📜 My AI User Pledge</span></h3>
+      <p class="text-sm text-slate-600 mb-5"><span data-zh>提示：试着把承诺写得具体可执行。"我会怀疑 AI"太空；"我会用查证软件至少核对一次重要 AI 回答"更好。</span><span data-en>Tip: be specific. "I'll doubt AI" is vague; "I'll fact-check important AI answers with at least one other source" is better.</span></p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600">① <span data-zh>当 AI 给我一个我不能立刻验证的答案时，我会……</span><span data-en>When AI gives an answer I can't verify, I will…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl1" placeholder="..." oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">② <span data-zh>当我看到 AI 误识别了某个人或某个东西，我会……</span><span data-en>When I see AI misidentify someone or something, I will…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl2" placeholder="..." oninput="checkPledges()"/>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600">③ <span data-zh>当我自己用 AI 做决定时，我至少会……</span><span data-en>When I use AI to make a decision, I will at least…</span></label>
+          <input type="text" class="pledge-input mt-1" id="pl3" placeholder="..." oninput="checkPledges()"/>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-between">
+        <div class="text-sm text-slate-500"><span id="pl-progress">0</span> / 3 <span data-zh>条完成</span><span data-en>complete</span></div>
+        <button class="btn-primary" id="pledge-submit" disabled onclick="submitPledge()">
+          <span data-zh>提交 + 完成 M1-4 →</span><span data-en>Submit & finish →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: COMPLETION ========== -->
+  <section class="phase" id="p6">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-red-500 to-amber-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#F87171" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">⚖️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>Ch.1 全部完成！</span><span data-en>Ch.1 complete!</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"AI 责任守护者" 徽章已解锁</span><span data-en>"AI Responsibility Guardian" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-red-50 border border-red-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>这一关你内化了……</span><span data-en>You internalized…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 错误<strong>有真实代价</strong>——不是数字游戏</span><span data-en>AI errors have <strong>real costs</strong> — not just numbers</span></li>
+          <li>✓ <span data-zh><strong>假阳 vs 假阴</strong>：同样的错误率，不同场景代价天差地别</span><span data-en><strong>FP vs FN</strong>: same rate, wildly different cost in different contexts</span></li>
+          <li>✓ <span data-zh>调灵敏度时你在做<strong>价值判断</strong>，不只是技术决定</span><span data-en>Tuning sensitivity is a <strong>value judgment</strong>, not just engineering</span></li>
+          <li>✓ <span data-zh>责任是<strong>分布的</strong>：工程师、公司、政府、用户都有份</span><span data-en>Responsibility is <strong>distributed</strong>: engineers, companies, gov, users — all share it</span></li>
+          <li>✓ <span data-zh>你已经写下自己的 AI 用户承诺——这是真正的开始</span><span data-en>You wrote your own pledge — the real beginning</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-gradient-to-br from-amber-100 to-amber-50 border-2 border-amber-300 rounded-2xl">
+        <div class="text-xl font-black mb-2">🎓 <span data-zh>第一章结业</span><span data-en>Chapter 1 complete</span></div>
+        <p class="text-sm" data-zh>你完成了"AI 如何看见世界"全部 4 关。你已经：</p>
+        <p class="text-sm" data-en>You finished all 4 missions of "How AI Sees the World":</p>
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M1-1">👁️</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M1-2">🏷️</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M1-3">🐼</div>
+          <div class="bg-white rounded-lg p-2 text-center text-2xl" title="M1-4">⚖️</div>
+        </div>
+        <p class="text-xs text-slate-600 mt-2"><span data-zh>4 个徽章。下一章：AI 怎么思考。</span><span data-en>4 badges earned. Next chapter: How AI Thinks.</span></p>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="alert(LANG==='en'?'Chapter 2 coming soon!':'第 2 章即将开放！')">
+          <span data-zh>开启 Ch.2 →</span><span data-en>Start Ch.2 →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回 Ch.1 首页</span><span data-en>← Back to Ch.1</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M1-4 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M1-4 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* ---------- Case Gallery ---------- */
+const CASES = [
+  {emoji:'🐾', tag:'2018',
+    title:{zh:'AI 把小熊猫当成大熊猫',en:'AI confuses red panda for giant panda'},
+    summary:{zh:'某省级保护区的 AI 因训练数据偏差，将小熊猫（浣熊近亲）误识为大熊猫。统计数量偏离实际，引发保护资源错配。',
+             en:'A provincial reserve\'s AI confused red pandas (raccoon relatives) for giant pandas. The mis-count led to misallocated conservation funds.'},
+    cost:{zh:'真正的小熊猫保护项目少拿了经费', en:'Real red-panda projects got underfunded'},
+    severity:3
+  },
+  {emoji:'🚙', tag:'2021',
+    title:{zh:'特斯拉把月亮当红灯',en:'Tesla mistakes the moon for a traffic light'},
+    summary:{zh:'多名特斯拉车主报告：满月或亮黄路灯被自动驾驶识别为黄灯红灯，导致车辆突然减速。',
+             en:'Multiple Tesla owners reported full moon or bright street lamps being detected as yellow/red lights, causing the car to brake suddenly.'},
+    cost:{zh:'高速上的突然减速 = 追尾风险', en:'Sudden braking at highway speed → rear-end risk'},
+    severity:4
+  },
+  {emoji:'👮', tag:'2020',
+    title:{zh:'人脸识别错抓无辜者',en:'Face recognition arrests innocent man'},
+    summary:{zh:'美国底特律警察用 AI 人脸识别匹配商店监控，错抓了一位无辜黑人男子并关押 30 小时。事后调查显示，AI 在深肤色样本上的准确率显著较低。',
+             en:'Detroit police used AI face match against store CCTV and arrested an innocent Black man, holding him 30 hours. Investigations revealed AI accuracy was far lower on darker skin tones.'},
+    cost:{zh:'30 小时的拘留 + 长期心理创伤', en:'30 hours of detention + lasting trauma'},
+    severity:5
+  },
+  {emoji:'🩺', tag:'2019',
+    title:{zh:'医疗 AI 在深肤色上误诊',en:'Medical AI misdiagnoses darker skin'},
+    summary:{zh:'一款皮肤癌识别 AI 在浅肤色样本上准确率 91%，但在深肤色样本上仅 65%。原因：训练数据 95% 来自浅肤色人群。',
+             en:'A skin cancer AI hit 91% accuracy on light skin but only 65% on darker skin. Why? 95% of training data came from light-skinned subjects.'},
+    cost:{zh:'某些族群的早期癌症被漏诊', en:'Some demographics get late cancer diagnoses'},
+    severity:5
+  },
+];
+
+function renderCases(){
+  const grid = document.getElementById('case-grid');
+  grid.innerHTML = CASES.map((c,i)=>`
+    <div class="case-card" data-idx="${i}" onclick="openCase(${i})">
+      <div class="flex items-start justify-between mb-2">
+        <div class="text-4xl">${c.emoji}</div>
+        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-bold">${c.tag}</span>
+      </div>
+      <h3 class="font-bold text-lg leading-tight"><span data-zh>${c.title.zh}</span><span data-en>${c.title.en}</span></h3>
+      <div class="case-detail hidden mt-3">
+        <p class="text-sm text-slate-700 leading-relaxed"><span data-zh>${c.summary.zh}</span><span data-en>${c.summary.en}</span></p>
+        <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div class="text-xs font-bold text-red-700 uppercase mb-1"><span data-zh>真实代价</span><span data-en>Real cost</span></div>
+          <div class="text-sm"><span data-zh>${c.cost.zh}</span><span data-en>${c.cost.en}</span></div>
+        </div>
+        <div class="mt-3 flex items-center gap-1">
+          <span class="text-xs text-slate-500 mr-2"><span data-zh>严重程度</span><span data-en>Severity</span></span>
+          ${Array.from({length:5},(_,k)=>`<span class="severity-dot" style="background:${k<c.severity?'#DC2626':'#E2E8F0'}"></span>`).join('')}
+        </div>
+      </div>
+      <div class="case-collapse text-xs text-slate-500 mt-2"><span data-zh>👆 点击展开故事</span><span data-en>👆 Click to expand</span></div>
+    </div>
+  `).join('');
+}
+
+const caseVisited = new Set();
+function openCase(i){
+  const card = document.querySelector(`.case-card[data-idx="${i}"]`);
+  card.querySelector('.case-detail').classList.toggle('hidden');
+  card.querySelector('.case-collapse').classList.toggle('hidden');
+  if(!caseVisited.has(i)){
+    caseVisited.add(i);
+    card.classList.add('visited');
+    document.getElementById('case-count').textContent = caseVisited.size;
+    if(caseVisited.size>=4) document.getElementById('p1-next').disabled=false;
+  }
+}
+
+/* ---------- FP vs FN Quiz ---------- */
+const FPFN = [
+  {emoji:'📧', zh:'垃圾邮件过滤器', en:'Spam filter',
+    fpDesc:{zh:'把重要邮件当垃圾扔掉', en:'Important email tossed as spam'},
+    fnDesc:{zh:'让垃圾邮件进收件箱', en:'Spam lands in inbox'},
+    worse:'fp',
+    why:{zh:'FP 更糟：让用户错过老板/亲人的重要信息，远比看几个广告糟糕。', en:'FP wins: missing your boss\'s email is far worse than seeing a few ads.'}
+  },
+  {emoji:'🩺', zh:'癌症筛查 AI', en:'Cancer screening AI',
+    fpDesc:{zh:'把健康人诊断为癌症', en:'Healthy person flagged as cancer'},
+    fnDesc:{zh:'让早期癌症漏诊', en:'Early cancer goes undetected'},
+    worse:'fn',
+    why:{zh:'FN 更糟：FP 会有后续活检纠正；FN 让人错过最佳治疗时间，可能致命。', en:'FN wins: FP gets corrected by biopsy; FN can cost a life.'}
+  },
+  {emoji:'🚗', zh:'自动驾驶刹车系统', en:'Self-driving brake AI',
+    fpDesc:{zh:'看到塑料袋以为是人，急刹', en:'Slams brakes for a plastic bag'},
+    fnDesc:{zh:'看到真人没识别，撞过去', en:'Misses a real pedestrian and hits them'},
+    worse:'fn',
+    why:{zh:'FN 几乎必然致命；FP 顶多导致追尾。两个都可怕，但 FN 不可逆。', en:'FN is almost always fatal; FP at worst causes a fender-bender. Both bad — FN is irreversible.'}
+  },
+  {emoji:'🏦', zh:'银行欺诈检测', en:'Bank fraud detection',
+    fpDesc:{zh:'把你的正常消费冻结', en:'Your normal purchase gets frozen'},
+    fnDesc:{zh:'让骗子刷走你的钱', en:'Scammer drains your account'},
+    worse:'fn',
+    why:{zh:'FN 让钱真丢了；FP 只是给客服打个电话解冻。两害相权取其轻。', en:'FN means money\'s gone; FP just means a call to unfreeze. Pick the lesser evil.'}
+  },
+];
+
+function renderFPFN(){
+  const host = document.getElementById('fpfn-grid');
+  host.innerHTML = FPFN.map((q,i)=>`
+    <div class="bg-white border border-slate-200 rounded-2xl p-4" data-idx="${i}">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="text-3xl">${q.emoji}</span>
+        <h3 class="font-bold"><span data-zh>${q.zh}</span><span data-en>${q.en}</span></h3>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-2">
+        <button class="err-card text-left" onclick="fpfnAns(${i},'fp',event)">
+          <div class="text-xs font-bold text-amber-700 mb-1">⚠️ <span data-zh>假阳</span><span data-en>FP</span></div>
+          <div class="text-sm"><span data-zh>${q.fpDesc.zh}</span><span data-en>${q.fpDesc.en}</span></div>
+        </button>
+        <button class="err-card text-left" onclick="fpfnAns(${i},'fn',event)">
+          <div class="text-xs font-bold text-red-700 mb-1">🚨 <span data-zh>假阴</span><span data-en>FN</span></div>
+          <div class="text-sm"><span data-zh>${q.fnDesc.zh}</span><span data-en>${q.fnDesc.en}</span></div>
+        </button>
+      </div>
+      <div class="fpfn-feedback hidden mt-3 p-3 rounded-lg text-sm"></div>
+    </div>
+  `).join('');
+}
+const fpfnAnswers = {};
+function fpfnAns(i, k, ev){
+  if(fpfnAnswers[i]!==undefined) return;
+  fpfnAnswers[i] = k;
+  const q = FPFN[i];
+  const card = document.querySelector(`#fpfn-grid > div[data-idx="${i}"]`);
+  card.querySelectorAll('.err-card').forEach(c=>{
+    c.style.opacity = '0.5';
+  });
+  ev.currentTarget.style.opacity='1';
+  ev.currentTarget.classList.add(k);
+  const fb = card.querySelector('.fpfn-feedback');
+  fb.classList.remove('hidden');
+  fb.className = 'fpfn-feedback mt-3 p-3 rounded-lg text-sm ' + (k===q.worse?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  fb.innerHTML = `<strong>${k===q.worse?'✓ '+(LANG==='en'?'Yes':'同意'):'🤔 '+(LANG==='en'?'Consider this':'再想想')}</strong> — <span data-zh>${q.why.zh}</span><span data-en>${q.why.en}</span>`;
+  if(Object.keys(fpfnAnswers).length===4){
+    document.getElementById('p2-next').disabled=false;
+  }
+}
+
+/* ---------- Sensitivity Slider ---------- */
+function updateSens(){
+  const v = +document.getElementById('sens-slider').value;
+  // Trade-off: at 0 (conservative), FP=2, FN=15; at 100 (aggressive), FP=15, FN=2
+  const fp = Math.round(2 + (v/100)*13);
+  const fn = Math.round(15 - (v/100)*13);
+  const acc = 100 - fp - fn;
+  document.getElementById('sens-fp').textContent = fp;
+  document.getElementById('sens-fn').textContent = fn;
+  document.getElementById('sens-acc').textContent = acc;
+  document.getElementById('sens-fp-bar').style.width = (fp*6)+'%';
+  document.getElementById('sens-fn-bar').style.width = (fn*6)+'%';
+  document.getElementById('sens-acc-bar').style.width = acc+'%';
+  const msg = document.getElementById('sens-msg');
+  if(v<25){
+    msg.innerHTML = `<span data-zh>📍 <strong>保守派</strong>：你宁愿漏掉一些真熊猫，也不想错抓。适合 <strong>容错代价低、漏报代价高</strong>的场景（如癌症筛查）。</span><span data-en>📍 <strong>Conservative</strong>: you'd rather miss real pandas than over-call. Good for <strong>low-FP-cost, high-FN-cost</strong> contexts (cancer screening).</span>`;
+  } else if(v>75){
+    msg.innerHTML = `<span data-zh>📍 <strong>激进派</strong>：你宁愿错抓也不想漏掉。适合 <strong>漏报致命、错抓可纠</strong>的场景（如机场炸弹检测）。</span><span data-en>📍 <strong>Aggressive</strong>: you'd rather over-call than miss. Good for <strong>FN-is-deadly, FP-is-fixable</strong> contexts (airport bomb screening).</span>`;
+  } else {
+    msg.innerHTML = `<span data-zh>📍 <strong>平衡派</strong>：你试着在两边取舍。但<strong>没有真正的"中立"</strong>——你只是选了一个特定的 FP/FN 比例。</span><span data-en>📍 <strong>Balanced</strong>: trying to compromise. But <strong>there's no neutral</strong> — you're picking a specific FP/FN ratio.</span>`;
+  }
+  // Enable next button after slider has been moved at least once
+  document.getElementById('p3-next').disabled=false;
+}
+function setContext(c){
+  const box = document.getElementById('context-msg');
+  box.classList.remove('hidden');
+  const messages = {
+    reserve:{zh:'🐼 <strong>保护区统计</strong>：FN（漏掉真熊猫）→ 低估种群数 → 经费不够 → 真熊猫遭殃。<strong>建议偏激进</strong>，宁可错抓也要不漏。',
+             en:'🐼 <strong>Reserve count</strong>: FN → undercount → underfunding → real pandas suffer. <strong>Lean aggressive</strong>, over-call rather than miss.'},
+    hospital:{zh:'🩺 <strong>医院筛查</strong>：FN（漏诊癌症）→ 可能致命。FP → 后续检查能纠正。<strong>建议偏激进</strong>，宁可多查也别漏。',
+              en:'🩺 <strong>Hospital screening</strong>: FN → potentially fatal. FP → fixable with follow-up. <strong>Lean aggressive</strong>.'},
+    court:{zh:'⚖️ <strong>法庭证据</strong>：FP（错认嫌疑人）→ 冤枉无辜，可能毁掉一生。FN → 罪犯逃脱（也很糟，但 FP 不可逆）。<strong>建议偏保守</strong>，宁可漏也别错抓。',
+           en:'⚖️ <strong>Court evidence</strong>: FP → wrongly convict an innocent person, life ruined. FN → criminal escapes (also bad, but FP is irreversible). <strong>Lean conservative</strong>.'},
+  };
+  box.innerHTML = `<span data-zh>${messages[c].zh}</span><span data-en>${messages[c].en}</span>`;
+}
+
+/* ---------- Responsibility Map ---------- */
+const ACTIONS = [
+  {id:'a1', zh:'决定 AI 该不该上线使用', en:'Decide whether to deploy AI', correctRole:'r3'},
+  {id:'a2', zh:'立法要求公司公开 AI 错误率', en:'Pass laws requiring error transparency', correctRole:'r4'},
+  {id:'a3', zh:'设计训练数据、调灵敏度', en:'Pick training data, tune sensitivity', correctRole:'r2'},
+  {id:'a4', zh:'怀疑 AI 输出，不照单全收', en:'Question AI output, don\'t blindly trust', correctRole:'r5'},
+  {id:'a5', zh:'拍照标注、提供原始素材', en:'Take/label photos for training', correctRole:'r1'},
+];
+const ROLES = [
+  {id:'r1', emoji:'🧑‍🔬', zh:'研究员/标注员', en:'Researcher/Annotator'},
+  {id:'r2', emoji:'👨‍💻', zh:'AI 工程师', en:'AI Engineer'},
+  {id:'r3', emoji:'💼', zh:'公司 CEO', en:'Company CEO'},
+  {id:'r4', emoji:'🏛️', zh:'政府监管', en:'Government'},
+  {id:'r5', emoji:'🙋', zh:'你（用户）', en:'You (user)'},
+];
+let selectedAction = null;
+const matches = {};
+
+function renderResp(){
+  const ah = document.getElementById('actions-list');
+  ah.innerHTML = ACTIONS.map(a=>{
+    const matched = Object.keys(matches).find(k=>matches[k]===a.id);
+    const role = matched ? ROLES.find(r=>r.id===matched) : null;
+    const correct = matched===a.correctRole;
+    return `<button class="role w-full ${selectedAction===a.id?'selected':''} ${role?'border-blue-400':''}" data-id="${a.id}" onclick="selectAction('${a.id}')">
+      <div class="flex items-center justify-between gap-2">
+        <span><span data-zh>${a.zh}</span><span data-en>${a.en}</span></span>
+        ${role?`<span class="text-xs px-2 py-1 rounded-full ${correct?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}">${role.emoji}</span>`:''}
+      </div>
+    </button>`;
+  }).join('');
+  const rh = document.getElementById('roles-list');
+  rh.innerHTML = ROLES.map(r=>`
+    <button class="role w-full" data-id="${r.id}" onclick="assignRole('${r.id}')">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">${r.emoji}</span>
+        <span class="text-sm font-semibold"><span data-zh>${r.zh}</span><span data-en>${r.en}</span></span>
+      </div>
+    </button>
+  `).join('');
+}
+function selectAction(id){
+  selectedAction = id;
+  renderResp();
+}
+function assignRole(roleId){
+  if(!selectedAction){
+    alert(LANG==='en'?'Click an action first':'请先点一个行为');
+    return;
+  }
+  // Remove any prev match for this action
+  Object.keys(matches).forEach(k=>{ if(matches[k]===selectedAction) delete matches[k]; });
+  matches[roleId] = selectedAction;
+  selectedAction = null;
+  renderResp();
+  if(Object.keys(matches).length===5) showRespResult();
+}
+function showRespResult(){
+  let correct=0;
+  ACTIONS.forEach(a=>{ if(matches[a.correctRole]===a.id) correct++; });
+  const box = document.getElementById('resp-feedback');
+  box.classList.remove('hidden');
+  const ok = correct>=3;
+  box.className = 'mt-5 p-4 rounded-xl ' + (ok?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  box.innerHTML = `<div class="font-bold mb-2">${ok?'✓ '+(LANG==='en'?'Good thinking':'思考得很好'):'🤔 '+(LANG==='en'?'Worth reconsidering':'再思考一下')} — ${correct}/5</div>
+    <p class="text-sm" data-zh>"正确"匹配只是其中一种合理答案。真实世界里这些责任<strong>是重叠的</strong>。比如"决定是否上线"，CEO 说了算，但工程师可以拒绝写、政府可以禁止、用户可以抵制。<strong>责任不分配给一个人——每个人都有一份</strong>。</p>
+    <p class="text-sm" data-en>"Correct" matches are just one reasonable answer. In real life these roles <strong>overlap</strong>. Deploy decisions belong to the CEO — but engineers can refuse to build, government can ban, users can boycott. <strong>Responsibility isn't a single owner — everyone shares it</strong>.</p>`;
+  document.getElementById('p4-next').disabled=false;
+}
+
+/* ---------- Pledge ---------- */
+function checkPledges(){
+  let count=0;
+  [1,2,3].forEach(n=>{
+    const el = document.getElementById('pl'+n);
+    const ok = Array.from(el.value).length>=10;
+    el.classList.toggle('ok', ok);
+    if(ok) count++;
+  });
+  document.getElementById('pl-progress').textContent = count;
+  document.getElementById('pledge-submit').disabled = count<3;
+}
+function submitPledge(){
+  const pledges = [1,2,3].map(n=>document.getElementById('pl'+n).value);
+  const data = {timestamp:Date.now(),mission:'M1-4',
+    casesRead:caseVisited.size,
+    fpfnCorrect:Object.entries(fpfnAnswers).filter(([i,a])=>a===FPFN[i].worse).length,
+    sensitivity:+document.getElementById('sens-slider').value,
+    respCorrect:ACTIONS.filter(a=>matches[a.correctRole]===a.id).length,
+    pledges};
+  localStorage.setItem('lingxi-m1-4', JSON.stringify(data));
+  goTo(6);
+}
+
+/* ---------- Navigation ---------- */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,7);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1 && !document.getElementById('case-grid').innerHTML) renderCases();
+  if(n===2 && !document.getElementById('fpfn-grid').innerHTML) renderFPFN();
+  if(n===3){ updateSens(); }
+  if(n===4 && !document.getElementById('actions-list').innerHTML) renderResp();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    caseVisited.clear();
+    Object.keys(fpfnAnswers).forEach(k=>delete fpfnAnswers[k]);
+    Object.keys(matches).forEach(k=>delete matches[k]);
+    selectedAction=null;
+    document.getElementById('case-grid').innerHTML='';
+    document.getElementById('case-count').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('fpfn-grid').innerHTML='';
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('actions-list').innerHTML='';
+    document.getElementById('roles-list').innerHTML='';
+    document.getElementById('resp-feedback').classList.add('hidden');
+    document.getElementById('p4-next').disabled=true;
+    [1,2,3].forEach(n=>document.getElementById('pl'+n).value='');
+    document.getElementById('pl-progress').textContent='0';
+    document.getElementById('pledge-submit').disabled=true;
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

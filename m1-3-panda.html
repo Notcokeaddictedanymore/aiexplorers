@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M1-3 熊猫不是浣熊 · 训练你的第一个识别器 / Train Your First Classifier</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --ink:#0F172A; --paper:#FAF8F4; --blue:#3B82F6; --red:#DC2626;
+    --green:#10B981; --amber:#F59E0B; --slate:#64748B;
+  }
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  body.lang-en [data-en="block"]{display:block}
+  /* phases */
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  /* animal card */
+  .card{position:relative;cursor:pointer;transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;border:3px solid transparent}
+  .card:hover{transform:translateY(-2px);box-shadow:0 12px 28px -12px rgba(15,23,42,.2)}
+  .card.label-panda{border-color:#10B981;background:#ECFDF5}
+  .card.label-notpanda{border-color:#DC2626;background:#FEF2F2}
+  .card-toggle{position:absolute;top:-10px;right:-10px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.15)}
+  .label-panda .card-toggle{background:#10B981}
+  .label-notpanda .card-toggle{background:#DC2626}
+  /* lingxi bubble */
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  /* progress dots */
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  /* confidence bar */
+  .conf-bar{height:8px;border-radius:4px;background:#E2E8F0;overflow:hidden;position:relative}
+  .conf-fill{height:100%;transition:width .8s ease}
+  .conf-panda{background:linear-gradient(90deg,#10B981,#059669)}
+  .conf-notpanda{background:linear-gradient(90deg,#DC2626,#B91C1C)}
+  /* training spinner */
+  @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+  .pulse{animation:pulse 1.5s ease infinite}
+  /* lingxi mascot */
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  /* badge */
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+  /* button */
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  /* result */
+  .result-row{display:flex;align-items:center;gap:.75rem;padding:.5rem;border-radius:10px;background:#F8FAFC;border:1px solid #E2E8F0;margin-bottom:.5rem}
+  .result-correct{border-color:#10B981;background:#ECFDF5}
+  .result-wrong{border-color:#DC2626;background:#FEF2F2}
+  /* lang toggle */
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M1-3 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.1 · 感知 / Perception</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full">入门 · 25 min</span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>熊猫不是浣熊：训练你的第一个识别器</span>
+      <span data-en>Pandas ≠ Raccoons: Train Your First Classifier</span>
+    </h1>
+    <!-- step indicator -->
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span>
+        <span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: INTRO ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1">
+          <span data-zh>小京灵</span>
+          <span data-en>Jingling</span>
+        </div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            <strong>警报！</strong>四川卧龙国家级自然保护区的红外相机昨晚拍了 <strong>5000 张</strong>照片，研究员王老师快要哭了——他要在明天向所长汇报熊猫的数量，可 5000 张照片他一个人怎么数得完？
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            <strong>Alert!</strong> Wolong Nature Reserve's night cameras shot <strong>5,000 photos</strong> last night. Researcher Wang is overwhelmed — he must report the panda count tomorrow but can't possibly sort them all alone.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            你愿意帮王老师训练一个 <strong>AI 助手</strong>，让它自动从一堆照片里挑出大熊猫吗？不用编程！我们今天就要看看，AI 是怎么"学会"识别熊猫的——以及它什么时候会犯错。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Will you help Wang train an <strong>AI assistant</strong> to find pandas automatically? No coding needed. Today we'll watch AI <em>learn</em> — and see when it gets things wrong.
+          </p>
+        </div>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>好啊，开始任务 →</span>
+            <span data-en>Let's start →</span>
+          </button>
+          <button class="btn-ghost" onclick="openWhy()">
+            <span data-zh>为什么这事重要？</span>
+            <span data-en>Why does this matter?</span>
+          </button>
+        </div>
+        <div id="why-box" class="hidden mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <p data-zh>真实事件：2018 年，一个保护区的 AI 把<strong>小熊猫（red panda，浣熊的近亲）</strong>误判成了大熊猫。统计数量错了，经费分配就会错，真正的小熊猫得不到保护。AI 看到的不是"熊猫"这个概念，而只是像素。今天你来揭开它的秘密。</p>
+          <p data-en>True story: In 2018, a reserve's AI confused <strong>red pandas (raccoon relatives)</strong> with giant pandas. Wrong count → wrong funding → real red pandas left unprotected. AI sees pixels, not concepts. Today you'll see why.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: LABEL 12 PHOTOS ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700">
+        <span data-zh>小京灵</span><span data-en>Jingling</span>
+      </div>
+      <p data-zh>这里有 <strong>12 张动物照片</strong>。请你点击每一张，告诉我"这是不是大熊猫"。一旦你都标完，我就能开始学习了。</p>
+      <p data-en>Here are <strong>12 animal photos</strong>. Click each card to label "Is it a giant panda?" Once all are labeled, I can start learning.</p>
+    </div>
+
+    <!-- legend -->
+    <div class="flex flex-wrap items-center gap-3 mb-4 text-sm">
+      <span class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-green-500"></span><span data-zh>是大熊猫</span><span data-en>Is a giant panda</span></span>
+      <span class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-red-500"></span><span data-zh>不是大熊猫</span><span data-en>Not a giant panda</span></span>
+      <span class="ml-auto font-semibold text-slate-600"><span data-zh>已标注：</span><span data-en>Labeled:</span><span id="p1-counter">0</span> / 12</span>
+    </div>
+
+    <!-- card grid -->
+    <div id="p1-grid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+
+    <div class="mt-6 flex justify-end gap-3">
+      <button class="btn-ghost" onclick="goTo(0)">← <span data-zh>返回</span><span data-en>Back</span></button>
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>完成标注，开始训练 →</span>
+        <span data-en>Done labeling, train AI →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: AI IS DUMB / TRAINING ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我现在像一个刚出生的婴儿，什么都不会。你刚才标注的 <strong id="p2-count">12</strong> 张照片，就是我的"课本"。让我学一学，几秒钟就够……</p>
+      <p data-en>I'm a newborn AI — I know nothing. Your <strong>12</strong> labeled photos are my "textbook." Let me study them for a few seconds…</p>
+    </div>
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 text-center">
+      <div id="train-pre">
+        <div class="text-5xl mb-3">🧠</div>
+        <h3 class="text-xl font-bold" data-zh>AI 准备开始学习</h3>
+        <h3 class="text-xl font-bold" data-en>AI ready to learn</h3>
+        <p class="text-slate-600 mt-2" data-zh>点击下方按钮，让 AI 从你的例子里学习"什么是大熊猫"。</p>
+        <p class="text-slate-600 mt-2" data-en>Click below to let AI learn what "panda" means from your examples.</p>
+        <button class="btn-primary mt-5" onclick="trainAI()">
+          <span data-zh>🚀 训练 AI</span>
+          <span data-en>🚀 Train AI</span>
+        </button>
+      </div>
+      <div id="train-during" class="hidden">
+        <div class="text-6xl mb-4 pulse">⚙️</div>
+        <h3 class="text-xl font-bold"><span data-zh>AI 正在学习……</span><span data-en>AI is learning…</span></h3>
+        <p class="text-slate-500 mt-2 text-sm pulse" id="train-status"></p>
+        <div class="w-full mt-4 bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div id="train-bar" class="h-full bg-gradient-to-r from-blue-500 to-red-500 transition-all" style="width:0%"></div>
+        </div>
+      </div>
+      <div id="train-done" class="hidden">
+        <div class="text-6xl mb-3">✨</div>
+        <h3 class="text-2xl font-bold text-green-700"><span data-zh>训练完成！</span><span data-en>Training complete!</span></h3>
+        <p class="text-slate-600 mt-2" data-zh>AI 已经看完你的例子，记住了"大熊猫的样子"。现在让我们测试一下它学得怎么样。</p>
+        <p class="text-slate-600 mt-2" data-en>AI has studied your examples. Let's test what it learned.</p>
+        <button class="btn-primary mt-5" onclick="goTo(3)">
+          <span data-zh>测试 AI →</span><span data-en>Test AI →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: TEST 1 ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>来吧，给我看 <strong>5 张全新的照片</strong>。我会告诉你"是不是大熊猫"，还有我有多自信。看看我能答对几张。</p>
+      <p data-en>Show me <strong>5 new photos</strong>. I'll guess and tell you how confident I am. Let's see how many I get right.</p>
+    </div>
+    <div id="p3-results" class="space-y-3"></div>
+    <div class="mt-5 bg-white rounded-2xl p-5 border border-slate-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm text-slate-500 uppercase tracking-wide"><span data-zh>本轮准确率</span><span data-en>Accuracy</span></div>
+          <div class="text-4xl font-black" id="p3-acc">—</div>
+        </div>
+        <div class="text-right">
+          <div class="text-sm text-slate-500 uppercase tracking-wide"><span data-zh>训练例子数</span><span data-en>Training size</span></div>
+          <div class="text-4xl font-black" id="p3-size">12</div>
+        </div>
+      </div>
+      <div id="p3-msg" class="mt-4 text-slate-700"></div>
+    </div>
+    <div class="mt-6 flex flex-wrap justify-end gap-3">
+      <button class="btn-ghost" onclick="goTo(2)">← <span data-zh>重新训练</span><span data-en>Retrain</span></button>
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>给 AI 加更多例子 →</span>
+        <span data-en>Add more examples →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: ADD MORE TRAINING ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我刚才看的例子还不够多。如果你再标 <strong>6 张</strong>给我，我能学得更好。<strong>多样性比数量重要</strong>——不同动物、不同姿势、不同角度。</p>
+      <p data-en>I haven't seen enough variety. If you label <strong>6 more</strong>, I'll improve. <strong>Diversity matters more than quantity</strong> — different animals, poses, angles.</p>
+    </div>
+    <div class="flex items-center gap-3 mb-4 text-sm">
+      <span class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-green-500"></span><span data-zh>是大熊猫</span><span data-en>Panda</span></span>
+      <span class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-red-500"></span><span data-zh>不是大熊猫</span><span data-en>Not panda</span></span>
+      <span class="ml-auto font-semibold text-slate-600"><span data-zh>已标注：</span><span data-en>Labeled:</span><span id="p4-counter">0</span> / 6</span>
+    </div>
+    <div id="p4-grid" class="grid grid-cols-3 sm:grid-cols-6 gap-3"></div>
+    <div class="mt-6 flex justify-end gap-3">
+      <button class="btn-primary" id="p4-next" disabled onclick="retrainAndTest()">
+        <span data-zh>重新训练 + 再测试 →</span>
+        <span data-en>Retrain + retest →</span>
+      </button>
+    </div>
+
+    <!-- second test results (hidden until ready) -->
+    <div id="p4-results" class="hidden mt-6">
+      <h3 class="text-xl font-bold mb-3"><span data-zh>第二次测试结果</span><span data-en>Test #2 results</span></h3>
+      <div id="p4-list" class="space-y-3"></div>
+      <div class="mt-4 bg-white rounded-2xl p-5 border border-slate-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-slate-500 uppercase"><span data-zh>新准确率</span><span data-en>New accuracy</span></div>
+            <div class="text-4xl font-black" id="p4-acc">—</div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-slate-500 uppercase"><span data-zh>训练例子数</span><span data-en>Training size</span></div>
+            <div class="text-4xl font-black" id="p4-size">—</div>
+          </div>
+        </div>
+        <div id="p4-msg" class="mt-4"></div>
+      </div>
+      <div class="mt-5 text-right">
+        <button class="btn-primary" onclick="goTo(5)">
+          <span data-zh>挑战：穿熊猫睡衣的小朋友 →</span>
+          <span data-en>Challenge: kid in panda pajamas →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: TRICK CHALLENGE ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我准备了 <strong>一张特殊的照片</strong>。先问问你——你觉得这是不是大熊猫？</p>
+      <p data-en>I have <strong>one special photo</strong>. First — what do <em>you</em> think? Panda or not?</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
+        <div id="p5-card-host"></div>
+        <div class="mt-3 text-sm text-slate-600" data-zh>这是一个穿熊猫睡衣的小朋友。</div>
+        <div class="mt-3 text-sm text-slate-600" data-en>This is a kid wearing panda pajamas.</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-slate-200">
+        <div class="font-semibold mb-2"><span data-zh>你觉得是？</span><span data-en>Your guess:</span></div>
+        <div class="flex gap-3 mb-4">
+          <button class="btn-ghost flex-1 border-green-300" onclick="humanGuess('panda')">
+            🐼 <span data-zh>是大熊猫</span><span data-en>Panda</span>
+          </button>
+          <button class="btn-ghost flex-1 border-red-300" onclick="humanGuess('notPanda')">
+            ❌ <span data-zh>不是</span><span data-en>Not panda</span>
+          </button>
+        </div>
+        <div id="p5-human"></div>
+        <div id="p5-ai" class="hidden mt-4 pt-4 border-t border-slate-200"></div>
+        <div id="p5-explain" class="hidden mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <p class="font-semibold mb-1">💡 <span data-zh>关键洞察</span><span data-en>Key insight</span></p>
+          <p data-zh>AI 看到的不是"小朋友"或"熊猫"这两个<strong>概念</strong>。它只看到：黑白配色 ✓、眼睛周围的黑色块 ✓、像熊猫的形状 ✓——所以它说"是熊猫"。<strong>AI 不懂"概念"，它只算"特征像不像"。</strong>这就是为什么 AI 会被表象骗。</p>
+          <p data-en>AI doesn't see "kid" or "panda" as <strong>concepts</strong>. It sees: black-white ✓, dark eye patches ✓, panda-like shape ✓ — so it guesses "panda." <strong>AI doesn't grasp concepts, only feature similarity.</strong> That's why surface looks can fool it.</p>
+        </div>
+        <div id="p5-next-wrap" class="hidden mt-5 text-right">
+          <button class="btn-primary" onclick="goTo(6)">
+            <span data-zh>继续：AI 小百科 →</span>
+            <span data-en>Next: AI dictionary →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: AI MINI-DICTIONARY + REFLECTION ========== -->
+  <section class="phase" id="p6">
+    <h2 class="text-2xl font-bold mb-4"><span data-zh>🧠 AI 小百科</span><span data-en>🧠 AI Mini-Dictionary</span></h2>
+    <div class="grid sm:grid-cols-2 gap-3 mb-8">
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">Training Data</div>
+        <div class="text-lg font-bold mt-1"><span data-zh>训练数据</span><span data-en>Training Data</span></div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>AI 学习用的"课本"。课本上的例子越<strong>多样</strong>，AI 学得越好——不只是数量多。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>AI's "textbook." <strong>Variety</strong> matters more than quantity.</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">Label</div>
+        <div class="text-lg font-bold mt-1"><span data-zh>标签</span><span data-en>Label</span></div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>你告诉 AI "这张是熊猫"——"熊猫"就是标签。你刚才点的绿/红圈都是在打标签。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>When you tell AI "this is a panda," "panda" is the label. The green/red dots you clicked were labels.</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">Classification</div>
+        <div class="text-lg font-bold mt-1"><span data-zh>分类</span><span data-en>Classification</span></div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>AI 把东西归到不同的"盒子"里。今天你做的是"熊猫 / 不是熊猫"两类。也可以分 1000 类（如 ImageNet）。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>AI sorting things into "boxes." Today: panda vs not-panda (2 boxes). Could be 1,000 (e.g. ImageNet).</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-amber-300 bg-amber-50">
+        <div class="text-xs text-amber-700 uppercase tracking-wide font-bold">Bias ⚠️</div>
+        <div class="text-lg font-bold mt-1"><span data-zh>偏差</span><span data-en>Bias</span></div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>如果你只给 AI 看穿白衣服的人，AI 会以为"人都穿白衣服"。你的训练数据"不公平"，AI 学到的也"不公平"。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>If AI only sees people in white, it thinks everyone wears white. Unfair training data → unfair AI.</p>
+      </div>
+    </div>
+
+    <!-- reflection -->
+    <h2 class="text-2xl font-bold mb-1"><span data-zh>📝 想一想</span><span data-en>📝 Reflection</span></h2>
+    <p class="text-slate-600 mb-4 text-sm" data-zh>选一个最打动你的问题，写下你的想法（≥ 50 字）。没有标准答案——AI 没有，你也不需要。</p>
+    <p class="text-slate-600 mb-4 text-sm" data-en>Pick the question that hits you most and write your thoughts (≥ 50 chars). No "right" answer.</p>
+
+    <div class="space-y-3 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 如果 AI 把小熊猫错当成大熊猫，最坏会发生什么？</span>
+        <span data-en>① What's the worst-case if AI mistakes red pandas for giant pandas?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 谁应该决定 AI 看什么样的照片来学习？</span>
+        <span data-en>② Who should decide what photos AI learns from?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ AI 总搞错某种动物，我们什么时候该相信、什么时候不该？</span>
+        <span data-en>③ AI keeps confusing one animal — when should we trust it?</span>
+      </label>
+    </div>
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="在这里写下你的想法 / Write your thoughts here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交反思，完成任务 →</span>
+        <span data-en>Submit & complete →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 7: COMPLETION ========== -->
+  <section class="phase" id="p7">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-amber-400 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#FBBF24" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="60" font-size="40" text-anchor="middle" fill="#7C2D12">🐼</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>恭喜！你解锁了第 1 个徽章</span><span data-en>Congrats! Badge #1 unlocked</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"AI 小研究员 · 感知模块入门"</span><span data-en>"AI Cub Researcher · Perception"</span></p>
+
+      <div class="mt-6 grid sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
+        <div class="bg-white rounded-xl p-4 border border-slate-200">
+          <div class="text-xs text-slate-500 uppercase"><span data-zh>最终准确率</span><span data-en>Final accuracy</span></div>
+          <div class="text-2xl font-black mt-1" id="final-acc">—</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-slate-200">
+          <div class="text-xs text-slate-500 uppercase"><span data-zh>训练例子</span><span data-en>Examples used</span></div>
+          <div class="text-2xl font-black mt-1" id="final-size">—</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-slate-200">
+          <div class="text-xs text-slate-500 uppercase"><span data-zh>反思字数</span><span data-en>Reflection chars</span></div>
+          <div class="text-2xl font-black mt-1" id="final-chars">—</div>
+        </div>
+      </div>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>What you learned today</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 是从<strong>例子</strong>里学的，不是被编程出来的</span><span data-en>AI learns from <strong>examples</strong>, not from code</span></li>
+          <li>✓ <span data-zh><strong>训练数据的多样性</strong>比数量更重要</span><span data-en><strong>Variety</strong> in training data &gt; quantity</span></li>
+          <li>✓ <span data-zh>AI 只看<strong>特征像不像</strong>，不懂"概念"</span><span data-en>AI checks <strong>feature similarity</strong>, not concepts</span></li>
+          <li>✓ <span data-zh>偏差会让 AI 出错——影响真实世界的决定</span><span data-en>Bias causes AI errors — with real-world consequences</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">
+          🔄 <span data-zh>重玩本关</span><span data-en>Replay</span>
+        </button>
+        <button class="btn-primary" onclick="location.href='m1-4-cost.html'">
+          <span data-zh>下一关：M1-4 误识别的代价 →</span>
+          <span data-en>Next: M1-4 Cost of Misidentification →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回 Ch.1 首页</span><span data-en>← Back to Ch.1 home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M1-3 · 开发者：辜月晗 · 2026</span>
+  <span data-en>AI Literacy Courses for Beginners · M1-3 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+/* ===========================================================
+   M1-3 PANDA RECOGNITION · DATA + CLASSIFIER + UX
+   特征向量 features: [blackWhite, redOrange, bigEars, chubbyBody, eyePatches]
+   =========================================================== */
+
+const LANG_KEY = 'lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en') ? 'en' : 'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* ---------- DATA: animals with hidden features + truth ---------- */
+// Each animal has a unique illustration (svg id) and a feature vector.
+// truth = correct label (panda / notPanda)
+
+const ANIMALS = [
+  // ===== Phase 1 training pool (12) =====
+  {id:'panda1', svg:'panda_classic', features:[0.95,0.0,0.4,0.9,0.95], truth:'panda', name:{zh:'憨憨大熊猫',en:'Classic panda'}},
+  {id:'panda2', svg:'panda_eating', features:[0.92,0.0,0.35,0.95,0.9], truth:'panda', name:{zh:'吃竹子大熊猫',en:'Bamboo eater'}},
+  {id:'panda3', svg:'panda_baby', features:[0.95,0.0,0.45,0.9,0.95], truth:'panda', name:{zh:'熊猫宝宝',en:'Baby panda'}},
+  {id:'panda4', svg:'panda_stand', features:[0.93,0.0,0.4,0.85,0.9], truth:'panda', name:{zh:'站立大熊猫',en:'Standing panda'}},
+  {id:'redp1', svg:'redpanda', features:[0.2,0.95,0.55,0.6,0.55], truth:'notPanda', name:{zh:'小熊猫',en:'Red panda'}},
+  {id:'redp2', svg:'redpanda2', features:[0.15,0.9,0.6,0.55,0.6], truth:'notPanda', name:{zh:'另一只小熊猫',en:'Red panda #2'}},
+  {id:'raccoon1', svg:'raccoon', features:[0.55,0.3,0.5,0.3,0.85], truth:'notPanda', name:{zh:'浣熊',en:'Raccoon'}},
+  {id:'bear1', svg:'brownbear', features:[0.1,0.6,0.25,0.85,0.1], truth:'notPanda', name:{zh:'棕熊',en:'Brown bear'}},
+  {id:'polar1', svg:'polarbear', features:[0.7,0.0,0.3,0.85,0.05], truth:'notPanda', name:{zh:'北极熊',en:'Polar bear'}},
+  {id:'cat1', svg:'catblack', features:[0.65,0.1,0.65,0.25,0.05], truth:'notPanda', name:{zh:'黑白猫',en:'Tuxedo cat'}},
+  {id:'toy1', svg:'toy_panda', features:[0.95,0.0,0.4,0.9,0.9], truth:'panda', name:{zh:'熊猫公仔',en:'Plush panda'}},
+  {id:'fox1', svg:'fox', features:[0.1,0.9,0.6,0.4,0.2], truth:'notPanda', name:{zh:'狐狸',en:'Fox'}},
+
+  // ===== Phase 3 test set (5) =====
+  {id:'tpanda1', svg:'panda_test1', features:[0.9,0.0,0.4,0.9,0.85], truth:'panda', name:{zh:'测试熊猫A',en:'Test panda A'}},
+  {id:'tredp1', svg:'redpanda_test', features:[0.2,0.95,0.55,0.6,0.55], truth:'notPanda', name:{zh:'测试小熊猫',en:'Test red panda'}},
+  {id:'tbear1', svg:'brownbear_cub', features:[0.15,0.55,0.3,0.7,0.1], truth:'notPanda', name:{zh:'测试棕熊崽',en:'Brown bear cub'}},
+  {id:'tpanda2', svg:'panda_sleep', features:[0.95,0.0,0.3,0.9,0.85], truth:'panda', name:{zh:'测试睡熊猫',en:'Sleeping panda'}},
+  {id:'tskunk', svg:'skunk', features:[0.85,0.0,0.25,0.3,0.05], truth:'notPanda', name:{zh:'测试臭鼬',en:'Skunk'}},
+
+  // ===== Phase 4 extra training (6) =====
+  {id:'panda5', svg:'panda_run', features:[0.92,0.0,0.4,0.85,0.9], truth:'panda', name:{zh:'跑步熊猫',en:'Running panda'}},
+  {id:'redp3', svg:'redpanda3', features:[0.18,0.92,0.55,0.6,0.5], truth:'notPanda', name:{zh:'树上小熊猫',en:'Red panda on tree'}},
+  {id:'bear2', svg:'brownbear2', features:[0.15,0.55,0.25,0.85,0.1], truth:'notPanda', name:{zh:'树林棕熊',en:'Forest brown bear'}},
+  {id:'panda6', svg:'panda_baby2', features:[0.9,0.0,0.45,0.85,0.85], truth:'panda', name:{zh:'熊猫幼崽',en:'Panda cub'}},
+  {id:'dog1', svg:'dog', features:[0.5,0.3,0.6,0.4,0.05], truth:'notPanda', name:{zh:'柯基犬',en:'Corgi'}},
+  {id:'panda7', svg:'panda_back', features:[0.95,0.0,0.4,0.9,0.0], truth:'panda', name:{zh:'背面熊猫',en:'Panda from behind'}},
+];
+
+const TRICK = {id:'trick', svg:'kid_pjs', features:[0.95,0.0,0.35,0.55,0.85], truth:'notPanda', name:{zh:'穿熊猫睡衣的小朋友',en:'Kid in panda pajamas'}};
+
+/* ---------- STATE ---------- */
+const state = {
+  phase:0,
+  labels:{},          // id -> 'panda'|'notPanda' (student labels)
+  trained:false,
+  centroidPanda:null,
+  centroidNot:null,
+  trainingSize:0,
+  test1Acc:0,
+  test2Acc:0,
+  finalAcc:0,
+  finalSize:0,
+  humanGuess:null,
+  aiGuess:null,
+  reflectChoice:null,
+  reflectText:'',
+};
+
+/* ---------- ANIMAL ILLUSTRATIONS (SVG) ---------- */
+// Pedagogically: each species has a distinct visual style matching its features.
+// Pandas: black & white with eye patches. Red pandas: orange with stripes. etc.
+
+function svgFor(name){
+  const W=110, H=110;
+  const wrap = (inner, bg='#FAFBFC') =>
+    `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" rx="12" fill="${bg}"/>${inner}</svg>`;
+
+  switch(name){
+    case 'panda_classic':case 'panda_test1':case 'toy_panda':
+      return wrap(`
+        <ellipse cx="55" cy="65" rx="34" ry="30" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="32" cy="38" r="11" fill="#0F172A"/>
+        <circle cx="78" cy="38" r="11" fill="#0F172A"/>
+        <ellipse cx="40" cy="52" rx="8" ry="10" fill="#0F172A"/>
+        <ellipse cx="70" cy="52" rx="8" ry="10" fill="#0F172A"/>
+        <circle cx="41" cy="52" r="3" fill="#fff"/>
+        <circle cx="71" cy="52" r="3" fill="#fff"/>
+        <ellipse cx="55" cy="64" rx="4" ry="3" fill="#0F172A"/>
+        <path d="M50 70 Q55 76 60 70" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+        <ellipse cx="28" cy="85" rx="9" ry="6" fill="#0F172A"/>
+        <ellipse cx="82" cy="85" rx="9" ry="6" fill="#0F172A"/>
+      `);
+    case 'panda_eating':
+      return wrap(`
+        <ellipse cx="55" cy="70" rx="36" ry="28" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="32" cy="42" r="11" fill="#0F172A"/>
+        <circle cx="78" cy="42" r="11" fill="#0F172A"/>
+        <ellipse cx="40" cy="55" rx="8" ry="10" fill="#0F172A"/>
+        <ellipse cx="70" cy="55" rx="8" ry="10" fill="#0F172A"/>
+        <circle cx="41" cy="55" r="3" fill="#fff"/>
+        <circle cx="71" cy="55" r="3" fill="#fff"/>
+        <ellipse cx="55" cy="68" rx="4" ry="3" fill="#0F172A"/>
+        <rect x="50" y="72" width="3" height="22" fill="#10B981" transform="rotate(15 51 80)"/>
+        <ellipse cx="63" cy="75" rx="3" ry="6" fill="#10B981" transform="rotate(20 63 75)"/>
+      `);
+    case 'panda_baby':case 'panda_baby2':
+      return wrap(`
+        <ellipse cx="55" cy="68" rx="28" ry="26" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="36" cy="46" r="9" fill="#0F172A"/>
+        <circle cx="74" cy="46" r="9" fill="#0F172A"/>
+        <ellipse cx="44" cy="58" rx="7" ry="8" fill="#0F172A"/>
+        <ellipse cx="66" cy="58" rx="7" ry="8" fill="#0F172A"/>
+        <circle cx="45" cy="58" r="2.5" fill="#fff"/>
+        <circle cx="67" cy="58" r="2.5" fill="#fff"/>
+        <ellipse cx="55" cy="68" rx="3.5" ry="2.5" fill="#0F172A"/>
+        <path d="M52 73 Q55 76 58 73" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+        <circle cx="22" cy="80" r="5" fill="#FCA5A5" opacity="0.5"/>
+      `);
+    case 'panda_stand':case 'panda_test1':
+      return wrap(`
+        <ellipse cx="55" cy="72" rx="20" ry="32" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="55" cy="34" r="18" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="44" cy="22" r="6" fill="#0F172A"/>
+        <circle cx="66" cy="22" r="6" fill="#0F172A"/>
+        <ellipse cx="48" cy="34" rx="5" ry="6" fill="#0F172A"/>
+        <ellipse cx="62" cy="34" rx="5" ry="6" fill="#0F172A"/>
+        <circle cx="49" cy="34" r="2" fill="#fff"/>
+        <circle cx="63" cy="34" r="2" fill="#fff"/>
+        <ellipse cx="55" cy="42" rx="3" ry="2" fill="#0F172A"/>
+        <ellipse cx="38" cy="65" rx="7" ry="10" fill="#0F172A"/>
+        <ellipse cx="72" cy="65" rx="7" ry="10" fill="#0F172A"/>
+      `);
+    case 'panda_sleep':
+      return wrap(`
+        <ellipse cx="55" cy="68" rx="38" ry="22" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <ellipse cx="28" cy="55" rx="10" ry="10" fill="#0F172A"/>
+        <ellipse cx="82" cy="58" rx="9" ry="9" fill="#0F172A"/>
+        <path d="M22 50 Q26 47 30 50" stroke="#fff" stroke-width="2" fill="none"/>
+        <path d="M76 53 Q80 50 84 53" stroke="#fff" stroke-width="2" fill="none"/>
+        <text x="78" y="38" font-size="14" fill="#0F172A">z</text>
+        <text x="86" y="32" font-size="10" fill="#0F172A">z</text>
+        <ellipse cx="20" cy="75" rx="8" ry="5" fill="#0F172A"/>
+        <ellipse cx="90" cy="78" rx="8" ry="5" fill="#0F172A"/>
+      `);
+    case 'panda_run':
+      return wrap(`
+        <ellipse cx="55" cy="60" rx="30" ry="22" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="80" cy="40" r="14" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="72" cy="30" r="5" fill="#0F172A"/>
+        <circle cx="88" cy="30" r="5" fill="#0F172A"/>
+        <ellipse cx="76" cy="40" rx="4" ry="5" fill="#0F172A"/>
+        <ellipse cx="84" cy="40" rx="4" ry="5" fill="#0F172A"/>
+        <circle cx="77" cy="40" r="1.5" fill="#fff"/>
+        <circle cx="85" cy="40" r="1.5" fill="#fff"/>
+        <ellipse cx="22" cy="80" rx="8" ry="5" fill="#0F172A"/>
+        <ellipse cx="80" cy="84" rx="7" ry="5" fill="#0F172A"/>
+        <path d="M30 75 L20 65" stroke="#0F172A" stroke-width="2"/>
+        <path d="M80 78 L78 95" stroke="#0F172A" stroke-width="2"/>
+      `);
+    case 'panda_back':
+      return wrap(`
+        <ellipse cx="55" cy="70" rx="36" ry="26" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <ellipse cx="35" cy="50" rx="10" ry="6" fill="#0F172A"/>
+        <ellipse cx="75" cy="50" rx="10" ry="6" fill="#0F172A"/>
+        <rect x="50" y="38" width="10" height="40" rx="4" fill="#0F172A"/>
+        <ellipse cx="22" cy="86" rx="9" ry="6" fill="#0F172A"/>
+        <ellipse cx="88" cy="86" rx="9" ry="6" fill="#0F172A"/>
+      `);
+
+    case 'redpanda':case 'redpanda_test':
+      return wrap(`
+        <ellipse cx="55" cy="68" rx="32" ry="28" fill="#EA580C"/>
+        <ellipse cx="55" cy="68" rx="22" ry="20" fill="#FED7AA"/>
+        <path d="M30 38 L40 18 L45 35 Z" fill="#EA580C"/>
+        <path d="M80 38 L70 18 L65 35 Z" fill="#EA580C"/>
+        <path d="M35 33 L42 22 L43 32 Z" fill="#fff"/>
+        <path d="M75 33 L68 22 L67 32 Z" fill="#fff"/>
+        <circle cx="42" cy="55" r="4" fill="#0F172A"/>
+        <circle cx="68" cy="55" r="4" fill="#0F172A"/>
+        <circle cx="43" cy="54" r="1.5" fill="#fff"/>
+        <circle cx="69" cy="54" r="1.5" fill="#fff"/>
+        <ellipse cx="55" cy="68" rx="3" ry="2" fill="#0F172A"/>
+        <path d="M50 73 Q55 78 60 73" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+        <path d="M85 75 Q95 80 95 95 Q90 95 88 85" fill="#EA580C"/>
+        <path d="M86 78 L92 82 M88 82 L94 86" stroke="#7C2D12" stroke-width="2"/>
+        <path d="M40 62 L50 60 M70 62 L80 60" stroke="#fff" stroke-width="1.5"/>
+      `,'#FFF7ED');
+    case 'redpanda2':case 'redpanda3':
+      return wrap(`
+        <ellipse cx="55" cy="68" rx="28" ry="30" fill="#C2410C"/>
+        <ellipse cx="55" cy="72" rx="18" ry="22" fill="#FED7AA"/>
+        <path d="M32 36 L40 20 L46 36 Z" fill="#C2410C"/>
+        <path d="M78 36 L70 20 L64 36 Z" fill="#C2410C"/>
+        <circle cx="43" cy="58" r="4" fill="#0F172A"/>
+        <circle cx="67" cy="58" r="4" fill="#0F172A"/>
+        <ellipse cx="55" cy="70" rx="3" ry="2" fill="#0F172A"/>
+        <path d="M88 60 Q98 75 92 92 Q86 88 86 75" fill="#C2410C"/>
+        <path d="M87 65 L93 68 M88 75 L94 78 M88 84 L94 86" stroke="#7C2D12" stroke-width="1.5"/>
+        <path d="M38 60 L48 58" stroke="#fff" stroke-width="2"/>
+        <path d="M72 60 L82 58" stroke="#fff" stroke-width="2"/>
+      `,'#FFF7ED');
+
+    case 'raccoon':
+      return wrap(`
+        <ellipse cx="55" cy="68" rx="32" ry="28" fill="#94A3B8"/>
+        <path d="M28 38 L34 22 L42 36 Z" fill="#475569"/>
+        <path d="M82 38 L76 22 L68 36 Z" fill="#475569"/>
+        <rect x="28" y="50" width="55" height="14" rx="4" fill="#0F172A"/>
+        <circle cx="42" cy="57" r="4" fill="#fff"/>
+        <circle cx="68" cy="57" r="4" fill="#fff"/>
+        <circle cx="43" cy="57" r="2" fill="#0F172A"/>
+        <circle cx="69" cy="57" r="2" fill="#0F172A"/>
+        <ellipse cx="55" cy="72" rx="4" ry="3" fill="#0F172A"/>
+        <path d="M85 75 Q95 80 92 95 L86 90 Z" fill="#475569"/>
+        <path d="M84 80 L96 82 M85 86 L94 88" stroke="#0F172A" stroke-width="2"/>
+      `,'#F1F5F9');
+
+    case 'brownbear':case 'brownbear_cub':case 'brownbear2':
+      return wrap(`
+        <ellipse cx="55" cy="68" rx="36" ry="30" fill="#92400E"/>
+        <circle cx="32" cy="40" r="9" fill="#92400E"/>
+        <circle cx="78" cy="40" r="9" fill="#92400E"/>
+        <circle cx="32" cy="40" r="5" fill="#451A03"/>
+        <circle cx="78" cy="40" r="5" fill="#451A03"/>
+        <ellipse cx="55" cy="72" rx="14" ry="10" fill="#D6A57C"/>
+        <circle cx="46" cy="58" r="3" fill="#0F172A"/>
+        <circle cx="64" cy="58" r="3" fill="#0F172A"/>
+        <ellipse cx="55" cy="70" rx="4" ry="3" fill="#0F172A"/>
+        <path d="M50 75 Q55 80 60 75" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+      `,'#FEF3C7');
+    case 'polarbear':
+      return wrap(`
+        <ellipse cx="55" cy="70" rx="38" ry="28" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+        <circle cx="32" cy="44" r="9" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+        <circle cx="78" cy="44" r="9" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+        <circle cx="46" cy="60" r="3" fill="#0F172A"/>
+        <circle cx="64" cy="60" r="3" fill="#0F172A"/>
+        <ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#0F172A"/>
+        <path d="M50 78 Q55 82 60 78" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+      `,'#E0F2FE');
+    case 'catblack':
+      return wrap(`
+        <ellipse cx="55" cy="72" rx="26" ry="22" fill="#0F172A"/>
+        <circle cx="55" cy="50" r="22" fill="#0F172A"/>
+        <ellipse cx="55" cy="60" rx="12" ry="10" fill="#fff"/>
+        <path d="M35 32 L40 18 L48 32 Z" fill="#0F172A"/>
+        <path d="M75 32 L70 18 L62 32 Z" fill="#0F172A"/>
+        <ellipse cx="47" cy="48" rx="3" ry="5" fill="#FBBF24"/>
+        <ellipse cx="63" cy="48" rx="3" ry="5" fill="#FBBF24"/>
+        <circle cx="47" cy="48" r="1.5" fill="#0F172A"/>
+        <circle cx="63" cy="48" r="1.5" fill="#0F172A"/>
+        <path d="M55 56 L52 60 L58 60 Z" fill="#FCA5A5"/>
+        <path d="M40 58 L25 55 M40 61 L25 64 M70 58 L85 55 M70 61 L85 64" stroke="#0F172A" stroke-width="1"/>
+      `,'#FAF8F4');
+    case 'fox':
+      return wrap(`
+        <path d="M55 30 L25 70 L40 80 L70 80 L85 70 Z" fill="#EA580C"/>
+        <ellipse cx="55" cy="65" rx="20" ry="16" fill="#FED7AA"/>
+        <path d="M30 30 L40 20 L42 35 Z" fill="#EA580C"/>
+        <path d="M80 30 L70 20 L68 35 Z" fill="#EA580C"/>
+        <circle cx="45" cy="52" r="3" fill="#0F172A"/>
+        <circle cx="65" cy="52" r="3" fill="#0F172A"/>
+        <path d="M55 60 L52 68 L58 68 Z" fill="#0F172A"/>
+        <path d="M85 70 Q100 85 95 95 Q88 90 86 80" fill="#EA580C"/>
+        <path d="M92 90 Q97 92 95 95" fill="#fff"/>
+      `,'#FFF7ED');
+    case 'skunk':
+      return wrap(`
+        <ellipse cx="50" cy="72" rx="30" ry="18" fill="#0F172A"/>
+        <rect x="48" y="55" width="6" height="35" fill="#fff"/>
+        <circle cx="32" cy="60" r="14" fill="#0F172A"/>
+        <rect x="29" y="46" width="6" height="20" fill="#fff"/>
+        <circle cx="28" cy="60" r="2" fill="#fff"/>
+        <ellipse cx="22" cy="64" rx="3" ry="2" fill="#FCA5A5"/>
+        <path d="M75 70 Q95 50 95 30 Q88 38 80 50 Q70 60 75 70" fill="#0F172A"/>
+        <path d="M80 50 Q85 45 90 38" stroke="#fff" stroke-width="3"/>
+      `,'#F1F5F9');
+    case 'dog':
+      return wrap(`
+        <ellipse cx="55" cy="72" rx="34" ry="22" fill="#F59E0B"/>
+        <ellipse cx="55" cy="80" rx="20" ry="10" fill="#fff"/>
+        <circle cx="55" cy="48" r="24" fill="#F59E0B"/>
+        <ellipse cx="35" cy="50" rx="8" ry="14" fill="#92400E"/>
+        <ellipse cx="75" cy="50" rx="8" ry="14" fill="#92400E"/>
+        <ellipse cx="55" cy="55" rx="14" ry="10" fill="#fff"/>
+        <circle cx="46" cy="48" r="3" fill="#0F172A"/>
+        <circle cx="64" cy="48" r="3" fill="#0F172A"/>
+        <ellipse cx="55" cy="60" rx="3.5" ry="2.5" fill="#0F172A"/>
+        <path d="M50 65 Q55 70 60 65" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+      `,'#FEF3C7');
+
+    case 'kid_pjs':
+      return wrap(`
+        <!-- Hood -->
+        <circle cx="55" cy="38" r="22" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <!-- Panda ears on hood -->
+        <circle cx="38" cy="22" r="7" fill="#0F172A"/>
+        <circle cx="72" cy="22" r="7" fill="#0F172A"/>
+        <!-- Face (kid) -->
+        <ellipse cx="55" cy="42" rx="14" ry="13" fill="#FED7AA"/>
+        <!-- panda eye patches on hood -->
+        <ellipse cx="46" cy="33" rx="5" ry="6" fill="#0F172A"/>
+        <ellipse cx="64" cy="33" rx="5" ry="6" fill="#0F172A"/>
+        <circle cx="47" cy="40" r="1.5" fill="#0F172A"/>
+        <circle cx="63" cy="40" r="1.5" fill="#0F172A"/>
+        <path d="M52 48 Q55 52 58 48" stroke="#0F172A" stroke-width="1.5" fill="none"/>
+        <!-- Body of pajamas -->
+        <rect x="35" y="58" width="40" height="38" rx="8" fill="#fff" stroke="#0F172A" stroke-width="1.5"/>
+        <circle cx="55" cy="78" r="4" fill="#0F172A"/>
+        <rect x="35" y="80" width="40" height="14" fill="#0F172A"/>
+        <!-- Hands -->
+        <circle cx="32" cy="70" r="6" fill="#FED7AA"/>
+        <circle cx="78" cy="70" r="6" fill="#FED7AA"/>
+      `);
+
+    default:
+      return wrap(`<text x="55" y="65" font-size="40" text-anchor="middle">?</text>`);
+  }
+}
+
+/* ---------- CARD RENDERING ---------- */
+function cardHTML(a){
+  return `<div class="card bg-white rounded-xl p-2 flex flex-col items-center" data-id="${a.id}" onclick="toggleLabel('${a.id}')">
+    <div class="w-full aspect-square">${svgFor(a.svg)}</div>
+    <div class="text-xs text-slate-600 mt-1 text-center leading-tight">
+      <span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span>
+    </div>
+    <span class="card-toggle" style="display:none">?</span>
+  </div>`;
+}
+
+function renderGrid(containerId, pool){
+  const c = document.getElementById(containerId);
+  c.innerHTML = pool.map(cardHTML).join('');
+}
+
+/* ---------- LABEL TOGGLE ---------- */
+function toggleLabel(id){
+  const cur = state.labels[id];
+  let next;
+  if(!cur) next='panda';
+  else if(cur==='panda') next='notPanda';
+  else next=undefined;
+
+  if(next) state.labels[id]=next; else delete state.labels[id];
+  refreshCard(id);
+  updateCounters();
+}
+
+function refreshCard(id){
+  const el = document.querySelector(`.card[data-id="${id}"]`);
+  if(!el) return;
+  el.classList.remove('label-panda','label-notpanda');
+  const tag = el.querySelector('.card-toggle');
+  const cur = state.labels[id];
+  if(cur==='panda'){el.classList.add('label-panda');tag.style.display='flex';tag.textContent='✓'}
+  else if(cur==='notPanda'){el.classList.add('label-notpanda');tag.style.display='flex';tag.textContent='✕'}
+  else{tag.style.display='none'}
+}
+
+function updateCounters(){
+  // Phase 1 counter
+  const p1ids = ANIMALS.slice(0,12).map(a=>a.id);
+  const c1 = p1ids.filter(id=>state.labels[id]).length;
+  const el1=document.getElementById('p1-counter'); if(el1) el1.textContent=c1;
+  const b1=document.getElementById('p1-next'); if(b1) b1.disabled = c1<12;
+
+  // Phase 4 counter
+  const p4ids = ANIMALS.slice(17,23).map(a=>a.id);
+  const c4 = p4ids.filter(id=>state.labels[id]).length;
+  const el4=document.getElementById('p4-counter'); if(el4) el4.textContent=c4;
+  const b4=document.getElementById('p4-next'); if(b4) b4.disabled = c4<6;
+}
+
+/* ---------- CLASSIFIER: NEAREST CENTROID ---------- */
+function trainClassifier(){
+  const pandaFeats=[], notFeats=[];
+  for(const id in state.labels){
+    const a = ANIMALS.find(x=>x.id===id) || (id==='trick'?TRICK:null);
+    if(!a) continue;
+    if(state.labels[id]==='panda') pandaFeats.push(a.features);
+    else notFeats.push(a.features);
+  }
+  state.trainingSize = pandaFeats.length + notFeats.length;
+  state.centroidPanda = mean(pandaFeats);
+  state.centroidNot   = mean(notFeats);
+  state.trained = true;
+}
+function mean(vectors){
+  if(!vectors.length) return null;
+  const dim = vectors[0].length;
+  const m = new Array(dim).fill(0);
+  vectors.forEach(v=>v.forEach((x,i)=>m[i]+=x));
+  return m.map(x=>x/vectors.length);
+}
+function euclid(a,b){
+  if(!a||!b) return Infinity;
+  let s=0; for(let i=0;i<a.length;i++){ const d=a[i]-b[i]; s+=d*d; }
+  return Math.sqrt(s);
+}
+function predict(features){
+  const dP = euclid(features, state.centroidPanda);
+  const dN = euclid(features, state.centroidNot);
+  // confidence: relative distance
+  const totalInv = (1/(dP+0.01)) + (1/(dN+0.01));
+  const confP = (1/(dP+0.01))/totalInv;
+  const guess = dP<dN ? 'panda' : 'notPanda';
+  const conf = guess==='panda' ? confP : (1-confP);
+  return {guess, conf, confPanda:confP};
+}
+
+/* ---------- NAVIGATION ---------- */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  // update step dots
+  const dots = document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl = document.getElementById('step-label');
+  if(lbl){
+    lbl.innerHTML = `<span data-zh>第 ${n+1} / 7 关</span><span data-en>Step ${n+1} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  // setup per-phase
+  if(n===1 && !document.getElementById('p1-grid').innerHTML){
+    renderGrid('p1-grid', ANIMALS.slice(0,12));
+  }
+  if(n===2){
+    document.getElementById('p2-count').textContent = Object.keys(state.labels).filter(id=>ANIMALS.slice(0,12).some(a=>a.id===id)).length;
+    document.getElementById('train-pre').classList.remove('hidden');
+    document.getElementById('train-during').classList.add('hidden');
+    document.getElementById('train-done').classList.add('hidden');
+  }
+  if(n===3){
+    runTest1();
+  }
+  if(n===4 && !document.getElementById('p4-grid').innerHTML){
+    renderGrid('p4-grid', ANIMALS.slice(17,23));
+  }
+  if(n===5){
+    document.getElementById('p5-card-host').innerHTML =
+      `<div class="card inline-block w-44"><div class="aspect-square">${svgFor('kid_pjs')}</div>
+       <div class="text-xs mt-1"><span data-zh>${TRICK.name.zh}</span><span data-en>${TRICK.name.en}</span></div></div>`;
+  }
+}
+
+function openWhy(){ document.getElementById('why-box').classList.toggle('hidden'); }
+
+/* ---------- TRAINING ANIMATION ---------- */
+function trainAI(){
+  document.getElementById('train-pre').classList.add('hidden');
+  document.getElementById('train-during').classList.remove('hidden');
+  const bar = document.getElementById('train-bar');
+  const status = document.getElementById('train-status');
+  const steps = [
+    {pct:25, zh:'读取你的标签……', en:'Reading your labels…'},
+    {pct:55, zh:'提取特征：颜色、形状、眼斑……', en:'Extracting features: color, shape, eye patches…'},
+    {pct:80, zh:'计算每一类的"平均长相"……', en:'Computing each class centroid…'},
+    {pct:100, zh:'完成！', en:'Done!'},
+  ];
+  let i=0;
+  const tick = ()=>{
+    if(i>=steps.length){
+      trainClassifier();
+      setTimeout(()=>{
+        document.getElementById('train-during').classList.add('hidden');
+        document.getElementById('train-done').classList.remove('hidden');
+      }, 300);
+      return;
+    }
+    bar.style.width = steps[i].pct + '%';
+    status.innerHTML = `<span data-zh>${steps[i].zh}</span><span data-en>${steps[i].en}</span>`;
+    i++;
+    setTimeout(tick, 700);
+  };
+  tick();
+}
+
+/* ---------- TEST 1 ---------- */
+function runTest1(){
+  const testSet = ANIMALS.slice(12,17);
+  const host = document.getElementById('p3-results');
+  let correct=0;
+  host.innerHTML='';
+  testSet.forEach((a,idx)=>{
+    const p = predict(a.features);
+    const ok = p.guess===a.truth;
+    if(ok) correct++;
+    const pct = Math.round(p.conf*100);
+    host.insertAdjacentHTML('beforeend',`
+      <div class="result-row ${ok?'result-correct':'result-wrong'}">
+        <div class="w-16 h-16 flex-shrink-0">${svgFor(a.svg)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-semibold text-sm"><span data-zh>AI 猜：</span><span data-en>AI guess:</span></span>
+            <span class="text-sm">${p.guess==='panda'?(LANG==='en'?'🐼 Panda':'🐼 大熊猫'):(LANG==='en'?'❌ Not panda':'❌ 不是')}</span>
+            <span class="text-xs text-slate-500">${pct}% ${LANG==='en'?'confident':'确信'}</span>
+            <span class="ml-auto text-sm font-bold ${ok?'text-green-600':'text-red-600'}">${ok?'✓ '+(LANG==='en'?'Correct':'对了'):'✗ '+(LANG==='en'?'Wrong':'错了')}</span>
+          </div>
+          <div class="conf-bar mt-2"><div class="conf-fill ${p.guess==='panda'?'conf-panda':'conf-notpanda'}" style="width:${pct}%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">
+            <span data-zh>真实答案：${a.truth==='panda'?'大熊猫':'不是'}</span>
+            <span data-en>Truth: ${a.truth==='panda'?'Panda':'Not panda'}</span>
+          </div>
+        </div>
+      </div>
+    `);
+  });
+  state.test1Acc = correct/testSet.length;
+  const accEl = document.getElementById('p3-acc');
+  accEl.textContent = Math.round(state.test1Acc*100)+'%';
+  accEl.style.color = state.test1Acc>=0.7?'#10B981':'#DC2626';
+  document.getElementById('p3-size').textContent = state.trainingSize;
+  const msg = document.getElementById('p3-msg');
+  if(state.test1Acc>=0.8){
+    msg.innerHTML = `<span data-zh>不错！但还有改进空间。继续加更多例子，AI 会更稳。</span><span data-en>Nice! There's room to grow. Add examples to make AI sturdier.</span>`;
+  } else if(state.test1Acc>=0.5){
+    msg.innerHTML = `<span data-zh>还不够好——AI 只看了 12 个例子，<strong>多样性不够</strong>。再加 6 个，特别是那些容易搞混的种类。</span><span data-en>Not enough — only 12 examples lack <strong>variety</strong>. Add 6 more, especially confusable species.</span>`;
+  } else {
+    msg.innerHTML = `<span data-zh>差距很大！你的标签里可能有错，或者训练数据偏差太大。回去检查或加更多例子。</span><span data-en>Big gap! Check your labels or add more diverse data.</span>`;
+  }
+}
+
+/* ---------- TEST 2 ---------- */
+function retrainAndTest(){
+  trainClassifier();
+  const testSet = ANIMALS.slice(12,17);
+  const host = document.getElementById('p4-list');
+  let correct=0;
+  host.innerHTML='';
+  testSet.forEach(a=>{
+    const p = predict(a.features);
+    const ok = p.guess===a.truth;
+    if(ok) correct++;
+    const pct = Math.round(p.conf*100);
+    host.insertAdjacentHTML('beforeend',`
+      <div class="result-row ${ok?'result-correct':'result-wrong'}">
+        <div class="w-16 h-16 flex-shrink-0">${svgFor(a.svg)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-semibold"><span data-zh>AI 猜：</span><span data-en>AI:</span></span>
+            <span class="text-sm">${p.guess==='panda'?(LANG==='en'?'🐼 Panda':'🐼 大熊猫'):(LANG==='en'?'❌ Not':'❌ 不是')}</span>
+            <span class="text-xs text-slate-500">${pct}%</span>
+            <span class="ml-auto text-sm font-bold ${ok?'text-green-600':'text-red-600'}">${ok?'✓':'✗'}</span>
+          </div>
+          <div class="conf-bar mt-2"><div class="conf-fill ${p.guess==='panda'?'conf-panda':'conf-notpanda'}" style="width:${pct}%"></div></div>
+        </div>
+      </div>
+    `);
+  });
+  state.test2Acc = correct/testSet.length;
+  document.getElementById('p4-results').classList.remove('hidden');
+  const accEl=document.getElementById('p4-acc');
+  accEl.textContent = Math.round(state.test2Acc*100)+'%';
+  accEl.style.color = state.test2Acc>=0.7?'#10B981':'#DC2626';
+  document.getElementById('p4-size').textContent = state.trainingSize;
+  const improved = state.test2Acc - state.test1Acc;
+  const msg=document.getElementById('p4-msg');
+  if(improved>0.05){
+    msg.innerHTML = `<span data-zh>提升了 <strong class="text-green-600">+${Math.round(improved*100)}%</strong>！更多例子 = 更准的 AI。</span><span data-en>Improved <strong class="text-green-600">+${Math.round(improved*100)}%</strong>! More examples = sharper AI.</span>`;
+  } else if(improved<0){
+    msg.innerHTML = `<span data-zh>居然下降了！可能新例子标错了，或者新例子让 AI 学到了"错的特征"。</span><span data-en>It dropped! New examples may be mislabeled, or they pushed AI toward wrong features.</span>`;
+  } else {
+    msg.innerHTML = `<span data-zh>变化不大。说明你之前的例子已经覆盖了主要类型；想突破要换<strong>更难的样本</strong>。</span><span data-en>Little change — your earlier examples already covered the basics. To improve further, add <strong>harder cases</strong>.</span>`;
+  }
+  state.finalAcc = state.test2Acc;
+  state.finalSize = state.trainingSize;
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+
+/* ---------- TRICK ---------- */
+function humanGuess(g){
+  state.humanGuess = g;
+  document.getElementById('p5-human').innerHTML =
+    `<div class="p-3 rounded-lg ${g==='notPanda'?'bg-green-50 text-green-800':'bg-amber-50 text-amber-800'} text-sm">
+      <strong><span data-zh>你的答案：</span><span data-en>Your answer:</span></strong>
+      ${g==='panda'?(LANG==='en'?' Panda 🐼':' 大熊猫 🐼'):(LANG==='en'?' Not a panda ❌':' 不是大熊猫 ❌')}
+    </div>`;
+
+  // AI prediction
+  const p = predict(TRICK.features);
+  state.aiGuess = p.guess;
+  const pct = Math.round(p.conf*100);
+  const aiOk = p.guess===TRICK.truth;
+  document.getElementById('p5-ai').classList.remove('hidden');
+  document.getElementById('p5-ai').innerHTML = `
+    <div class="font-semibold mb-2"><span data-zh>AI 的答案：</span><span data-en>AI's answer:</span></div>
+    <div class="p-3 rounded-lg ${aiOk?'bg-green-50':'bg-red-50'} text-sm">
+      <div class="flex items-center gap-2">
+        <span>${p.guess==='panda'?(LANG==='en'?'🐼 Panda':'🐼 大熊猫'):(LANG==='en'?'❌ Not panda':'❌ 不是')}</span>
+        <span class="text-xs text-slate-500">${pct}% ${LANG==='en'?'confident':'确信'}</span>
+        <span class="ml-auto font-bold ${aiOk?'text-green-600':'text-red-600'}">${aiOk?'✓':'✗'}</span>
+      </div>
+      <div class="conf-bar mt-2"><div class="conf-fill ${p.guess==='panda'?'conf-panda':'conf-notpanda'}" style="width:${pct}%"></div></div>
+    </div>`;
+  document.getElementById('p5-explain').classList.remove('hidden');
+  document.getElementById('p5-next-wrap').classList.remove('hidden');
+}
+
+/* ---------- REFLECTION ---------- */
+function selReflect(i){
+  state.reflectChoice = i;
+  document.querySelectorAll('input[name=reflect]')[i].checked = true;
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  // save to localStorage
+  const data = {
+    timestamp: Date.now(),
+    mission: 'M1-3',
+    accuracy: state.finalAcc,
+    trainingSize: state.finalSize,
+    reflectChoice: state.reflectChoice,
+    reflectText: state.reflectText,
+    humanVsAi: {human:state.humanGuess, ai:state.aiGuess}
+  };
+  localStorage.setItem('lingxi-m1-3', JSON.stringify(data));
+  // populate final
+  document.getElementById('final-acc').textContent = Math.round(state.finalAcc*100)+'%';
+  document.getElementById('final-size').textContent = state.finalSize;
+  document.getElementById('final-chars').textContent = Array.from(state.reflectText).length;
+  goTo(7);
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart this mission?':'确定重新开始本关吗？')){
+    Object.assign(state,{phase:0,labels:{},trained:false,centroidPanda:null,centroidNot:null,trainingSize:0,test1Acc:0,test2Acc:0,finalAcc:0,finalSize:0,humanGuess:null,aiGuess:null,reflectChoice:null,reflectText:''});
+    document.getElementById('p1-grid').innerHTML='';
+    document.getElementById('p4-grid').innerHTML='';
+    document.getElementById('p4-results').classList.add('hidden');
+    document.getElementById('p5-ai').classList.add('hidden');
+    document.getElementById('p5-explain').classList.add('hidden');
+    document.getElementById('p5-next-wrap').classList.add('hidden');
+    document.getElementById('p5-human').innerHTML='';
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+
+/* ---------- INIT ---------- */
+renderGrid('p1-grid', ANIMALS.slice(0,12));
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

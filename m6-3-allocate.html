@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M6-3 资源分配挑战 · The Allocation Challenge</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#1E40AF,#0F172A);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(30,64,175,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(30,64,175,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(30,64,175,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Risk point card */
+  .rp-card{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.8rem;transition:all .2s;display:flex;flex-direction:column;gap:.4rem}
+  .rp-card.danger{border-color:#DC2626}
+  .rp-card.warn{border-color:#F59E0B}
+  .rp-card.caution{border-color:#FBBF24}
+  .rp-card.outcome-good{background:linear-gradient(135deg,#ECFDF5,#fff)}
+  .rp-card.outcome-bad{background:linear-gradient(135deg,#FEF2F2,#fff)}
+
+  /* Resource budget */
+  .res-card{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.8rem;text-align:center}
+  .res-num{font-size:1.8rem;font-weight:900;line-height:1}
+
+  /* Allocation buttons */
+  .alloc-btn{background:#fff;border:1px solid #CBD5E1;border-radius:6px;width:24px;height:24px;font-weight:700;cursor:pointer;font-size:.85rem;transition:all .15s}
+  .alloc-btn:hover:not(:disabled){background:#3B82F6;color:#fff;border-color:#3B82F6}
+  .alloc-btn:disabled{opacity:.35;cursor:not-allowed}
+
+  /* Outcome indicators */
+  .outcome-stat{display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.03);border-radius:5px;padding:.3rem .5rem;font-size:.7rem}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(30,64,175,.08),0 0 0 12px rgba(30,64,175,.04),0 18px 40px -12px rgba(30,64,175,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">M6-3 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-800 text-white px-2 py-1 rounded-full">Ch.6 · 暴雨中的 AI</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>挑战 · 35 min</span><span data-en>Challenge · 35 min</span></span>
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full"><span data-zh>⚠️ 核心关</span><span data-en>⚠️ Core</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>资源分配挑战：你是北京防汛办主任</span>
+      <span data-en>The Allocation Challenge: You\'re Beijing\'s Flood Director</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed text-red-700 font-bold" data-zh>
+            🚨 时间：2023 年 7 月 30 日 凌晨 4:00。
+          </p>
+          <p class="text-lg leading-relaxed text-red-700 font-bold" data-en>
+            🚨 Time: July 30, 2023 · 4:00 AM
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            <strong>你是北京市防汛办主任</strong>。AI 刚刚发来预警：未来 6 小时<strong>降雨量将达 200mm</strong>，12 个高风险点需要立即部署应急资源。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            <strong>You\'re Beijing\'s Flood Director</strong>. AI just sent the alert: next 6 hours <strong>200mm rainfall expected</strong>, 12 high-risk spots need immediate response.
+          </p>
+          <p class="mt-3 leading-relaxed text-amber-700 font-semibold" data-zh>
+            但<strong>你的资源不够</strong>：
+          </p>
+          <p class="mt-3 leading-relaxed text-amber-700 font-semibold" data-en>
+            But <strong>your resources are not enough</strong>:
+          </p>
+          <ul class="mt-2 space-y-1 text-sm" data-zh>
+            <li>🚛 <strong>8 辆</strong>抽水车（可分配到 12 个点中的 8 个）</li>
+            <li>👮 <strong>8 组应急队员</strong>（每组 25 人，共 200 人）</li>
+            <li>🏠 <strong>5 个</strong>临时安置点（每个可容纳 500 人）</li>
+          </ul>
+          <ul class="mt-2 space-y-1 text-sm" data-en>
+            <li>🚛 <strong>8 pumping vehicles</strong> (for 8 of 12 spots)</li>
+            <li>👮 <strong>8 emergency teams</strong> (25 each, 200 total)</li>
+            <li>🏠 <strong>5 shelters</strong> (500 capacity each)</li>
+          </ul>
+          <p class="mt-3 leading-relaxed text-red-700 font-bold" data-zh>
+            <strong>问题</strong>：12 个高风险点 + 8 辆车 = <strong>4 个点没车去</strong>。<strong>那 4 个点谁来定？</strong>
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-bold" data-en>
+            <strong>Problem</strong>: 12 spots + 8 vehicles = <strong>4 spots without vehicles</strong>. <strong>Who decides which 4?</strong>
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            ⚠️ <strong>注意</strong>：这是真实情境的<strong>简化模拟</strong>。AI 会根据你的分配计算<strong>每个点的预期后果</strong>——包括可能的伤亡。<strong>没有完美方案</strong>——你只能在不完美中做<strong>更好的</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            ⚠️ <strong>Note</strong>: simplified simulation of a real scenario. AI computes <strong>outcomes per spot</strong> based on your allocation — including potential casualties. <strong>No perfect answer</strong> — just <strong>less bad ones</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 12 个风险点 →</span><span data-en>See the 12 risk points →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: 12 RISK POINTS ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>AI 给出的 <strong>12 个高风险点</strong>。每个有<strong>预测积水深度、影响人数、关键设施、地下空间</strong>。<strong>仔细读完</strong>——你的分配决策都基于这些信息。</p>
+      <p data-en>AI gave <strong>12 high-risk points</strong> with: <strong>predicted depth, affected people, critical facilities, underground spaces</strong>. <strong>Read carefully</strong> — your decisions rest on this.</p>
+    </div>
+
+    <div id="rp1-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(2)">
+        <span data-zh>下一关：开始分配资源 →</span><span data-en>Next: allocate →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: ALLOCATION ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>现在<strong>开始分配</strong>。每个点用 +/− 加减资源。右上角显示<strong>剩余资源</strong>。<strong>资源用完<a href="#" onclick="event.preventDefault()">才能</a>提交</strong>。</p>
+      <p data-en>Now <strong>allocate</strong>. Use +/− on each spot. Top-right shows <strong>remaining resources</strong>. <strong>Use all to submit</strong>.</p>
+    </div>
+
+    <!-- Resource budget sticky -->
+    <div class="sticky top-2 z-30 mb-4">
+      <div class="bg-slate-900 text-white rounded-2xl p-3 shadow-xl">
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <div class="text-xs uppercase text-blue-300 font-bold">🚛 <span data-zh>抽水车</span><span data-en>Vehicles</span></div>
+            <div class="res-num"><span id="rem-v">8</span>/8</div>
+          </div>
+          <div>
+            <div class="text-xs uppercase text-amber-300 font-bold">👮 <span data-zh>应急队</span><span data-en>Teams</span></div>
+            <div class="res-num"><span id="rem-t">8</span>/8</div>
+          </div>
+          <div>
+            <div class="text-xs uppercase text-green-300 font-bold">🏠 <span data-zh>安置点</span><span data-en>Shelters</span></div>
+            <div class="res-num"><span id="rem-s">5</span>/5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rp2-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4"></div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm mb-4">
+      <strong>💡 <span data-zh>分配提示</span><span data-en>Allocation tip</span></strong>：
+      <span data-zh>抽水车<strong>降低积水</strong>；应急队员<strong>帮助撤离</strong>；安置点<strong>接收撤离的人</strong>。<strong>没有安置点的撤离 = 还是有危险</strong>。</span>
+      <span data-en>Vehicles <strong>reduce flooding</strong>; teams <strong>help evacuate</strong>; shelters <strong>house evacuees</strong>. <strong>Evacuation without shelter = still dangerous</strong>.</span>
+    </div>
+
+    <div class="flex justify-end">
+      <button class="btn-primary" id="submit-alloc" disabled onclick="runSim()">
+        🎯 <span data-zh>提交分配，看 AI 模拟结果</span><span data-en>Submit, see AI simulation</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: SIMULATION RESULTS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>🤖 AI 模拟完毕。<strong>这是你的决策后果</strong>。</p>
+      <p data-en>🤖 AI simulation complete. <strong>These are the consequences of your decisions</strong>.</p>
+    </div>
+
+    <!-- Summary -->
+    <div class="bg-white border-2 border-slate-300 rounded-2xl p-5 mb-4">
+      <div class="text-xs uppercase font-bold text-slate-500 tracking-wide mb-3"><span data-zh>📊 总体后果（6 小时模拟）</span><span data-en>📊 Overall outcome (6hr sim)</span></div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+          <div class="text-xs text-green-700 font-bold uppercase"><span data-zh>成功撤离</span><span data-en>Safely evacuated</span></div>
+          <div class="text-2xl font-black text-green-700 mt-1" id="r-safe">—</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+          <div class="text-xs text-amber-700 font-bold uppercase"><span data-zh>受困</span><span data-en>Stranded</span></div>
+          <div class="text-2xl font-black text-amber-700 mt-1" id="r-stuck">—</div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+          <div class="text-xs text-red-700 font-bold uppercase"><span data-zh>可能伤亡</span><span data-en>Possible casualties</span></div>
+          <div class="text-2xl font-black text-red-700 mt-1" id="r-cas">—</div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+          <div class="text-xs text-blue-700 font-bold uppercase"><span data-zh>积水时长</span><span data-en>Flood duration</span></div>
+          <div class="text-2xl font-black text-blue-700 mt-1" id="r-dur">—</div>
+          <div class="text-xs text-slate-500"><span data-zh>小时</span><span data-en>hours</span></div>
+        </div>
+      </div>
+      <div id="r-summary" class="mt-4 p-4 rounded-xl text-sm"></div>
+    </div>
+
+    <!-- Per-point breakdown -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-4">
+      <div class="text-xs uppercase font-bold text-slate-500 tracking-wide mb-3"><span data-zh>📍 每个点的后果</span><span data-en>📍 Per-point outcomes</span></div>
+      <div id="rp3-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <div class="mt-5 p-4 bg-red-50 border-2 border-red-300 rounded-xl text-sm" id="comparison-box"></div>
+
+    <div class="mt-5 flex flex-wrap justify-end gap-3">
+      <button class="btn-ghost" onclick="goTo(2)">
+        🔄 <span data-zh>重新分配</span><span data-en>Reallocate</span>
+      </button>
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: REFLECTION ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你刚才做了真实的<strong>"伦理工程"决策</strong>——AI 给数据，但<strong>谁救谁、放弃谁</strong>，是<strong>人</strong>做的选择。这是最难的一关。</p>
+      <p data-en>You just made real <strong>"ethical engineering" decisions</strong> — AI gives data, but <strong>who to save, who to forsake</strong> is the <strong>human\'s</strong> call. The hardest mission.</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你<strong>选择</strong>哪 4 个点<strong>不派抽水车</strong>？你的<strong>判断标准</strong>是什么（人数？设施？地下空间？）？</span>
+        <span data-en>① Which 4 spots did you <strong>leave without vehicles</strong>? What was your <strong>criterion</strong> (people? facilities? underground)?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 你<strong>不会</strong>对那 4 个点的居民解释什么？如果让<strong>你来宣布</strong>，你怎么说？</span>
+        <span data-en>② What can you <strong>not</strong> say to those residents? If <strong>you had to announce</strong>, what words?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ <strong>AI 算出的"可能伤亡"</strong>——这个数字应该<strong>对公众公开</strong>吗？为什么？</span>
+        <span data-en>③ AI\'s <strong>"possible casualty"</strong> number — should it be <strong>public</strong>? Why?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M6-3 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-700 to-blue-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#1E40AF" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🚛</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 3 关完成</span><span data-en>Mission #3 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"防汛指挥官" 徽章已解锁</span><span data-en>"Flood Commander" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh><strong>没有完美方案</strong>——12 个点 vs 8 辆车的数学问题</span><span data-en><strong>No perfect answer</strong> — 12 spots vs 8 vehicles</span></li>
+          <li>✓ <span data-zh>AI 给<strong>数据</strong>，人做<strong>决策</strong>——伦理工程</span><span data-en>AI provides <strong>data</strong>, human makes <strong>decisions</strong> — ethical engineering</span></li>
+          <li>✓ <span data-zh>抽水车 + 应急队 + 安置点<strong>必须协同</strong></span><span data-en>Vehicles + teams + shelters <strong>must coordinate</strong></span></li>
+          <li>✓ <span data-zh>你体验了<strong>2023 真实北京防汛办</strong>的决策压力</span><span data-en>You felt <strong>2023 real Beijing flood office\'s</strong> decision weight</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m6-4-warning.html'">
+          <span data-zh>下一关：M6-4 让居民信你 →</span><span data-en>Next: M6-4 Make Residents Believe →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-6xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M6-3 · 开发者：辜月晗 · 2026 · 模型简化，仅用于教育</span>
+  <span data-en>AI Literacy Courses for Beginners · M6-3 · Dev: Gu Yuehan · 2026 · Simplified model for education</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+  if(state.phase===1) renderPoints('rp1-grid', false);
+  if(state.phase===2) renderPoints('rp2-grid', true);
+  if(state.phase===3) renderResults();
+}
+
+/* =====================================================
+   12 RISK POINTS (mix of underpasses, residential, schools, etc.)
+   ===================================================== */
+const POINTS = [
+  {id:'p1', emoji:'🌉', name:{zh:'莲花桥下穿',en:'Lianhua Underpass'},
+   depth:2.0, pop:5000, type:{zh:'桥下穿',en:'Underpass'}, underground:true, vuln:1.4},
+  {id:'p2', emoji:'🌉', name:{zh:'上清桥',en:'Shangqing Bridge'},
+   depth:1.5, pop:3000, type:{zh:'桥下穿',en:'Underpass'}, underground:false, vuln:1.2},
+  {id:'p3', emoji:'🌉', name:{zh:'广渠门桥',en:'Guangqumen Bridge'},
+   depth:2.5, pop:8000, type:{zh:'桥下穿',en:'Underpass'}, underground:true, vuln:1.5},
+  {id:'p4', emoji:'🚇', name:{zh:'地铁某站',en:'Metro Hub Station'},
+   depth:2.0, pop:30000, type:{zh:'地铁枢纽',en:'Metro hub'}, underground:true, vuln:1.6},
+  {id:'p5', emoji:'🏫', name:{zh:'通州某中学',en:'Tongzhou Middle School'},
+   depth:1.0, pop:1500, type:{zh:'学校',en:'School'}, underground:false, vuln:1.3},
+  {id:'p6', emoji:'🏥', name:{zh:'朝阳某医院',en:'Chaoyang Hospital'},
+   depth:1.5, pop:2000, type:{zh:'医院',en:'Hospital'}, underground:true, vuln:1.7},
+  {id:'p7', emoji:'🏘️', name:{zh:'海淀某小区',en:'Haidian Apt Complex'},
+   depth:1.2, pop:5000, type:{zh:'居民区',en:'Residential'}, underground:false, vuln:1.0},
+  {id:'p8', emoji:'🏘️', name:{zh:'大红门桥',en:'Dahongmen Bridge'},
+   depth:1.4, pop:10000, type:{zh:'人口密集区',en:'Dense pop'}, underground:false, vuln:1.1},
+  {id:'p9', emoji:'🏭', name:{zh:'玉泉营桥（含市场）',en:'Yuquanying (Market)'},
+   depth:1.3, pop:6000, type:{zh:'市场',en:'Market'}, underground:false, vuln:1.0},
+  {id:'p10', emoji:'👵', name:{zh:'丰台某养老院',en:'Fengtai Elder Home'},
+   depth:1.1, pop:400, type:{zh:'养老院',en:'Elder home'}, underground:false, vuln:2.0},
+  {id:'p11', emoji:'🏢', name:{zh:'CBD 某写字楼地下车库',en:'CBD Underground Garage'},
+   depth:1.8, pop:1500, type:{zh:'地下车库',en:'Underground'}, underground:true, vuln:1.4},
+  {id:'p12', emoji:'🛣️', name:{zh:'三元桥',en:'Sanyuan Bridge'},
+   depth:0.8, pop:2000, type:{zh:'桥下穿',en:'Underpass'}, underground:false, vuln:0.8},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {phase:0, alloc:{}, results:null, reflectChoice:null, reflectText:''};
+POINTS.forEach(p=>state.alloc[p.id]={v:0,t:0,s:0});
+
+const BUDGET = {v:8, t:8, s:5};
+
+/* =====================================================
+   PHASE 1 & 2: POINTS WITH OPTIONAL ALLOCATION CONTROLS
+   ===================================================== */
+function getSev(p){
+  if(p.depth>=1.8 || p.vuln>=1.5) return 'danger';
+  if(p.depth>=1.2 || p.vuln>=1.2) return 'warn';
+  return 'caution';
+}
+
+function renderPoints(gridId, withAlloc){
+  const host = document.getElementById(gridId);
+  host.innerHTML = POINTS.map(p=>{
+    const a = state.alloc[p.id];
+    const sev = getSev(p);
+    return `<div class="rp-card ${sev}" data-id="${p.id}">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <div class="text-2xl">${p.emoji}</div>
+          <div>
+            <div class="font-bold text-sm"><span data-zh>${p.name.zh}</span><span data-en>${p.name.en}</span></div>
+            <div class="text-xs text-slate-500"><span data-zh>${p.type.zh}</span><span data-en>${p.type.en}</span></div>
+          </div>
+        </div>
+        <span class="text-xs font-bold text-red-700">${p.depth}m</span>
+      </div>
+      <div class="grid grid-cols-2 gap-1 text-xs">
+        <div class="bg-slate-50 rounded px-2 py-1">👥 ${p.pop.toLocaleString()}</div>
+        ${p.underground?'<div class="bg-amber-50 text-amber-700 rounded px-2 py-1">🕳️ <span data-zh>有地下空间</span><span data-en>Underground</span></div>':'<div class="text-slate-400 text-xs px-2">　</div>'}
+      </div>
+      ${withAlloc?`
+        <div class="space-y-1 pt-2 border-t border-slate-100">
+          <div class="flex items-center justify-between text-xs">
+            <span>🚛 <span data-zh>车</span><span data-en>Veh</span></span>
+            <div class="flex items-center gap-1">
+              <button class="alloc-btn" ${a.v===0?'disabled':''} onclick="alloc('${p.id}','v',-1)">−</button>
+              <span class="font-bold w-4 text-center">${a.v}</span>
+              <button class="alloc-btn" ${remaining('v')===0?'disabled':''} onclick="alloc('${p.id}','v',1)">+</button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span>👮 <span data-zh>队</span><span data-en>Team</span></span>
+            <div class="flex items-center gap-1">
+              <button class="alloc-btn" ${a.t===0?'disabled':''} onclick="alloc('${p.id}','t',-1)">−</button>
+              <span class="font-bold w-4 text-center">${a.t}</span>
+              <button class="alloc-btn" ${remaining('t')===0?'disabled':''} onclick="alloc('${p.id}','t',1)">+</button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span>🏠 <span data-zh>安置</span><span data-en>Shltr</span></span>
+            <div class="flex items-center gap-1">
+              <button class="alloc-btn" ${a.s===0?'disabled':''} onclick="alloc('${p.id}','s',-1)">−</button>
+              <span class="font-bold w-4 text-center">${a.s}</span>
+              <button class="alloc-btn" ${remaining('s')===0?'disabled':''} onclick="alloc('${p.id}','s',1)">+</button>
+            </div>
+          </div>
+        </div>
+      `:''}
+    </div>`;
+  }).join('');
+}
+
+function remaining(type){
+  const used = POINTS.reduce((sum,p)=>sum + state.alloc[p.id][type], 0);
+  return BUDGET[type] - used;
+}
+
+function alloc(pid, type, delta){
+  if(delta>0 && remaining(type)<=0) return;
+  if(delta<0 && state.alloc[pid][type]<=0) return;
+  state.alloc[pid][type] += delta;
+  updateRemainingDisplay();
+  renderPoints('rp2-grid', true);
+  document.getElementById('submit-alloc').disabled = !(remaining('v')===0 && remaining('t')===0 && remaining('s')===0);
+}
+
+function updateRemainingDisplay(){
+  document.getElementById('rem-v').textContent = remaining('v');
+  document.getElementById('rem-t').textContent = remaining('t');
+  document.getElementById('rem-s').textContent = remaining('s');
+}
+
+/* =====================================================
+   AI SIMULATION
+   ===================================================== */
+function runSim(){
+  const pointResults = POINTS.map(p=>{
+    const a = state.alloc[p.id];
+    // Vehicle reduces depth by 0.7m each (max 3)
+    const depthReduction = a.v * 0.7;
+    const finalDepth = Math.max(0, p.depth - depthReduction);
+    // Personnel team evacuates 500 ppl each
+    const evacCapacity = a.t * 500;
+    const evacuated = Math.min(p.pop, evacCapacity);
+    const stranded = p.pop - evacuated;
+    // Shelter accepts 500 ppl each
+    const shelterCap = a.s * 500;
+    const sheltered = Math.min(evacuated, shelterCap);
+    const evacButNoShelter = evacuated - sheltered;
+    // Casualty estimate
+    let casualties = 0;
+    if(finalDepth>0.3){
+      // base function of depth and stranded pop
+      const depthFactor = Math.pow(finalDepth, 1.6);
+      const exposed = stranded + evacButNoShelter*0.3; // some evacuated-but-no-shelter still at risk
+      casualties = depthFactor * exposed * p.vuln / 1500;
+      if(p.underground && finalDepth>1) casualties *= 1.4; // underground much worse
+    }
+    casualties = Math.round(casualties * 10) / 10;
+
+    // Status assessment
+    let status, color;
+    if(finalDepth<0.3 && evacuated>=p.pop*0.9){ status={zh:'安全',en:'Safe'}; color='good';}
+    else if(finalDepth<0.8 && stranded<p.pop*0.2){ status={zh:'可控',en:'Controlled'}; color='good';}
+    else if(casualties<1){ status={zh:'紧张',en:'Tense'}; color='warn';}
+    else{ status={zh:'危险',en:'Dangerous'}; color='bad';}
+
+    return {p, finalDepth, evacuated, stranded, sheltered, casualties, status, color, floodDur: finalDepth*2.5};
+  });
+
+  // Aggregate
+  const totalSafe = pointResults.reduce((s,r)=>s+r.evacuated, 0);
+  const totalStuck = pointResults.reduce((s,r)=>s+r.stranded, 0);
+  const totalCas = Math.round(pointResults.reduce((s,r)=>s+r.casualties, 0) * 10) / 10;
+  const maxDur = Math.max(...pointResults.map(r=>r.floodDur));
+
+  state.results = {pointResults, totalSafe, totalStuck, totalCas, maxDur};
+  goTo(3);
+}
+
+function renderResults(){
+  if(!state.results) return;
+  const r = state.results;
+  document.getElementById('r-safe').textContent = r.totalSafe.toLocaleString();
+  document.getElementById('r-stuck').textContent = r.totalStuck.toLocaleString();
+  document.getElementById('r-cas').textContent = r.totalCas;
+  document.getElementById('r-dur').textContent = r.maxDur.toFixed(1);
+
+  // Summary message
+  const sumBox = document.getElementById('r-summary');
+  let msg, color;
+  if(r.totalCas<1){
+    color = 'bg-green-50 border border-green-200 text-green-900';
+    msg = {zh:`<strong>✓ 优秀决策</strong>。零或极少伤亡，绝大多数受困人员获救。这就是<strong>北京市防汛办</strong>的理想目标。`,
+           en:`<strong>✓ Excellent decisions</strong>. Near-zero casualties; vast majority evacuated. This is the <strong>Beijing flood office\'s</strong> ideal.`};
+  } else if(r.totalCas<5){
+    color = 'bg-amber-50 border border-amber-200 text-amber-900';
+    msg = {zh:`<strong>🟡 可接受方案</strong>。仍有少数<strong>伤亡风险</strong>。每个伤亡背后是一个家庭——你可以再试一次。`,
+           en:`<strong>🟡 Acceptable</strong>. Still some <strong>casualty risk</strong>. Each is a family — you can try again.`};
+  } else if(r.totalCas<15){
+    color = 'bg-red-50 border border-red-200 text-red-900';
+    msg = {zh:`<strong>🔴 严重后果</strong>。预测伤亡 ${r.totalCas}——接近 2023 "7·31" 全市死亡人数（33）的一半。<strong>重新分配</strong>。`,
+           en:`<strong>🔴 Severe</strong>. Predicted casualties ${r.totalCas} — close to half of 2023 "7·31"\'s total (33). <strong>Reallocate</strong>.`};
+  } else {
+    color = 'bg-red-100 border border-red-400 text-red-900';
+    msg = {zh:`<strong>⚠️ 灾难</strong>。预测伤亡 ${r.totalCas} —— 超过 2023 全市死亡数字。<strong>必须重新分配</strong>。`,
+           en:`<strong>⚠️ Catastrophe</strong>. ${r.totalCas} casualties — exceeds 2023 citywide deaths. <strong>Must reallocate</strong>.`};
+  }
+  sumBox.className = 'mt-4 p-4 rounded-xl text-sm ' + color;
+  sumBox.innerHTML = `<span data-zh>${msg.zh}</span><span data-en>${msg.en}</span>`;
+
+  // Per-point grid
+  const host = document.getElementById('rp3-grid');
+  host.innerHTML = r.pointResults.map(rp=>`
+    <div class="rp-card outcome-${rp.color==='bad'?'bad':'good'}">
+      <div class="flex items-center justify-between mb-1">
+        <div class="flex items-center gap-2">
+          <div class="text-xl">${rp.p.emoji}</div>
+          <div class="font-bold text-xs"><span data-zh>${rp.p.name.zh}</span><span data-en>${rp.p.name.en}</span></div>
+        </div>
+        <span class="text-xs font-bold ${rp.color==='good'?'text-green-700':rp.color==='warn'?'text-amber-700':'text-red-700'}"><span data-zh>${rp.status.zh}</span><span data-en>${rp.status.en}</span></span>
+      </div>
+      <div class="space-y-1">
+        <div class="outcome-stat">
+          <span><span data-zh>积水</span><span data-en>Depth</span></span>
+          <strong>${rp.finalDepth.toFixed(1)}m</strong>
+        </div>
+        <div class="outcome-stat">
+          <span><span data-zh>撤离</span><span data-en>Evac</span></span>
+          <strong>${rp.evacuated.toLocaleString()}/${rp.p.pop.toLocaleString()}</strong>
+        </div>
+        ${rp.stranded>0?`<div class="outcome-stat text-amber-700">
+          <span><span data-zh>受困</span><span data-en>Stranded</span></span>
+          <strong>${rp.stranded.toLocaleString()}</strong>
+        </div>`:''}
+        ${rp.casualties>0?`<div class="outcome-stat text-red-700">
+          <span><span data-zh>可能伤亡</span><span data-en>Casualties</span></span>
+          <strong>${rp.casualties}</strong>
+        </div>`:''}
+      </div>
+    </div>
+  `).join('');
+
+  // Comparison
+  document.getElementById('comparison-box').innerHTML = `
+    <strong>📊 <span data-zh>历史参照</span><span data-en>Historical reference</span></strong>：
+    <span data-zh>2023 北京 "7·31" 实际死亡 <strong>33 人</strong>。当时北京防汛办的资源比你<strong>多 100 倍</strong>，但仍有人遇难——<strong>暴雨防汛永远是次优问题</strong>。`+ (r.totalCas<5? `你的方案（${r.totalCas} 伤亡）已经非常出色。`: `你的方案（${r.totalCas} 伤亡）说明这<strong>不是 12 岁孩子的简化游戏</strong>，是真实的成年人责任。`) +`</span>
+    <span data-en>2023 Beijing "7·31" actually killed <strong>33</strong>. Beijing\'s real flood office had <strong>100× your resources</strong> and still lost lives — <strong>flood response is always sub-optimal</strong>. `+ (r.totalCas<5? `Your plan (${r.totalCas} casualties) is excellent.` : `Your plan (${r.totalCas}) shows this <strong>isn\'t a simplified kid\'s game</strong> — it\'s real adult responsibility.`) +`</span>
+  `;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M6-3',
+    alloc:state.alloc, results:state.results?{totalSafe:state.results.totalSafe,totalStuck:state.results.totalStuck,totalCas:state.results.totalCas}:null,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m6-3', JSON.stringify(data));
+  goTo(5);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderPoints('rp1-grid', false);
+  if(n===2){
+    renderPoints('rp2-grid', true);
+    updateRemainingDisplay();
+  }
+  if(n===3) renderResults();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;
+    POINTS.forEach(p=>state.alloc[p.id]={v:0,t:0,s:0});
+    state.results=null;state.reflectChoice=null;state.reflectText='';
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

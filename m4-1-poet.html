@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4-1 诗仙 GPT · How AI Guesses the Next Word</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Context display */
+  .context-box{background:#fff;border:2px dashed #94A3B8;border-radius:14px;padding:1rem;min-height:80px;font-size:1.4rem;font-family:"Songti SC",STSong,serif;line-height:1.8;letter-spacing:.15em}
+  .context-char{display:inline-block;padding:.1rem .15rem;border-radius:4px;transition:all .3s}
+  .context-char.added{background:#FEF3C7;color:#92400E;animation:popIn .4s ease}
+  .context-char.original{color:#0F172A;font-weight:bold}
+  @keyframes popIn{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
+
+  /* Token candidates */
+  .token-row{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:.6rem .8rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.8rem}
+  .token-row:hover:not(.disabled){border-color:#3B82F6;background:#EFF6FF;transform:translateX(4px)}
+  .token-row.disabled{opacity:.6;cursor:not-allowed}
+  .token-char{font-size:1.8rem;font-family:"Songti SC",STSong,serif;font-weight:bold;min-width:36px;text-align:center;color:#0F172A}
+  .token-bar{flex:1;height:14px;background:#F1F5F9;border-radius:7px;overflow:hidden;position:relative}
+  .token-bar-fill{height:100%;background:linear-gradient(90deg,#60A5FA,#3B82F6);border-radius:7px;transition:width .5s ease}
+  .token-prob{font-weight:700;color:#3B82F6;min-width:50px;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* Mode chips */
+  .mode-chip{background:#fff;border:2px solid #E2E8F0;border-radius:9999px;padding:.5rem 1rem;cursor:pointer;transition:all .15s;font-size:.85rem;font-weight:600}
+  .mode-chip:hover{border-color:#94A3B8}
+  .mode-chip.active{border-color:#DC2626;background:#FEF2F2;color:#DC2626}
+
+  /* Result line */
+  .result-line{background:linear-gradient(135deg,#FEF3C7,#FED7AA);border:2px solid #F59E0B;border-radius:12px;padding:1rem 1.2rem;font-family:"Songti SC",STSong,serif;font-size:1.3rem;font-weight:bold;color:#92400E}
+
+  /* How LLM works diagram */
+  .pipeline-step{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.8rem;text-align:center;flex:1}
+  .pipeline-arrow{font-size:1.5rem;color:#94A3B8;display:flex;align-items:center;padding:0 .3rem}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M4-1 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.4 · 对话 / Interaction</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>热身 · 20 min</span><span data-en>Warm-up · 20 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>诗仙 GPT：AI 真的"懂"诗吗？</span>
+      <span data-en>Poet GPT: Does AI Really "Get" Poetry?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            欢迎来到 <strong>第 4 章</strong>！前三章看 AI 怎么看、想、学。今天看它怎么<strong>说话</strong>——也是你最熟悉的话题：你天天用 ChatGPT/文心/豆包/Kimi……
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Welcome to <strong>Chapter 4</strong>! We've seen AI see/think/learn. Today: how it <strong>talks</strong> — the AI you use every day (ChatGPT, Wenxin, Doubao…).
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            你打几个字，它就洋洋洒洒回你一大段。听起来很懂——但<strong>它真的"懂"吗？</strong>今天我让你看它脑子里在干嘛。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            You type a few words, it writes paragraphs back. Sounds smart — but <strong>does it "understand"?</strong> Today I'll show you what's inside.
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-zh>
+            剧透：<strong>AI 不懂诗</strong>。它只是在玩一个叫"猜下一个字"的游戏，玩得超快超好。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700 font-semibold" data-en>
+            Spoiler: <strong>AI doesn't get poetry</strong>. It just plays "guess the next word" — really, really fast.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>玩"接字游戏" →</span><span data-en>Play "next-word game" →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: NEXT-WORD GAME ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>我给你一句开头：<strong>"床前明月光，"</strong>。AI 接下来要猜第 6 个字。我把它<strong>脑子里 5 个候选 + 概率</strong>都给你看。<strong>你来点</strong>——直到补完整句。</p>
+      <p data-en>I give you the opener: <strong>"床前明月光，"</strong>. AI guesses the 6th character. I'll show its <strong>top-5 candidates + probabilities</strong>. <strong>You click</strong> to complete the line.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="text-xs uppercase text-slate-500 font-bold tracking-wide mb-2"><span data-zh>当前句子</span><span data-en>Current line</span></div>
+      <div class="context-box" id="ctx-box-1"></div>
+
+      <div class="mt-5">
+        <div class="text-xs uppercase text-slate-500 font-bold tracking-wide mb-2 flex items-center justify-between">
+          <span><span data-zh>AI 猜第 </span><span data-en>AI guessing word #</span><span id="step-num">6</span> <span data-zh>个字</span><span data-en></span></span>
+          <span class="text-blue-600"><span data-zh>点一个继续</span><span data-en>Tap one to continue</span></span>
+        </div>
+        <div id="token-list" class="space-y-2"></div>
+      </div>
+
+      <div id="poem-done-1" class="hidden mt-5">
+        <div class="result-line">
+          <div class="text-xs font-bold text-amber-700 uppercase mb-1"><span data-zh>你和 AI 一起完成的诗</span><span data-en>Your AI-assisted poem</span></div>
+          <div id="final-poem-1">—</div>
+        </div>
+        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+          <strong>💡 <span data-zh>注意到了吗？</span><span data-en>Notice?</span></strong>
+          <span data-zh> 每一步，AI 都只看<strong>前面的字</strong>，猜下一个。它<strong>不知道</strong>这是李白写的，<strong>不懂</strong>"思乡"的意境——它只统计了亿万本书里"光"后面接什么字的概率。</span>
+          <span data-en> At each step, AI only sees <strong>previous chars</strong> and guesses the next. It <strong>doesn't know</strong> this is Li Bai, <strong>doesn't get</strong> homesickness — it just counted billions of "what comes after 光" cases.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button class="btn-ghost" onclick="resetPoem(1)">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：换个"心情"问 AI →</span><span data-en>Next: change AI's "mood" →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: CONTEXT/MODE CHANGES OUTPUT ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>同样是<strong>"床前明月光，"</strong>这 5 个字。如果我告诉 AI <strong>"假装你是一个 ___"</strong>，它会写出<strong>完全不同</strong>的下一句。试试 4 种"<strong>身份</strong>"——这就是"<strong>提示词</strong>"的力量。</p>
+      <p data-en>Same opener <strong>"床前明月光，"</strong>. If I tell AI <strong>"act like a ___"</strong>, it writes a <strong>completely different</strong> next line. Try 4 personas — that's <strong>prompt power</strong>.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="text-xs uppercase text-slate-500 font-bold tracking-wide mb-2"><span data-zh>选一个身份</span><span data-en>Pick a persona</span></div>
+      <div class="flex gap-2 flex-wrap mb-4" id="mode-chips"></div>
+
+      <div class="text-xs uppercase text-slate-500 font-bold tracking-wide mb-2"><span data-zh>AI 的回答</span><span data-en>AI's answer</span></div>
+      <div id="mode-result" class="min-h-[140px] flex items-center justify-center text-slate-400 text-sm">
+        <span data-zh>👆 选一个身份看 AI 怎么写</span>
+        <span data-en>👆 Pick a persona above</span>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between text-sm">
+        <div class="text-slate-600"><span data-zh>已试过：</span><span data-en>Tried:</span><strong id="modes-tried">0</strong> / 4</div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：揭秘 AI 工作原理 →</span><span data-en>Next: how LLMs really work →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: HOW LLM WORKS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>你已经看到了 AI 是怎么<strong>生成文本</strong>的——5 个候选词、概率、采样、重复。这就是 <strong>大语言模型（LLM）</strong>的核心机制。</p>
+      <p data-en>You've seen how AI <strong>generates text</strong> — 5 candidates, probabilities, sampling, repeat. This is the core of <strong>LLMs (Large Language Models)</strong>.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="text-sm font-bold mb-3"><span data-zh>LLM 工作流水线（4 步循环）</span><span data-en>LLM pipeline (4-step loop)</span></div>
+      <div class="flex flex-col sm:flex-row gap-3 mb-5">
+        <div class="pipeline-step">
+          <div class="text-3xl mb-1">📝</div>
+          <div class="font-bold text-sm"><span data-zh>① 读 token</span><span data-en>① Read tokens</span></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>把文字拆成"小块"</span><span data-en>Split text into chunks</span></div>
+        </div>
+        <div class="pipeline-arrow hidden sm:flex">→</div>
+        <div class="pipeline-step">
+          <div class="text-3xl mb-1">🧠</div>
+          <div class="font-bold text-sm"><span data-zh>② 算概率</span><span data-en>② Compute probabilities</span></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>下一个 token 最可能是谁</span><span data-en>Most likely next token</span></div>
+        </div>
+        <div class="pipeline-arrow hidden sm:flex">→</div>
+        <div class="pipeline-step">
+          <div class="text-3xl mb-1">🎲</div>
+          <div class="font-bold text-sm"><span data-zh>③ 采样</span><span data-en>③ Sample</span></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>从候选里挑一个</span><span data-en>Pick one</span></div>
+        </div>
+        <div class="pipeline-arrow hidden sm:flex">→</div>
+        <div class="pipeline-step">
+          <div class="text-3xl mb-1">🔁</div>
+          <div class="font-bold text-sm"><span data-zh>④ 加进去，重复</span><span data-en>④ Append, repeat</span></div>
+          <div class="text-xs text-slate-500 mt-1"><span data-zh>用新句子再猜下一个</span><span data-en>Use new line, predict next</span></div>
+        </div>
+      </div>
+
+      <div class="grid sm:grid-cols-3 gap-3">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <div class="font-bold text-sm mb-1">🤔 <span data-zh>它"理解"吗？</span><span data-en>Does it "understand"?</span></div>
+          <p class="text-xs text-slate-700" data-zh><strong>不</strong>。它只是<strong>统计了</strong>"哪些字常常一起出现"。</p>
+          <p class="text-xs text-slate-700" data-en><strong>No</strong>. It just <strong>counted</strong> "what chars co-occur often."</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <div class="font-bold text-sm mb-1">📚 <span data-zh>它从哪学的？</span><span data-en>What did it learn from?</span></div>
+          <p class="text-xs text-slate-700" data-zh>互联网上<strong>亿万本书、网页、聊天记录</strong>——包括所有古诗。</p>
+          <p class="text-xs text-slate-700" data-en>Billions of books, web pages, chats — including all classical poems.</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <div class="font-bold text-sm mb-1">🎯 <span data-zh>这有用吗？</span><span data-en>Is it useful?</span></div>
+          <p class="text-xs text-slate-700" data-zh><strong>极有用</strong>。但有局限——下一关你会看到 AI 怎么"<strong>胡说</strong>"。</p>
+          <p class="text-xs text-slate-700" data-en><strong>Hugely</strong>. But limited — next mission, you'll see AI "<strong>hallucinate</strong>".</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(4)">
+        <span data-zh>下一关：词汇 + 反思 →</span><span data-en>Next: vocab + reflect →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: VOCAB + REFLECTION ========== -->
+  <section class="phase" id="p4">
+    <h2 class="text-2xl font-bold mb-4"><span data-zh>🧠 AI 小百科</span><span data-en>🧠 AI Mini-Dictionary</span></h2>
+    <div class="grid sm:grid-cols-2 gap-3 mb-8">
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">Token / 词元</div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>AI 把句子切成的"小块"，可以是一个字、一个词、甚至半个词。AI 处理的不是"文字"，是 token。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>The "chunk" AI splits text into — a character, word, or sub-word. AI processes tokens, not chars.</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">LLM / 大语言模型</div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>读过亿万本书的 AI，专门预测"下一个 token"。ChatGPT、文心、豆包都是 LLM。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>AI trained on billions of texts, designed to predict "next token". ChatGPT, Wenxin, Doubao are all LLMs.</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">Context / 上下文</div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>AI 当下"看到"的所有文字（你的话 + AI 之前的话）。Context 越长，AI 越能"记住"对话。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>All text AI currently "sees" (your input + AI's prior output). Longer context = better memory.</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wide">Probability / 概率</div>
+        <p class="text-sm text-slate-600 mt-1" data-zh>AI 对每个候选 token 的"信心"。它<strong>不会说"我不知道"</strong>，它只会说"40% 是 A，30% 是 B"。</p>
+        <p class="text-sm text-slate-600 mt-1" data-en>AI's "confidence" in each candidate token. It <strong>never says "I don't know"</strong> — just "40% A, 30% B".</p>
+      </div>
+    </div>
+
+    <h2 class="text-2xl font-bold mb-3"><span data-zh>📝 想一想</span><span data-en>📝 Reflect</span></h2>
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 如果 AI 只是"猜下一个字"，它写出来的东西算"原创"吗？算"懂"吗？</span>
+        <span data-en>① If AI just "guesses next words," does its writing count as "original"? As "understanding"?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 你和你的同桌也是"听过几个字猜下一个字"才学会说话的。AI 和你<strong>本质上不一样</strong>，差在哪？</span>
+        <span data-en>② You also learned to speak by "hearing words and guessing next." How is AI <strong>fundamentally</strong> different from you?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ AI 写诗算"诗人"吗？它写出李白没写过的诗，谁是作者？李白？AI？AI 工程师？还是你？</span>
+        <span data-en>③ If AI writes poems Li Bai never wrote, who's the author? Li Bai? AI? Engineers? You?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M4-1 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: COMPLETION ========== -->
+  <section class="phase" id="p5">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-blue-500 to-purple-600 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#60A5FA" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">📜</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 1 关完成</span><span data-en>Mission #1 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"诗仙学徒" 徽章已解锁</span><span data-en>"Poet Apprentice" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 border border-blue-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>LLM = <strong>"猜下一个 token"的高手</strong>，不是"理解者"</span><span data-en>LLM = expert at <strong>"guess next token"</strong>, not understanding</span></li>
+          <li>✓ <span data-zh>每一步都是<strong>概率分布</strong>——AI 永远不会说"我不知道"</span><span data-en>Every step is a <strong>probability distribution</strong> — AI never says "I don't know"</span></li>
+          <li>✓ <span data-zh><strong>上下文 / 提示词</strong>能极大改变 AI 的输出</span><span data-en><strong>Context / prompt</strong> dramatically changes AI output</span></li>
+          <li>✓ <span data-zh>同一个开头，<strong>4 个不同身份</strong>，4 段截然不同的诗</span><span data-en>Same opener, <strong>4 personas</strong>, 4 wildly different poems</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m4-2-prompt.html'">
+          <span data-zh>下一关：M4-2 提示词工程 →</span><span data-en>Next: M4-2 Prompt Engineering →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M4-1 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M4-1 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   POEM PROBABILITY TABLES
+   Each step has 5 candidates with probabilities (sum 100)
+   ===================================================== */
+const POEM_STEPS = [
+  // Step 1: after "床前明月光，" predict next
+  {candidates:[
+    {char:'疑', p:45, en:'(suspect)'},
+    {char:'望', p:18, en:'(gaze)'},
+    {char:'是', p:12, en:'(is)'},
+    {char:'又', p:10, en:'(again)'},
+    {char:'应', p:8,  en:'(should)'},
+  ], hint:{zh:'李白原版选了"疑"。', en:'Li Bai picked 疑.'}},
+  // Step 2: after "床前明月光，疑" predict next
+  {candidates:[
+    {char:'是', p:78, en:'(is)'},
+    {char:'似', p:10, en:'(like)'},
+    {char:'又', p:5,  en:'(again)'},
+    {char:'已', p:4,  en:'(already)'},
+    {char:'那', p:3,  en:'(that)'},
+  ], hint:{zh:'AI 几乎确定下一个是"是"——因为"疑是"是最经典的搭配。',
+          en:'AI is nearly certain — "疑是" is the classic phrase.'}},
+  // Step 3
+  {candidates:[
+    {char:'地', p:40, en:'(ground)'},
+    {char:'月', p:18, en:'(moon)'},
+    {char:'银', p:14, en:'(silver)'},
+    {char:'雪', p:14, en:'(snow)'},
+    {char:'仙', p:14, en:'(immortal)'},
+  ], hint:{zh:'李白选"地"。但"月""银""雪"也都很有诗意——这就是概率分布。',
+          en:'Li Bai picked 地. But 月/银/雪 are also poetic — that\'s probability.'}},
+  // Step 4
+  {candidates:[
+    {char:'上', p:85, en:'(on)'},
+    {char:'下', p:7,  en:'(under)'},
+    {char:'面', p:4,  en:'(surface)'},
+    {char:'板', p:2,  en:'(board)'},
+    {char:'中', p:2,  en:'(middle)'},
+  ], hint:{zh:'AI 几乎肯定是"上"——"地上"是最自然的搭配。',
+          en:'Almost certain "上" — "地上" is the natural fit.'}},
+  // Step 5
+  {candidates:[
+    {char:'霜', p:62, en:'(frost)'},
+    {char:'雪', p:15, en:'(snow)'},
+    {char:'水', p:10, en:'(water)'},
+    {char:'露', p:8,  en:'(dew)'},
+    {char:'草', p:5,  en:'(grass)'},
+  ], hint:{zh:'李白选"霜"。诗的下一句呼之欲出："疑是地上霜"。',
+          en:'Li Bai chose 霜. The line emerges: "Surely frost upon the ground."'}},
+];
+
+/* =====================================================
+   MODE PERSONAS — same opener, 4 different completions
+   ===================================================== */
+const MODES = [
+  {id:'classic', emoji:'📚', label:{zh:'李白式（古典）', en:'Li-Bai style (classical)'},
+    sys:{zh:'假装你是李白，用唐诗风格续写。', en:'Pretend you are Li Bai, continue in Tang poetry style.'},
+    result:'床前明月光，疑是地上霜。',
+    explain:{zh:'AI 走了"诗集统计"路径——它见过这个开头的真实诗，沿用经典搭配。',
+             en:'AI took the "classical corpus" path — it has seen this opening in real poems and follows tradition.'}},
+  {id:'modern', emoji:'📱', label:{zh:'现代少年（手机）', en:'Modern teen (phone)'},
+    sys:{zh:'假装你是 2026 年初中生，用现代生活续写。', en:'Pretend you are a 2026 teen, continue with modern life.'},
+    result:'床前明月光，手机充电中。',
+    explain:{zh:'AI 走了"现代语料"路径——"床前+手机"在网络对话/段子里有大量数据。',
+             en:'AI took the "modern web" path — "床前 + phone" is heavily seen in chats/memes.'}},
+  {id:'coder', emoji:'💻', label:{zh:'程序员（debug）', en:'Programmer (debug)'},
+    sys:{zh:'假装你是熬夜写代码的程序员，续写。', en:'Pretend you are a programmer debugging late at night, continue.'},
+    result:'床前明月光，bug 一夜亮。',
+    explain:{zh:'AI 把"明月光"+"程序员"语境匹配——程序员段子里"亮"常和"屏幕/bug"搭配。',
+             en:'AI matched "明月光" with "programmer" context — programmer memes often pair 亮 with screens/bugs.'}},
+  {id:'foodie', emoji:'🍲', label:{zh:'吃货（火锅）', en:'Foodie (hotpot)'},
+    sys:{zh:'假装你是火锅店里的食客，续写。', en:'Pretend you are a hotpot diner, continue.'},
+    result:'床前明月光，火锅热气腾。',
+    explain:{zh:'AI 检索"火锅"语料——"明月光"+"美食"在小红书/抖音类语料里有此类拼接。',
+             en:'AI pulled "hotpot" corpus — "明月光" + food is common in social media.'}},
+];
+
+const state = {
+  phase:0,
+  curStep:0,
+  initialChars:['床','前','明','月','光','，'],
+  addedChars:[],
+  modesTried:new Set(),
+  reflectChoice:null,
+  reflectText:''
+};
+
+/* =====================================================
+   PHASE 1: NEXT-WORD GAME
+   ===================================================== */
+function renderContext1(){
+  const box = document.getElementById('ctx-box-1');
+  const orig = state.initialChars.map(c=>`<span class="context-char original">${c}</span>`).join('');
+  const added = state.addedChars.map(c=>`<span class="context-char added">${c}</span>`).join('');
+  box.innerHTML = orig + added;
+}
+
+function renderTokens(){
+  const host = document.getElementById('token-list');
+  if(state.curStep>=POEM_STEPS.length){
+    // Done
+    host.innerHTML = '';
+    return;
+  }
+  const step = POEM_STEPS[state.curStep];
+  host.innerHTML = step.candidates.map((c,i)=>`
+    <button class="token-row" onclick="pickToken(${i})">
+      <div class="token-char">${c.char}</div>
+      <div class="token-bar"><div class="token-bar-fill" style="width:${c.p}%"></div></div>
+      <div class="token-prob">${c.p}%</div>
+    </button>
+  `).join('');
+  document.getElementById('step-num').textContent = 6 + state.curStep;
+}
+
+function pickToken(idx){
+  const step = POEM_STEPS[state.curStep];
+  const tok = step.candidates[idx].char;
+  state.addedChars.push(tok);
+  state.curStep++;
+  renderContext1();
+  // small message — show hint
+  if(state.curStep<POEM_STEPS.length){
+    // Continue
+    renderTokens();
+  } else {
+    // Done
+    document.getElementById('token-list').innerHTML = '';
+    document.getElementById('poem-done-1').classList.remove('hidden');
+    document.getElementById('final-poem-1').textContent = state.initialChars.join('') + state.addedChars.join('');
+    document.getElementById('p1-next').disabled = false;
+  }
+}
+
+function resetPoem(){
+  state.curStep=0;
+  state.addedChars=[];
+  document.getElementById('poem-done-1').classList.add('hidden');
+  document.getElementById('p1-next').disabled = true;
+  renderContext1();
+  renderTokens();
+}
+
+/* =====================================================
+   PHASE 2: PERSONA MODES
+   ===================================================== */
+function renderModeChips(){
+  const host = document.getElementById('mode-chips');
+  host.innerHTML = MODES.map(m=>`
+    <button class="mode-chip ${state.modesTried.has(m.id)?'':''}" data-id="${m.id}" onclick="pickMode('${m.id}')">
+      ${m.emoji} <span data-zh>${m.label.zh}</span><span data-en>${m.label.en}</span>
+    </button>
+  `).join('');
+}
+
+function pickMode(id){
+  const m = MODES.find(x=>x.id===id);
+  state.modesTried.add(id);
+  document.querySelectorAll('.mode-chip').forEach(c=>c.classList.toggle('active', c.dataset.id===id));
+  document.getElementById('modes-tried').textContent = state.modesTried.size;
+
+  // Simulate "typing" the result
+  const host = document.getElementById('mode-result');
+  host.innerHTML = `
+    <div class="w-full">
+      <div class="text-xs uppercase text-slate-500 font-bold mb-1"><span data-zh>系统提示词</span><span data-en>System prompt</span></div>
+      <div class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mb-3 font-mono"><span data-zh>${m.sys.zh}</span><span data-en>${m.sys.en}</span></div>
+      <div class="result-line text-center mb-3" id="mode-typewriter"></div>
+      <div class="text-xs text-slate-600 p-3 bg-blue-50 border border-blue-200 rounded-lg"><strong>💡 </strong><span data-zh>${m.explain.zh}</span><span data-en>${m.explain.en}</span></div>
+    </div>
+  `;
+  // Typewriter effect
+  const tw = document.getElementById('mode-typewriter');
+  let i = 0;
+  const tick = () => {
+    if(i<=m.result.length){
+      tw.textContent = m.result.slice(0,i);
+      i++;
+      setTimeout(tick, 80);
+    }
+  };
+  tick();
+
+  if(state.modesTried.size>=4) document.getElementById('p2-next').disabled = false;
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M4-1',
+    poemDone:state.curStep>=POEM_STEPS.length,
+    modesTried:state.modesTried.size,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m4-1', JSON.stringify(data));
+  goTo(5);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1){
+    renderContext1();
+    renderTokens();
+  }
+  if(n===2) renderModeChips();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,curStep:0,addedChars:[],modesTried:new Set(),reflectChoice:null,reflectText:''});
+    document.getElementById('poem-done-1').classList.add('hidden');
+    document.getElementById('mode-result').innerHTML = '<span data-zh>👆 选一个身份看 AI 怎么写</span><span data-en>👆 Pick a persona above</span>';
+    document.getElementById('modes-tried').textContent='0';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+@media (max-width:640px){.save-toast{bottom:auto;top:72px;right:16px}}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

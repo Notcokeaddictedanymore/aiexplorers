@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5-2 信息茧房 · The Algorithm's Echo Chamber</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Persona card */
+  .persona-card{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:1.2rem;cursor:pointer;transition:all .2s;text-align:left;position:relative}
+  .persona-card:hover{transform:translateY(-2px);border-color:#94A3B8}
+  .persona-card.picked-a{border-color:#3B82F6;background:#EFF6FF;box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+  .persona-card.picked-a::after{content:'A';position:absolute;top:8px;right:12px;background:#3B82F6;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+  .persona-card.picked-b{border-color:#DC2626;background:#FEF2F2;box-shadow:0 0 0 4px rgba(220,38,38,.15)}
+  .persona-card.picked-b::after{content:'B';position:absolute;top:8px;right:12px;background:#DC2626;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+  .persona-card.disabled{opacity:.5;cursor:not-allowed}
+
+  /* Video card */
+  .video-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;overflow:hidden;transition:all .2s}
+  .video-thumb{aspect-ratio:9/12;background:linear-gradient(135deg,var(--c1),var(--c2));display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative}
+  .video-card.liked{border-color:#DC2626;background:#FEF2F2}
+  .video-card.skipped{opacity:.45}
+  @keyframes popIn{0%{transform:scale(0)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+
+  /* Comparison bars */
+  .cmp-row{display:grid;grid-template-columns:120px 1fr 60px 1fr 120px;gap:.5rem;align-items:center;padding:.4rem 0;border-bottom:1px dashed #E2E8F0}
+  .cmp-row:last-child{border-bottom:none}
+  .cmp-bar-a{height:18px;background:#F1F5F9;border-radius:9px;overflow:hidden;display:flex;justify-content:flex-end}
+  .cmp-bar-a > div{height:100%;background:linear-gradient(90deg,#93C5FD,#3B82F6);border-radius:9px;transition:width .8s ease}
+  .cmp-bar-b{height:18px;background:#F1F5F9;border-radius:9px;overflow:hidden}
+  .cmp-bar-b > div{height:100%;background:linear-gradient(90deg,#DC2626,#FCA5A5);border-radius:9px;transition:width .8s ease}
+
+  /* Feature card */
+  .feat-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;cursor:pointer;transition:all .2s;text-align:left}
+  .feat-card:hover{border-color:#94A3B8;transform:translateY(-1px)}
+  .feat-card.picked{border-color:#10B981;background:#ECFDF5;box-shadow:0 0 0 4px rgba(16,185,129,.15)}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M5-2 · Mission</span>
+      <span class="text-xs font-semibold bg-slate-200 text-slate-700 px-2 py-1 rounded-full">Ch.5 · 社会 / Society</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>探索 · 30 min</span><span data-en>Explore · 30 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>算法回音壁：刷视频时你看到的世界是真的吗？</span>
+      <span data-en>The Echo Chamber: Is the World You Scroll Real?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 7 关</span><span data-en>Step 1 / 7</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            上一关你看到，每点一下，AI 都在<strong>学习你</strong>。今天关键问题：当 AI <strong>真的"懂"你</strong>之后，你看到的世界会变成什么样？
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            Last mission: each tap teaches AI <strong>about you</strong>. Today's key question: once AI <strong>really "knows" you</strong>, what does your world look like?
+          </p>
+          <p class="mt-3 leading-relaxed font-semibold" data-zh>
+            🔬 <strong>今天我让你做实验</strong>：你扮演<strong>两个完全不同的人</strong>，分别刷我的模拟视频流。最后对比——<strong>同一个 APP 给两个人造出了什么样的两个世界</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed font-semibold" data-en>
+            🔬 <strong>Today's experiment</strong>: play <strong>two very different people</strong>, each scrolls my simulated feed. Then compare — <strong>same app, what two worlds did it build?</strong>
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700" data-zh>
+            这种现象有个名字——<strong>信息茧房（Filter Bubble / Echo Chamber）</strong>。哥伦比亚大学 2021 年研究：同样话题，给两个用户看，2 周后他们看到的<strong>已经是两个互相不知道对方在看什么的世界</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed text-red-700" data-en>
+            This phenomenon has a name — <strong>filter bubble / echo chamber</strong>. A 2021 Columbia study: 2 users, same topic, 2 weeks later — they\'re in <strong>two worlds neither knows the other inhabits</strong>.
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>选 2 个身份开始实验 →</span><span data-en>Pick 2 identities →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: PICK 2 PERSONAS ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>下面是 5 个虚拟身份。<strong>选 2 个</strong>——一个会被标为 <strong>A（蓝）</strong>，第二个 <strong>B（红）</strong>。建议选<strong>差别大</strong>的两个，对比更震撼。</p>
+      <p data-en>5 virtual identities. <strong>Pick 2</strong> — one becomes <strong>A (blue)</strong>, the other <strong>B (red)</strong>. Pick two that <strong>differ a lot</strong> for the most dramatic contrast.</p>
+    </div>
+
+    <div id="persona-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+    <div class="mt-5 flex items-center justify-between">
+      <div class="text-sm text-slate-600"><span data-zh>已选：</span><span data-en>Picked:</span><strong id="pick-status">0/2</strong></div>
+      <button class="btn-primary" id="p1-next" disabled onclick="startPersonaA()">
+        <span data-zh>开始扮演身份 A →</span><span data-en>Start playing A →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2 + 3: PLAY PERSONA ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p>
+        <span data-zh>现在你是身份 </span><span data-en>You\'re now identity </span>
+        <strong id="play-label" class="text-xl">A</strong>
+        <span data-zh>：<span id="play-name"></span></span>
+        <span data-en>: <span id="play-name-en"></span></span>
+      </p>
+      <p class="text-sm mt-1" data-zh>请用<strong>这个身份的喜好</strong>来点赞/跳过。AI 会学习这个身份的偏好。<strong>6 个视频</strong>结束后揭晓画像。</p>
+      <p class="text-sm mt-1" data-en>Like/skip with this <strong>identity\'s tastes</strong>. AI learns the persona\'s preferences. Profile revealed after <strong>6 videos</strong>.</p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="play-feed"></div>
+
+    <div id="play-done" class="hidden mt-5 text-center">
+      <button class="btn-primary" onclick="finishCurrentPersona()">
+        <span data-zh>查看这个身份的画像 →</span><span data-en>See this persona\'s profile →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: PROFILE REVEAL ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p>
+        <span data-zh>身份 </span><span data-en>Identity </span>
+        <strong id="profile-label">A</strong>
+        <span data-zh> 的算法画像揭晓👇</span>
+        <span data-en>\'s algorithm profile revealed👇</span>
+      </p>
+    </div>
+
+    <div class="bg-white border-2 rounded-2xl p-5" id="profile-box">
+      <div id="profile-display"></div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" onclick="nextPersonaOrCompare()">
+        <span id="p3-next-label" data-zh>开始扮演身份 B →</span>
+        <span data-en>Start playing B →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: COMPARISON ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>🤯 <strong>真相时刻</strong>。两个身份，同一个 APP，同一套算法——但<strong>看到的世界完全不同</strong>。</p>
+      <p data-en>🤯 <strong>The moment of truth</strong>. Two identities, same app, same algorithm — but <strong>completely different worlds</strong>.</p>
+    </div>
+
+    <div class="bg-white border-2 border-slate-300 rounded-2xl p-5">
+      <div class="grid grid-cols-[120px_1fr_60px_1fr_120px] gap-2 mb-3 text-xs uppercase font-bold text-slate-500 tracking-wide">
+        <div class="text-right"><span data-zh>身份 A</span><span data-en>Identity A</span><br><span class="font-normal normal-case text-blue-700" id="cmp-a-name">—</span></div>
+        <div></div>
+        <div class="text-center"><span data-zh>分类</span><span data-en>Category</span></div>
+        <div></div>
+        <div><span data-zh>身份 B</span><span data-en>Identity B</span><br><span class="font-normal normal-case text-red-700" id="cmp-b-name">—</span></div>
+      </div>
+      <div id="cmp-list"></div>
+    </div>
+
+    <div class="mt-4 grid sm:grid-cols-3 gap-3">
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+        <div class="text-3xl mb-1">🎯</div>
+        <div class="text-2xl font-black text-blue-700" id="cmp-overlap">—%</div>
+        <div class="text-xs text-slate-600 mt-1"><span data-zh>偏好重合度</span><span data-en>Profile overlap</span></div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+        <div class="text-3xl mb-1">📺</div>
+        <div class="text-2xl font-black text-amber-700" id="cmp-different">—</div>
+        <div class="text-xs text-slate-600 mt-1"><span data-zh>偏好天差的分类</span><span data-en>Wildly diverging tags</span></div>
+      </div>
+      <div class="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+        <div class="text-3xl mb-1">🌍</div>
+        <div class="text-2xl font-black text-red-700">2</div>
+        <div class="text-xs text-slate-600 mt-1"><span data-zh>同一 APP，两个世界</span><span data-en>2 worlds, 1 app</span></div>
+      </div>
+    </div>
+
+    <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+      <strong>💡 <span data-zh>关键洞察</span><span data-en>Key insight</span></strong>：
+      <span data-zh>你刚才<strong>只用了 12 次互动</strong>。真实的抖音用户，每天<strong>1000+ 次互动</strong>。半年下来，两个人之间的<strong>世界差距</strong>会比你刚才看到的<strong>大 100 倍</strong>。这就是为什么不同人对同一件社会事件能有<strong>完全相反</strong>的判断——他们看到的<strong>根本不是同一件事</strong>。</span>
+      <span data-en>You used <strong>only 12 interactions</strong>. Real TikTok users: <strong>1000+/day</strong>. After half a year, the world-gap between 2 users is <strong>100× what you just saw</strong>. This is why two people can have <strong>opposite</strong> takes on the same social event — they\'re not seeing <strong>the same event</strong>.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(5)">
+        <span data-zh>下一关：你来设计反回音壁 →</span><span data-en>Next: design anti-echo →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: DESIGN ANTI-ECHO ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>如果<strong>你是抖音的产品经理</strong>，让用户少陷入信息茧房，你会加哪些功能？下面 6 个候选——<strong>选 3 个你认为最有用的</strong>。</p>
+      <p data-en>If <strong>you ran TikTok product</strong>, what features would reduce filter bubbles? 6 candidates — <strong>pick 3 best</strong>.</p>
+    </div>
+
+    <div id="feat-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5"></div>
+
+    <div class="flex items-center justify-between text-sm mb-4">
+      <div class="text-slate-600"><span data-zh>已选：</span><span data-en>Picked:</span><strong id="feat-picked">0</strong>/3</div>
+      <button class="btn-primary text-sm" id="show-critique-btn" disabled onclick="showCritique()">
+        <span data-zh>提交我的设计</span><span data-en>Submit my design</span>
+      </button>
+    </div>
+
+    <div id="critique" class="hidden">
+      <div class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-5 mb-4">
+        <div class="font-bold mb-2">🎯 <span data-zh>产品评审</span><span data-en>Product review</span></div>
+        <div id="critique-content"></div>
+      </div>
+      <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm">
+        <strong>🏢 <span data-zh>残酷的真相</span><span data-en>Cold truth</span></strong>：
+        <span data-zh>你设计的功能都很合理。但为什么<strong>真实的抖音/快手/B站</strong>不全做？因为信息茧房让你<strong>更上瘾</strong>，而上瘾让平台<strong>赚更多广告费</strong>。"反信息茧房"<strong>对用户好、对平台坏</strong>。这就是为什么这场仗需要<strong>用户和监管者</strong>一起推。</span>
+        <span data-en>Your features are smart. So why don\'t real platforms do them all? Because filter bubbles make you <strong>more addicted</strong>, and addiction drives <strong>ad revenue</strong>. "Anti-bubble" is <strong>good for users, bad for platforms</strong>. That\'s why this fight needs <strong>users + regulators</strong> together.</span>
+      </div>
+      <div class="mt-5 flex justify-end">
+        <button class="btn-primary" onclick="goTo(6)">
+          <span data-zh>下一关：反思 →</span><span data-en>Next: reflect →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: REFLECTION ========== -->
+  <section class="phase" id="p6">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>信息茧房是 AI 时代<strong>最危险的"隐形敌人"</strong>。它不像深度伪造那么明显，但它<strong>慢慢改变你看世界的方式</strong>。请写下：</p>
+      <p data-en>Filter bubbles are AI\'s <strong>most dangerous invisible enemy</strong>. Less obvious than deepfakes, but they <strong>slowly reshape how you see the world</strong>. Reflect:</p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 你和爸妈，刷同一个抖音 APP 时，看到的内容差别有多大？这是好事还是坏事？</span>
+        <span data-en>① You vs your parents on the same TikTok — how different are your feeds? Good or bad?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 假设你的同班同学，<strong>从他/她的视角</strong>看一件班级争议事件，会不会得出和你完全相反的结论？</span>
+        <span data-en>② If your classmate viewed a class controversy <strong>through their feed</strong>, would they reach the opposite conclusion?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ 怎么主动"<strong>打破自己的信息茧房</strong>"？你能想到 3 个具体做法吗？</span>
+        <span data-en>③ How to actively <strong>break your own filter bubble</strong>? Name 3 concrete actions.</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M5-2 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 7: COMPLETION ========== -->
+  <section class="phase" id="p7">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-slate-500 to-slate-700 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#94A3B8" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🔁</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 2 关完成</span><span data-en>Mission #2 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"茧房破壁者" 徽章已解锁</span><span data-en>"Bubble Breaker" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-slate-50 border border-slate-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>信息茧房 = AI <strong>给两个人造了两个完全不同的世界</strong></span><span data-en>Filter bubble = AI builds <strong>2 different worlds for 2 people</strong></span></li>
+          <li>✓ <span data-zh>只需 <strong>12 次</strong>互动，画像就有<strong>显著差异</strong>（真实是 1000+/天）</span><span data-en>Just <strong>12 interactions</strong> creates <strong>large gaps</strong> (real life: 1000+/day)</span></li>
+          <li>✓ <span data-zh>"反信息茧房" <strong>对用户好、对平台坏</strong>——这是结构性矛盾</span><span data-en>"Anti-bubble" is <strong>good for users, bad for platforms</strong> — structural conflict</span></li>
+          <li>✓ <span data-zh>需要<strong>用户+监管</strong>一起推</span><span data-en>Needs <strong>users + regulators</strong> together</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m5-3-deepfake.html'">
+          <span data-zh>下一关：M5-3 深度伪造 →</span><span data-en>Next: M5-3 Deepfake →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M5-2 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M5-2 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   5 PERSONAS WITH INITIAL TAG WEIGHTS
+   ===================================================== */
+const CATEGORIES = [
+  {id:'game', emoji:'🎮', name:{zh:'游戏',en:'Gaming'}, c1:'#a855f7', c2:'#7c3aed'},
+  {id:'food', emoji:'🍜', name:{zh:'美食',en:'Food'}, c1:'#f97316', c2:'#ea580c'},
+  {id:'pets', emoji:'🐱', name:{zh:'萌宠',en:'Pets'}, c1:'#fbbf24', c2:'#f59e0b'},
+  {id:'study', emoji:'📚', name:{zh:'学习',en:'Study'}, c1:'#3b82f6', c2:'#1d4ed8'},
+  {id:'sports', emoji:'⚽', name:{zh:'运动',en:'Sports'}, c1:'#10b981', c2:'#059669'},
+  {id:'funny', emoji:'😆', name:{zh:'搞笑',en:'Funny'}, c1:'#ef4444', c2:'#dc2626'},
+  {id:'history', emoji:'🏛️', name:{zh:'历史/文化',en:'History/Culture'}, c1:'#a16207', c2:'#854d0e'},
+  {id:'health', emoji:'🌿', name:{zh:'养生/健康',en:'Health/Wellness'}, c1:'#22c55e', c2:'#16a34a'},
+];
+
+const PERSONAS = [
+  {id:'p1', emoji:'🧑‍🎓', name:{zh:'12 岁城市男孩 · 小辰',en:'12yr boy in Beijing · Xiao Chen'},
+   bio:{zh:'初中生，住北京，喜欢打游戏和看搞笑视频，对学习类视频会跳过。', en:'Middle schooler in Beijing, loves gaming + funny videos, skips study content.'},
+   weights:{game:8, funny:7, sports:3, study:-2, history:-2, health:-3, food:1, pets:2}},
+  {id:'p2', emoji:'👧', name:{zh:'12 岁山区女孩 · 小芸',en:'12yr girl in Yunnan mountains · Xiao Yun'},
+   bio:{zh:'住云南山村，喜欢学习类视频（机会少），爱看做菜养花，对游戏没兴趣。', en:'Lives in Yunnan mountain village, loves study videos (rare opportunity), cooking & plants, no gaming.'},
+   weights:{study:8, food:6, pets:5, health:3, game:-3, funny:1, sports:0, history:2}},
+  {id:'p3', emoji:'👩', name:{zh:'42 岁妈妈 · 王女士',en:'42yr mom · Mrs. Wang'},
+   bio:{zh:'家里有一个小学生，关心营养食谱、育儿、健康养生。游戏？没空。', en:'Has elementary kid; cares about recipes, parenting, wellness. Gaming? No time.'},
+   weights:{food:9, health:8, study:4, pets:2, game:-5, funny:0, sports:1, history:3}},
+  {id:'p4', emoji:'👨‍💻', name:{zh:'21 岁大学生 · 大伟',en:'21yr university student · Da Wei'},
+   bio:{zh:'计算机专业，关注学习、AI 科技、健身。喜欢看搞笑放松，不太关心做菜。', en:'CS major, follows tech/AI, gym. Likes funny content to unwind, not into cooking.'},
+   weights:{study:7, sports:6, funny:5, game:4, food:-2, pets:1, history:0, health:3}},
+  {id:'p5', emoji:'👴', name:{zh:'68 岁爷爷 · 老李',en:'68yr grandpa · Lao Li'},
+   bio:{zh:'退休教师，爱看历史纪录片、京剧、养生信息。游戏和搞笑不感兴趣。', en:'Retired teacher, loves history docs, Peking opera, health info. Not into gaming/comedy.'},
+   weights:{history:9, health:8, study:3, food:4, game:-5, funny:-3, sports:1, pets:2}},
+];
+
+const VIDEO_TITLES = {
+  game:[{zh:'我的世界·末影龙',en:'Minecraft Ender Dragon'},{zh:'王者最强连招',en:'Best MOBA combo'},{zh:'吃鸡神操作',en:'BR insane play'},{zh:'原神 5.0 攻略',en:'Genshin 5.0 guide'}],
+  food:[{zh:'1 分钟番茄炒蛋',en:'Tomato eggs in 1 min'},{zh:'四川火锅秘籍',en:'Sichuan hotpot secrets'},{zh:'妈妈的拿手菜',en:'Mom\'s signature dish'},{zh:'你没吃过的水果',en:'Fruit you haven\'t tried'}],
+  pets:[{zh:'橘猫趴键盘',en:'Orange cat on keyboard'},{zh:'柴犬笑死了',en:'Shiba Inu laugh'},{zh:'救助流浪猫',en:'Rescuing strays'},{zh:'仓鼠塞食物',en:'Hamster stuffing food'}],
+  study:[{zh:'30 秒学一道几何',en:'Geometry in 30s'},{zh:'背单词神技',en:'Vocab hack'},{zh:'物理学霸答疑',en:'Physics Q&A'},{zh:'高效学习法',en:'Study tips'}],
+  sports:[{zh:'梅西绝杀',en:'Messi\'s winning goal'},{zh:'NBA 十大扣篮',en:'NBA top 10 dunks'},{zh:'乒乓神球',en:'Insane ping-pong'},{zh:'马拉松冠军',en:'Marathon champion'}],
+  funny:[{zh:'笑到喷饭',en:'Laugh-out-loud'},{zh:'整蛊室友',en:'Pranking roomie'},{zh:'方言段子',en:'Dialect jokes'},{zh:'熊孩子日常',en:'Naughty kid daily'}],
+  history:[{zh:'故宫珍宝秘事',en:'Forbidden City treasures'},{zh:'敦煌壁画修复',en:'Dunhuang restoration'},{zh:'三国群英',en:'Three Kingdoms heroes'},{zh:'丝绸之路',en:'Silk Road journey'}],
+  health:[{zh:'养生粥推荐',en:'Wellness porridge'},{zh:'晨练 5 分钟',en:'5-min morning workout'},{zh:'按摩缓解头痛',en:'Massage for headache'},{zh:'秋天吃什么',en:'What to eat in autumn'}],
+};
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {
+  phase:0,
+  picks:{a:null, b:null},
+  curPlaying:'a', // 'a' or 'b'
+  scores:{a:{}, b:{}},
+  curBatch:[],
+  curBatchIdx:0,
+  interactions:{a:0, b:0},
+  features:new Set(),
+  reflectChoice:null,
+  reflectText:''
+};
+CATEGORIES.forEach(c=>{state.scores.a[c.id]=0;state.scores.b[c.id]=0});
+
+/* =====================================================
+   PHASE 1: PICK PERSONAS
+   ===================================================== */
+function renderPersonas(){
+  const host = document.getElementById('persona-grid');
+  host.innerHTML = PERSONAS.map(p=>{
+    let cls = '';
+    if(state.picks.a===p.id) cls='picked-a';
+    else if(state.picks.b===p.id) cls='picked-b';
+    else if(state.picks.a && state.picks.b) cls='disabled';
+    return `<div class="persona-card ${cls}" data-id="${p.id}" onclick="pickPersona('${p.id}')">
+      <div class="text-5xl mb-2">${p.emoji}</div>
+      <div class="font-bold mb-1"><span data-zh>${p.name.zh}</span><span data-en>${p.name.en}</span></div>
+      <p class="text-xs text-slate-600"><span data-zh>${p.bio.zh}</span><span data-en>${p.bio.en}</span></p>
+    </div>`;
+  }).join('');
+  const cnt = (state.picks.a?1:0) + (state.picks.b?1:0);
+  document.getElementById('pick-status').textContent = cnt+'/2';
+  document.getElementById('p1-next').disabled = cnt<2;
+}
+
+function pickPersona(id){
+  if(state.picks.a===id){state.picks.a=null}
+  else if(state.picks.b===id){state.picks.b=null}
+  else if(!state.picks.a){state.picks.a=id}
+  else if(!state.picks.b){state.picks.b=id}
+  renderPersonas();
+}
+
+/* =====================================================
+   PHASE 2: PLAY PERSONA (called twice, for A and B)
+   ===================================================== */
+function startPersonaA(){
+  state.curPlaying = 'a';
+  startPersona();
+}
+
+function startPersona(){
+  const id = state.picks[state.curPlaying];
+  const p = PERSONAS.find(x=>x.id===id);
+  document.getElementById('play-label').textContent = state.curPlaying.toUpperCase();
+  document.getElementById('play-label').className = 'text-xl ' + (state.curPlaying==='a'?'text-blue-700':'text-red-700');
+  document.getElementById('play-name').innerHTML = `<span data-zh>${p.name.zh}</span>`;
+  document.getElementById('play-name-en').innerHTML = `<span data-en>${p.name.en}</span>`;
+  state.curBatch = generateBatch(state.curPlaying);
+  state.curBatchIdx = 0;
+  document.getElementById('play-done').classList.add('hidden');
+  renderPlayFeed();
+  goTo(2);
+}
+
+function generateBatch(side){
+  const p = PERSONAS.find(x=>x.id===state.picks[side]);
+  const scores = state.scores[side];
+  // Initial batch: biased by persona\'s preferences
+  // Later batches: biased by scores (already updated)
+  const useWeights = state.interactions[side]<3 ? p.weights : scores;
+  const batch = [];
+  for(let i=0;i<6;i++){
+    // Weighted random
+    const total = CATEGORIES.reduce((sum,c)=>sum + Math.max(1, (useWeights[c.id]||0)+3), 0);
+    let r = Math.random() * total;
+    let cat = CATEGORIES[0];
+    for(const c of CATEGORIES){
+      const w = Math.max(1, (useWeights[c.id]||0)+3);
+      if(r < w){ cat=c; break; }
+      r -= w;
+    }
+    const titles = VIDEO_TITLES[cat.id];
+    const title = titles[Math.floor(Math.random()*titles.length)];
+    batch.push({cat, title, id:'v'+Math.random().toString(36).slice(2,8), action:null});
+  }
+  return batch;
+}
+
+function renderPlayFeed(){
+  const host = document.getElementById('play-feed');
+  host.innerHTML = state.curBatch.map(v=>`
+    <div class="video-card ${v.action==='like'?'liked':v.action==='skip'?'skipped':''}" data-id="${v.id}">
+      <div class="video-thumb" style="--c1:${v.cat.c1};--c2:${v.cat.c2}">${v.cat.emoji}</div>
+      <div class="p-2">
+        <div class="text-xs font-bold"><span data-zh>${v.title.zh}</span><span data-en>${v.title.en}</span></div>
+        <div class="text-xs text-slate-500 mb-2"><span data-zh>#${v.cat.name.zh}</span><span data-en>#${v.cat.name.en}</span></div>
+        ${v.action===null ? `
+          <div class="flex gap-1">
+            <button class="btn-ghost text-xs flex-1 border-red-300" onclick="playVideoAction('${v.id}','like')">❤️</button>
+            <button class="btn-ghost text-xs flex-1" onclick="playVideoAction('${v.id}','skip')">⏭</button>
+          </div>
+        ` : v.action==='like' ? '<div class="text-xs text-red-700 font-bold text-center">❤️</div>'
+                              : '<div class="text-xs text-slate-500 text-center">⏭</div>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function playVideoAction(id, action){
+  const v = state.curBatch.find(x=>x.id===id);
+  if(!v || v.action) return;
+  v.action = action;
+  const side = state.curPlaying;
+  if(action==='like') state.scores[side][v.cat.id] += 2;
+  else state.scores[side][v.cat.id] -= 1;
+  state.interactions[side]++;
+  renderPlayFeed();
+  if(state.curBatch.every(x=>x.action!==null)){
+    document.getElementById('play-done').classList.remove('hidden');
+  }
+}
+
+function finishCurrentPersona(){
+  // Show profile
+  const side = state.curPlaying;
+  const id = state.picks[side];
+  const p = PERSONAS.find(x=>x.id===id);
+  document.getElementById('profile-label').textContent = side.toUpperCase();
+  document.getElementById('profile-box').style.borderColor = side==='a'?'#3B82F6':'#DC2626';
+  const sorted = [...CATEGORIES].sort((a,b)=>state.scores[side][b.id]-state.scores[side][a.id]);
+  const maxScore = Math.max(1, ...sorted.map(c=>state.scores[side][c.id]));
+  const host = document.getElementById('profile-display');
+  host.innerHTML = `
+    <div class="text-center mb-4">
+      <div class="text-5xl mb-1">${p.emoji}</div>
+      <div class="font-bold"><span data-zh>${p.name.zh}</span><span data-en>${p.name.en}</span></div>
+      <div class="text-xs text-slate-500"><span data-zh>${state.interactions[side]} 次互动</span><span data-en>${state.interactions[side]} interactions</span></div>
+    </div>
+    ${sorted.map(c=>{
+      const s = state.scores[side][c.id];
+      const pct = s>0 ? (s/maxScore)*100 : 0;
+      return `<div class="flex items-center gap-3 py-1">
+        <span class="text-xl">${c.emoji}</span>
+        <span class="flex-1 text-sm"><span data-zh>${c.name.zh}</span><span data-en>${c.name.en}</span></span>
+        <div class="w-24 h-2 bg-slate-100 rounded overflow-hidden"><div class="h-full ${side==='a'?'bg-blue-500':'bg-red-500'}" style="width:${pct}%"></div></div>
+        <span class="text-xs font-bold ${s>0?(side==='a'?'text-blue-700':'text-red-700'):'text-slate-400'} w-10 text-right">${s>0?'+':''}${s}</span>
+      </div>`;
+    }).join('')}
+  `;
+  // Update next button label
+  if(side==='a'){
+    document.getElementById('p3-next-label').innerHTML = `<span data-zh>开始扮演身份 B →</span><span data-en>Start playing B →</span>`;
+  } else {
+    document.getElementById('p3-next-label').innerHTML = `<span data-zh>🤯 对比两个世界 →</span><span data-en>🤯 Compare worlds →</span>`;
+  }
+  goTo(3);
+}
+
+function nextPersonaOrCompare(){
+  if(state.curPlaying==='a'){
+    state.curPlaying = 'b';
+    startPersona();
+  } else {
+    renderComparison();
+    goTo(4);
+  }
+}
+
+/* =====================================================
+   PHASE 4: COMPARISON
+   ===================================================== */
+function renderComparison(){
+  const a = PERSONAS.find(x=>x.id===state.picks.a);
+  const b = PERSONAS.find(x=>x.id===state.picks.b);
+  document.getElementById('cmp-a-name').innerHTML = `<span data-zh>${a.name.zh}</span><span data-en>${a.name.en}</span>`;
+  document.getElementById('cmp-b-name').innerHTML = `<span data-zh>${b.name.zh}</span><span data-en>${b.name.en}</span>`;
+
+  const aScores = state.scores.a;
+  const bScores = state.scores.b;
+  const maxA = Math.max(1, ...CATEGORIES.map(c=>Math.abs(aScores[c.id])));
+  const maxB = Math.max(1, ...CATEGORIES.map(c=>Math.abs(bScores[c.id])));
+
+  // Sort by combined absolute difference (most contrasting first)
+  const sorted = [...CATEGORIES].sort((x,y)=>Math.abs(aScores[y.id]-bScores[y.id]) - Math.abs(aScores[x.id]-bScores[x.id]));
+
+  const host = document.getElementById('cmp-list');
+  host.innerHTML = sorted.map(c=>{
+    const aS = aScores[c.id];
+    const bS = bScores[c.id];
+    const aPct = aS>0 ? (aS/maxA)*100 : 0;
+    const bPct = bS>0 ? (bS/maxB)*100 : 0;
+    const diff = Math.abs(aS - bS);
+    const diverging = diff>=4;
+    return `<div class="cmp-row ${diverging?'bg-amber-50 -mx-2 px-2 rounded':''}">
+      <div class="text-right text-sm font-bold ${aS>0?'text-blue-700':'text-slate-400'}">${aS>0?'+':''}${aS}</div>
+      <div class="cmp-bar-a"><div style="width:${aPct}%"></div></div>
+      <div class="text-center text-2xl">${c.emoji}</div>
+      <div class="cmp-bar-b"><div style="width:${bPct}%"></div></div>
+      <div class="text-sm font-bold ${bS>0?'text-red-700':'text-slate-400'}">${bS>0?'+':''}${bS}</div>
+    </div>`;
+  }).join('');
+
+  // Compute overlap (cosine-like)
+  const aTop3 = [...CATEGORIES].sort((x,y)=>aScores[y.id]-aScores[x.id]).slice(0,3).map(c=>c.id);
+  const bTop3 = [...CATEGORIES].sort((x,y)=>bScores[y.id]-bScores[x.id]).slice(0,3).map(c=>c.id);
+  const overlap = aTop3.filter(id=>bTop3.includes(id)).length;
+  document.getElementById('cmp-overlap').textContent = Math.round((overlap/3)*100)+'%';
+
+  // Count diverging tags
+  const divCount = CATEGORIES.filter(c=>Math.abs(aScores[c.id]-bScores[c.id])>=4).length;
+  document.getElementById('cmp-different').textContent = divCount;
+}
+
+/* =====================================================
+   PHASE 5: DESIGN ANTI-ECHO
+   ===================================================== */
+const FEATURES = [
+  {id:'f1', emoji:'🪞', name:{zh:'每天 1 条"反方观点"', en:'1 "opposing view" daily'},
+   critique:{zh:'✓ 很好——直接对抗回音壁。但用户可能会跳过——需要设计得"<strong>足够吸引</strong>"才有效。',
+             en:'✓ Great — directly counters bubbles. But users may skip — must be <strong>engaging enough</strong>.'}},
+  {id:'f2', emoji:'🏷️', name:{zh:'显示算法画像让用户编辑', en:'Show profile, let user edit'},
+   critique:{zh:'✓ 优秀——给用户"<strong>知情权 + 控制权</strong>"。平台不太愿意做（用户编辑会"破坏"画像精度）。',
+             en:'✓ Excellent — gives users <strong>transparency + control</strong>. Platforms reluctant (editing "ruins" profile precision).'}},
+  {id:'f3', emoji:'🔄', name:{zh:'每周 1 次"算法重置"', en:'Weekly "algorithm reset"'},
+   critique:{zh:'✓ 大胆——但平台不愿，因为重置后用户体验变差（看不到喜欢的）→ 用户流失。',
+             en:'✓ Bold — but platforms hate it; resets degrade UX (fewer beloved videos) → user churn.'}},
+  {id:'f4', emoji:'👨‍👩‍👧', name:{zh:'家人共看模式', en:'Family co-watch mode'},
+   critique:{zh:'✓ 有创意——让父母和孩子能"对接"信息源。但需要双方都参与，难推广。',
+             en:'✓ Creative — connects parent + kid info streams. But needs both buy-in, hard to scale.'}},
+  {id:'f5', emoji:'⏰', name:{zh:'时长警告（30 分钟提醒）', en:'Time warning (30-min alert)'},
+   critique:{zh:'✓ 必备——多个国家已立法。但平台只做"<strong>最低限度合规</strong>"，效果有限。',
+             en:'✓ Essential — already mandated in many countries. But platforms do <strong>bare minimum compliance</strong>, limited impact.'}},
+  {id:'f6', emoji:'🎲', name:{zh:'探索按钮（推完全无关内容）', en:'"Explore" button (random unrelated)'},
+   critique:{zh:'✓ 简单好用——但需要用户<strong>主动点</strong>。多数用户不会主动点。需要设计<strong>奖励机制</strong>引导。',
+             en:'✓ Simple — but users must <strong>opt in</strong>. Most won\'t. Needs <strong>reward design</strong> to nudge.'}},
+];
+
+function renderFeats(){
+  const host = document.getElementById('feat-grid');
+  host.innerHTML = FEATURES.map(f=>`
+    <div class="feat-card ${state.features.has(f.id)?'picked':''}" data-id="${f.id}" onclick="pickFeat('${f.id}')">
+      <div class="text-3xl mb-2">${f.emoji}</div>
+      <div class="font-bold text-sm"><span data-zh>${f.name.zh}</span><span data-en>${f.name.en}</span></div>
+    </div>
+  `).join('');
+  document.getElementById('feat-picked').textContent = state.features.size;
+  document.getElementById('show-critique-btn').disabled = state.features.size<3;
+}
+
+function pickFeat(id){
+  if(state.features.has(id)){state.features.delete(id)}
+  else if(state.features.size<3){state.features.add(id)}
+  renderFeats();
+}
+
+function showCritique(){
+  const host = document.getElementById('critique-content');
+  const picked = FEATURES.filter(f=>state.features.has(f.id));
+  host.innerHTML = picked.map(f=>`
+    <div class="bg-white rounded-lg p-3 mb-2">
+      <div class="font-bold text-sm mb-1">${f.emoji} <span data-zh>${f.name.zh}</span><span data-en>${f.name.en}</span></div>
+      <p class="text-sm"><span data-zh>${f.critique.zh}</span><span data-en>${f.critique.en}</span></p>
+    </div>
+  `).join('');
+  document.getElementById('critique').classList.remove('hidden');
+  document.getElementById('show-critique-btn').disabled = true;
+  window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M5-2',
+    personas:[state.picks.a, state.picks.b],
+    interactions:state.interactions,
+    features:[...state.features],
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m5-2', JSON.stringify(data));
+  goTo(7);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,7);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 7 关</span><span data-en>Step ${shown} / 7</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1) renderPersonas();
+  if(n===5) renderFeats();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    state.phase=0;
+    state.picks={a:null,b:null};
+    state.curPlaying='a';
+    state.scores={a:{},b:{}};
+    CATEGORIES.forEach(c=>{state.scores.a[c.id]=0;state.scores.b[c.id]=0});
+    state.curBatch=[];
+    state.interactions={a:0,b:0};
+    state.features=new Set();
+    state.reflectChoice=null;
+    state.reflectText='';
+    document.getElementById('reflect-text').value='';
+    document.getElementById('critique').classList.add('hidden');
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>

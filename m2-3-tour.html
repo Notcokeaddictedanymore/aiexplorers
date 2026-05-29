@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M2-3 AI 故宫导游 · The AI Tour Guide</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
+  .grain::before{content:"";position:fixed;inset:0;background-image:radial-gradient(rgba(0,0,0,0.025) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:0}
+  [data-en]{display:none}
+  body.lang-en [data-zh]{display:none}
+  body.lang-en [data-en]{display:inline}
+  .phase{display:none;animation:fadeIn .4s ease}
+  .phase.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lingxi-bubble{position:relative;background:#fff;border-radius:18px;padding:1rem 1.2rem;border:2px solid #DBEAFE;box-shadow:0 8px 24px -8px rgba(59,130,246,.2)}
+  .lingxi-bubble::before{content:"";position:absolute;left:-12px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #DBEAFE}
+  .lingxi-bubble::after{content:"";position:absolute;left:-9px;top:24px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-right:14px solid #fff}
+  .step-dot{width:10px;height:10px;border-radius:50%;background:#E2E8F0;display:inline-block;margin:0 3px;transition:all .3s}
+  .step-dot.done{background:#10B981}
+  .step-dot.current{background:#3B82F6;transform:scale(1.4)}
+  .btn-primary{background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:.85rem 1.5rem;border-radius:9999px;font-weight:600;transition:all .2s;box-shadow:0 8px 20px -6px rgba(220,38,38,.4)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px -6px rgba(220,38,38,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:#0F172A;padding:.75rem 1.2rem;border-radius:9999px;font-weight:500;border:1px solid #E2E8F0;transition:all .2s}
+  .btn-ghost:hover{background:#F1F5F9}
+  .lingxi-svg{filter:drop-shadow(0 6px 12px rgba(59,130,246,.25))}
+  .lingxi-img{width:160px;height:160px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 8px 20px rgba(99,179,255,.3),0 0 0 4px rgba(99,179,255,.1);background:#fff}
+  .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .bob{animation:bob 3s ease-in-out infinite}
+  .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+
+  /* Chat bubbles */
+  .visitor-row{display:flex;gap:.7rem;align-items:flex-start;margin-bottom:1rem}
+  .v-avatar{width:44px;height:44px;border-radius:50%;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;border:2px solid #FBBF24}
+  .v-bubble{background:#fff;border:2px solid #E2E8F0;border-radius:18px;padding:.7rem 1rem;max-width:80%;position:relative}
+  .v-bubble::before{content:"";position:absolute;left:-10px;top:14px;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-right:12px solid #E2E8F0}
+  .v-bubble::after{content:"";position:absolute;left:-7px;top:14px;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-right:12px solid #fff}
+
+  .ai-row{display:flex;gap:.7rem;align-items:flex-start;margin-bottom:1.2rem;justify-content:flex-end}
+  .ai-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#60A5FA,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#fff;flex-shrink:0;order:2}
+  .ai-bubble{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:2px solid #93C5FD;border-radius:18px;padding:.7rem 1rem;max-width:80%;position:relative;order:1}
+  .ai-bubble::before{content:"";position:absolute;right:-10px;top:14px;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:12px solid #93C5FD}
+  .ai-bubble::after{content:"";position:absolute;right:-7px;top:14px;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:12px solid #DBEAFE}
+  .ai-bubble.fail{background:linear-gradient(135deg,#FEF2F2,#FEE2E2);border-color:#FCA5A5}
+  .ai-bubble.fail::before{border-left-color:#FCA5A5}
+  .ai-bubble.fail::after{border-left-color:#FEE2E2}
+  /* Thinking dots */
+  @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+  .think-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#3B82F6;margin:0 2px;animation:blink 1.4s infinite both}
+  .think-dot:nth-child(2){animation-delay:.2s}
+  .think-dot:nth-child(3){animation-delay:.4s}
+
+  /* Diagnosis tags */
+  .diag-tag{display:inline-block;padding:.25rem .7rem;border-radius:9999px;font-size:.7rem;font-weight:700;margin:.1rem;cursor:pointer;border:2px solid transparent;background:#F1F5F9;color:#475569;transition:all .15s}
+  .diag-tag:hover{background:#E2E8F0}
+  .diag-tag.selected{border-color:#3B82F6;background:#EFF6FF;color:#1E40AF}
+  .diag-tag.correct{background:#10B981;color:#fff;border-color:#059669}
+  .diag-tag.wrong{background:#DC2626;color:#fff;border-color:#B91C1C}
+
+  /* Knowledge add */
+  .fact-card{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.85rem;cursor:pointer;transition:all .2s}
+  .fact-card:hover{border-color:#94A3B8;transform:translateY(-1px)}
+  .fact-card.added{border-color:#10B981;background:#ECFDF5;opacity:.8}
+
+  /* Boundary cards */
+  .bound-card{background:#fff;border:2px solid #E2E8F0;border-radius:14px;padding:1rem;text-align:left;cursor:pointer;transition:all .2s}
+  .bound-card:hover{border-color:#94A3B8}
+  .bound-card.selected{border-color:#DC2626;background:#FEF2F2}
+
+  .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
+</style>
+</head>
+<body class="grain">
+
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+  <span data-zh>EN</span><span data-en>中</span>
+</button>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+  <!-- HEADER -->
+  <header class="mb-6">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <span class="text-xs font-semibold bg-red-100 text-red-700 px-2 py-1 rounded-full">M2-3 · Mission</span>
+      <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ch.2 · 推理 / Reasoning</span>
+      <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full"><span data-zh>挑战 · 25 min</span><span data-en>Challenge · 25 min</span></span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+      <span data-zh>AI 故宫导游：它能回答你什么？答不上什么？</span>
+      <span data-en>The AI Tour Guide: What Can It Answer?</span>
+    </h1>
+    <div class="mt-4 flex items-center gap-1" id="steps">
+      <span class="step-dot current"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="step-dot"></span>
+      <span class="ml-3 text-xs text-slate-500" id="step-label">
+        <span data-zh>第 1 / 6 关</span><span data-en>Step 1 / 6</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ========== PHASE 0: OPENING ========== -->
+  <section class="phase active" id="p0">
+    <div class="grid md:grid-cols-[180px_1fr] gap-5 items-start">
+      <div class="text-center">
+        <img src="lingxi-avatar.png" alt="小京灵" class="lingxi-img bob mx-auto" width="160" height="160" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="lingxi-fallback bob mx-auto" style="display:none">🧚‍♀️</div>
+        <div class="text-sm font-bold text-blue-700 mt-1"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      </div>
+      <div>
+        <div class="lingxi-bubble">
+          <p class="text-lg leading-relaxed" data-zh>
+            故宫今年上线了一个 <strong>AI 导游</strong>，叫"<strong>故小宝</strong>"。它有一份知识图谱（你在 M2-1 做过的那种），会用决策树（你在 M2-2 学过的）来回答问题。
+          </p>
+          <p class="text-lg leading-relaxed" data-en>
+            The Palace Museum launched <strong>"Gugong Bao"</strong>, an AI guide using a knowledge graph (M2-1) + decision trees (M2-2) to answer questions.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            今天 <strong>4 位游客</strong>来到故宫，每人问一个问题。<strong>请你帮我们诊断：故小宝哪些问题答得好？哪些答崩了？为什么？</strong>
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Today <strong>4 visitors</strong> come with questions. <strong>Help us diagnose: which does Gugong Bao answer well? Which crashes? Why?</strong>
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            最后你会发现：<strong>有些问题，给 AI 加再多知识也答不了。</strong>
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            By the end you'll see: <strong>some questions can never be answered by adding more facts.</strong>
+          </p>
+        </div>
+        <div class="mt-5">
+          <button class="btn-primary" onclick="goTo(1)">
+            <span data-zh>看 4 位游客的问题 →</span><span data-en>See the 4 visitors →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 1: WATCH VISITORS QUESTION AI ========== -->
+  <section class="phase" id="p1">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>看故小宝接待 <strong>4 位游客</strong>。<strong>点"播放"</strong>看 AI 怎么回答，仔细记下哪些回得好、哪些答崩了。</p>
+      <p data-en>Watch Gugong Bao handle 4 visitors. <strong>Click "Play"</strong> to see each response. Note which work, which fail.</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5">
+      <div id="visitor-feed"></div>
+      <div class="text-center mt-4" id="play-controls">
+        <button class="btn-primary" id="play-next" onclick="playNextVisitor()">
+          ▶ <span data-zh>播放下一位游客</span><span data-en>Play next visitor</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p1-next" disabled onclick="goTo(2)">
+        <span data-zh>下一关：诊断 AI →</span><span data-en>Next: Diagnose AI →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 2: DIAGNOSE THE FAILURES ========== -->
+  <section class="phase" id="p2">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>故小宝<strong>答崩了</strong>的那 2 个问题——你来找原因。给每个失败问题<strong>选一个最合理的诊断</strong>。</p>
+      <p data-en>The 2 questions Gugong Bao bombed — find the reason. Pick the <strong>best diagnosis</strong> for each.</p>
+    </div>
+
+    <div id="diagnose-list" class="space-y-4"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p2-next" disabled onclick="goTo(3)">
+        <span data-zh>下一关：给 AI 补知识 →</span><span data-en>Next: Teach AI new facts →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 3: TEACH AI NEW FACTS ========== -->
+  <section class="phase" id="p3">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>第 3 个问题（关于<strong>价格</strong>）是因为知识图谱里<strong>没有价格信息</strong>。你来给图谱补充 <strong>3 个新事实</strong>，让故小宝下次能答上。</p>
+      <p data-en>Question #3 (about <strong>price</strong>) failed because the graph had no price data. Add <strong>3 new facts</strong> so it works next time.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-3" id="fact-cards"></div>
+
+    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+      <strong>💡 <span data-zh>知识图谱的扩展</span><span data-en>Graph extension</span></strong>
+      <span data-zh>：每点一张卡片，AI 的图谱就多一个属性。3 个事实加完后，我们再测一次。</span>
+      <span data-en>: each click adds one attribute. After 3, we re-test.</span>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" id="p3-next" disabled onclick="goTo(4)">
+        <span data-zh>知识补完，重新测试 →</span><span data-en>Re-test with updated graph →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 4: RE-TEST ========== -->
+  <section class="phase" id="p4">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>同样的 4 个游客，同样的 4 个问题。补了价格知识后，故小宝表现怎么样？</p>
+      <p data-en>Same 4 visitors, same 4 questions. With the price knowledge added, how does Gugong Bao do?</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5" id="retest-feed"></div>
+
+    <div class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm" id="retest-summary"></div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-primary" onclick="goTo(5)">
+        <span data-zh>下一关：AI 的真正盲区 →</span><span data-en>Next: AI's true blind spot →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 5: THE TRUE BLIND SPOT ========== -->
+  <section class="phase" id="p5">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>问题 #3 解决了——加知识就行。但问题 #4 "<strong>我应该先看哪件？</strong>" <strong>怎么加知识都答不了</strong>。为什么？</p>
+      <p data-en>Question #3 was fixed by adding facts. But #4 "<strong>which should I see first?</strong>" <strong>can never be answered just by adding facts</strong>. Why?</p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-3 mb-4" id="blind-choices"></div>
+
+    <div id="blind-result" class="hidden">
+      <div class="bg-red-50 border-2 border-red-300 rounded-2xl p-5">
+        <div class="font-bold text-red-700 mb-2">📌 <span data-zh>真实答案：C</span><span data-en>Real answer: C</span></div>
+        <p class="text-sm" data-zh>"我应该先看哪件"<strong>没有客观答案</strong>。它依赖：</p>
+        <p class="text-sm" data-en>"Which should I see first?" <strong>has no objective answer</strong>. It depends on:</p>
+        <ul class="text-sm mt-2 space-y-1 ml-5 list-disc">
+          <li><span data-zh><strong>你的兴趣</strong>——历史？艺术？工艺？</span><span data-en><strong>your interest</strong> — history? art? craft?</span></li>
+          <li><span data-zh><strong>你的时间</strong>——10 分钟还是 3 小时？</span><span data-en><strong>your time</strong> — 10 min or 3 hours?</span></li>
+          <li><span data-zh><strong>你的体力</strong>——和小朋友/老人一起？</span><span data-en><strong>your stamina</strong> — kids/elders with you?</span></li>
+          <li><span data-zh><strong>当时的人流</strong>——哪个展厅在排队？</span><span data-en><strong>crowd levels</strong> — which gallery is packed?</span></li>
+          <li><span data-zh><strong>你的情绪</strong>——今天想看震撼的还是温柔的？</span><span data-en><strong>your mood</strong> — bold or gentle vibes today?</span></li>
+        </ul>
+        <p class="text-sm mt-3" data-zh>这些都是<strong>主观、情境、个人化</strong>的信息。它们<strong>没法写进知识图谱</strong>——因为没有固定答案。</p>
+        <p class="text-sm mt-3" data-en>These are <strong>subjective, contextual, personal</strong>. They <strong>can't be stored as facts</strong> — they have no fixed answer.</p>
+        <div class="mt-4 p-3 bg-white rounded-lg text-sm">
+          <strong>📚 <span data-zh>现代 AI 怎么应对？</span><span data-en>How modern AI handles this</span></strong><br>
+          <span data-zh>真实的 AI 导游会反问："您今天有多少时间？最感兴趣的是？"——用<strong>对话</strong>挖掘个人偏好，然后给推荐。但这个推荐仍然是<strong>猜的</strong>。</span>
+          <span data-en>Real AI guides ask back: "How much time? What interests you most?" — using <strong>dialogue</strong> to mine preference, then guess. The recommendation is still a guess.</span>
+        </div>
+      </div>
+      <div class="mt-5 text-right">
+        <button class="btn-primary" onclick="goTo(6)">
+          <span data-zh>最后：反思 →</span><span data-en>Final: Reflect →</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 6: REFLECTION ========== -->
+  <section class="phase" id="p6">
+    <div class="lingxi-bubble mb-5">
+      <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
+      <p data-zh>这一关你学到了：<strong>AI 不是无所不知——它的"知道"取决于谁给了它什么知识，以及问题本身是否有客观答案。</strong></p>
+      <p data-en>You learned: <strong>AI isn't omniscient — its "knowing" depends on what facts it's given AND whether the question has an objective answer at all.</strong></p>
+    </div>
+
+    <div class="space-y-2 mb-4">
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>① 现在你用过的 AI（如 ChatGPT、文心一言、小爱同学）——它们碰到"主观问题"时是怎么处理的？举一个例子。</span>
+        <span data-en>① Modern AIs you use (ChatGPT, Wenxin, Xiaoai) — how do they handle subjective questions? Give an example.</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>② 如果你做一个"AI 学习建议"导师，哪些问题它能答（加知识就行），哪些它答不了？</span>
+        <span data-en>② Building an "AI study mentor" — which questions can it answer (facts only), which can't?</span>
+      </label>
+      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+        <input type="radio" name="reflect" class="mr-2"/>
+        <span data-zh>③ AI 经常装作能回答主观问题（用"大部分人喜欢…"敷衍）。这种"假装懂"危险吗？什么时候？</span>
+        <span data-en>③ AI often fakes objective answers to subjective questions ("most people like…"). When is this "fake knowing" dangerous?</span>
+      </label>
+    </div>
+
+    <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+      placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
+        <span data-zh>提交并完成 M2-3 →</span><span data-en>Submit & finish →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========== PHASE 7: COMPLETION ========== -->
+  <section class="phase" id="p7">
+    <div class="text-center py-6">
+      <div class="inline-block badge-glow rounded-full p-4 bg-gradient-to-br from-amber-500 to-red-500 mb-5">
+        <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#FBBF24" stroke="#fff" stroke-width="3"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="50" y="62" font-size="38" text-anchor="middle">🏛️</text>
+        </svg>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-black"><span data-zh>第 3 关完成</span><span data-en>Mission #3 done</span></h2>
+      <p class="text-xl text-slate-600 mt-2"><span data-zh>"AI 导游驯兽师" 徽章已解锁</span><span data-en>"AI Guide Tamer" badge unlocked</span></p>
+
+      <div class="mt-6 max-w-2xl mx-auto p-5 bg-amber-50 border border-amber-200 rounded-2xl text-left">
+        <div class="font-bold mb-2"><span data-zh>你今天学到了……</span><span data-en>You learned…</span></div>
+        <ul class="space-y-1 text-sm text-slate-700">
+          <li>✓ <span data-zh>AI 推理 = <strong>图谱（记忆）+ 决策树（规则）+ 查询</strong></span><span data-en>AI reasoning = <strong>graph + tree + query</strong></span></li>
+          <li>✓ <span data-zh>AI 的能力是<strong>有边界</strong>的——靠"图谱缺什么"来界定</span><span data-en>AI's capability is <strong>bounded</strong> by what's in the graph</span></li>
+          <li>✓ <span data-zh>事实型问题<strong>加知识就能解</strong>；主观/情境/个人化问题<strong>加再多也无用</strong></span><span data-en>Fact questions: just add knowledge. Subjective/personal: no amount of facts helps</span></li>
+          <li>✓ <span data-zh>AI 假装能回答主观问题，是<strong>危险的</strong>——它给的不是真理，是"大众回声"</span><span data-en>AI faking subjective answers is <strong>dangerous</strong> — it's not truth, just echo</span></li>
+        </ul>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m2-4-labels.html'">
+          <span data-zh>下一关：M2-4 谁来定标签 →</span><span data-en>Next: M2-4 Who Decides Labels →</span>
+        </button>
+      </div>
+      <div class="mt-3">
+        <a href="index.html" class="text-sm text-slate-500 underline"><span data-zh>← 返回课程首页</span><span data-en>← Back home</span></a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="max-w-5xl mx-auto px-6 py-8 text-xs text-slate-400">
+  <span data-zh>从0开始学AI · M2-3 · 开发者：辜月晗 · 2026</span><span data-en>AI Literacy Courses for Beginners · M2-3 · Dev: Gu Yuehan · 2026</span>
+</footer>
+
+<script>
+const LANG_KEY='lingxi-lang';
+let LANG = localStorage.getItem(LANG_KEY) || 'zh';
+if(LANG==='en') document.body.classList.add('lang-en');
+function toggleLang(){
+  document.body.classList.toggle('lang-en');
+  LANG = document.body.classList.contains('lang-en')?'en':'zh';
+  localStorage.setItem(LANG_KEY, LANG);
+}
+
+/* =====================================================
+   DATA: 4 visitors + their questions
+   ===================================================== */
+const VISITORS = [
+  {id:'v1', avatar:'👨‍🎓', label:{zh:'大学生', en:'College student'},
+    q:{zh:'故宫里最重的文物是哪件？多重？', en:'What\'s the heaviest artifact, and how heavy?'},
+    type:'success-weight',
+    aiAnswer:{zh:'根据图谱：<strong>司母戊鼎</strong>（商代青铜礼器），重 <strong>832 公斤</strong>。', en:'From graph: <strong>Houmuwu Ding</strong> (Shang-dynasty bronze ritual vessel), <strong>832 kg</strong>.'},
+    aiReasoning:{zh:'AI 检索图谱里所有"weight"属性 → 排序 → 返回最大值。事实型问题，1 步搞定。',
+                 en:'AI scans all "weight" attributes → sorts → returns max. Fact question, one step.'},
+    ok:true},
+  {id:'v2', avatar:'👵', label:{zh:'老奶奶', en:'Grandma'},
+    q:{zh:'故宫有清代的玉器吗？给我看看。', en:'Any Qing-dynasty jade artifacts? Show me.'},
+    type:'success-graph',
+    aiAnswer:{zh:'有！<strong>翠玉白菜</strong>——清代御用玉雕，整块翡翠雕成白菜形。', en:'Yes! <strong>Jadeite Cabbage</strong> — Qing imperial jade carved into a cabbage.'},
+    aiReasoning:{zh:'AI 沿"from_dynasty=Qing"边走 → 找到 cabbage → 检查 material=jade ✓。两步查询。',
+                 en:'AI walks "from_dynasty=Qing" edge → finds cabbage → checks material=jade ✓. Two-hop query.'},
+    ok:true},
+  {id:'v3', avatar:'💼', label:{zh:'商人', en:'Businessperson'},
+    q:{zh:'清明上河图值多少钱？我想买。', en:'How much is "Along the River"? I want to buy it.'},
+    type:'fail-missing-fact',
+    aiAnswer:{zh:'…抱歉，我的知识图谱里<strong>没有"价格"这个属性</strong>。无法回答。', en:'…sorry, my graph has <strong>no "price" attribute</strong>. Can\'t answer.'},
+    aiReasoning:{zh:'图谱里没有 price 节点 → AI 找不到答案 → 诚实地说"不知道"。',
+                 en:'No price node in graph → AI can\'t find answer → honestly says "I don\'t know."'},
+    ok:false},
+  {id:'v4', avatar:'🧒', label:{zh:'小学生', en:'Schoolkid'},
+    q:{zh:'我只有 1 小时，应该<strong>先看哪件</strong>最好？', en:'I only have 1 hour — <strong>which should I see first</strong>?'},
+    type:'fail-subjective',
+    aiAnswer:{zh:'…呃……大部分人都看翠玉白菜？所以你也应该先看翠玉白菜……我猜。', en:'…umm… most visitors look at the Cabbage first? So you should too… I guess.'},
+    aiReasoning:{zh:'AI 试图回答，但"应该"是主观判断——它实际上在用"大众选择"来掩盖"我不知道你"。',
+                 en:'AI tries to answer, but "should" is subjective — it\'s using "popular choice" to mask "I don\'t know you."'},
+    ok:false},
+];
+
+/* =====================================================
+   STATE
+   ===================================================== */
+const state = {
+  phase:0,
+  visitorIdx:0,        // p1
+  diagAnswers:{},      // p2: failure question id -> diag id
+  diagSubmitted:{},    // p2
+  factsAdded:new Set(),// p3
+  blindAns:null,       // p5
+  reflectChoice:null,
+  reflectText:''
+};
+
+/* =====================================================
+   PHASE 1: Visitor Q&A feed
+   ===================================================== */
+function playNextVisitor(){
+  const feed = document.getElementById('visitor-feed');
+  if(state.visitorIdx>=VISITORS.length){
+    document.getElementById('play-controls').classList.add('hidden');
+    document.getElementById('p1-next').disabled = false;
+    feed.insertAdjacentHTML('beforeend', `
+      <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+        <strong>👀 <span data-zh>都看完了</span><span data-en>All seen</span></strong>
+        <span data-zh>。注意：故小宝答对了 <strong class="text-green-700">2 个</strong>，答崩了 <strong class="text-red-700">2 个</strong>。下一关你来诊断为什么。</span>
+        <span data-en>: Gugong Bao nailed <strong class="text-green-700">2</strong>, bombed <strong class="text-red-700">2</strong>. Next: diagnose why.</span>
+      </div>
+    `);
+    return;
+  }
+
+  const v = VISITORS[state.visitorIdx];
+  // Visitor speaks
+  feed.insertAdjacentHTML('beforeend', `
+    <div class="visitor-row" data-vid="${v.id}">
+      <div class="v-avatar">${v.avatar}</div>
+      <div class="v-bubble">
+        <div class="text-xs text-slate-500 font-bold mb-1"><span data-zh>${v.label.zh}</span><span data-en>${v.label.en}</span></div>
+        <div class="text-sm"><span data-zh>${v.q.zh}</span><span data-en>${v.q.en}</span></div>
+      </div>
+    </div>
+    <div class="ai-row ai-thinking" data-vid="${v.id}">
+      <div class="ai-bubble">
+        <div class="text-xs text-blue-700 font-bold mb-1">🤖 <span data-zh>故小宝</span><span data-en>Gugong Bao</span></div>
+        <div class="text-sm"><span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span></div>
+      </div>
+      <div class="ai-avatar">🤖</div>
+    </div>
+  `);
+  feed.lastElementChild.scrollIntoView({behavior:'smooth', block:'end'});
+
+  // After delay, reveal AI answer
+  setTimeout(()=>{
+    const row = feed.querySelector(`.ai-row[data-vid="${v.id}"]`);
+    row.outerHTML = `
+      <div class="ai-row" data-vid="${v.id}">
+        <div class="ai-bubble ${v.ok?'':'fail'}">
+          <div class="text-xs ${v.ok?'text-blue-700':'text-red-700'} font-bold mb-1">🤖 <span data-zh>故小宝</span><span data-en>Gugong Bao</span> ${v.ok?(LANG==='en'?'(answered)':'(回答了)'):(LANG==='en'?'(struggled)':'(卡住了)')}</div>
+          <div class="text-sm"><span data-zh>${v.aiAnswer.zh}</span><span data-en>${v.aiAnswer.en}</span></div>
+          <details class="mt-2">
+            <summary class="text-xs text-slate-500 cursor-pointer"><span data-zh>查看推理过程</span><span data-en>See reasoning</span></summary>
+            <div class="mt-2 p-2 bg-white/60 rounded text-xs text-slate-600"><span data-zh>${v.aiReasoning.zh}</span><span data-en>${v.aiReasoning.en}</span></div>
+          </details>
+        </div>
+        <div class="ai-avatar">🤖</div>
+      </div>
+    `;
+    state.visitorIdx++;
+    const btn = document.getElementById('play-next');
+    if(state.visitorIdx<VISITORS.length){
+      btn.innerHTML = `▶ <span data-zh>播放下一位（${state.visitorIdx+1} / 4）</span><span data-en>Play next (${state.visitorIdx+1} / 4)</span>`;
+    } else {
+      btn.innerHTML = `✓ <span data-zh>看完所有 4 位</span><span data-en>Watch all 4</span>`;
+      btn.onclick = ()=>playNextVisitor();
+    }
+  }, 1200);
+}
+
+/* =====================================================
+   PHASE 2: Diagnose failures
+   ===================================================== */
+const DIAGNOSES = [
+  {id:'d1', label:{zh:'AI 算错了', en:'AI computed wrong'}, correct:false,
+    why:{zh:'AI 没算错——它知道自己不会，诚实地说了。', en:'No — AI didn\'t miscalculate; it honestly said it couldn\'t.'}},
+  {id:'d2', label:{zh:'图谱里少了相关属性', en:'Graph is missing relevant attribute'}, correct:true, forType:'fail-missing-fact',
+    why:{zh:'对！价格不在图谱里，所以查不到。<strong>加上价格数据就能解决</strong>。', en:'Yes! Price isn\'t in the graph, so it can\'t be retrieved. <strong>Adding it fixes the problem</strong>.'}},
+  {id:'d3', label:{zh:'问题本身没有客观答案', en:'Question has no objective answer'}, correct:true, forType:'fail-subjective',
+    why:{zh:'对！"应该先看哪件"取决于<strong>你是谁、你想要什么</strong>——AI 没有这个信息，也没办法只靠"事实"算出来。', en:'Yes! "Which should I see first" depends on <strong>who you are and what you want</strong> — AI has no such facts to compute from.'}},
+  {id:'d4', label:{zh:'AI 网速太慢', en:'AI internet is slow'}, correct:false,
+    why:{zh:'和网速无关。AI 的限制是它<strong>知道什么</strong>，不是反应快慢。', en:'Not about speed — it\'s about <strong>what AI knows</strong>, not how fast.'}},
+];
+
+function renderDiagnose(){
+  const host = document.getElementById('diagnose-list');
+  const failures = VISITORS.filter(v=>!v.ok);
+  host.innerHTML = failures.map(v=>`
+    <div class="bg-white border border-slate-200 rounded-2xl p-4" data-vid="${v.id}">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="v-avatar">${v.avatar}</div>
+        <div>
+          <div class="text-xs font-bold text-slate-500 uppercase"><span data-zh>${v.label.zh}的问题</span><span data-en>${v.label.en}'s question</span></div>
+          <div class="font-bold"><span data-zh>${v.q.zh}</span><span data-en>${v.q.en}</span></div>
+        </div>
+      </div>
+      <div class="text-sm text-red-700 mb-3">⚠️ <span data-zh>AI 答崩了：</span><span data-en>AI bombed:</span> <span data-zh>${v.aiAnswer.zh}</span><span data-en>${v.aiAnswer.en}</span></div>
+      <div class="text-sm font-bold mb-2"><span data-zh>你的诊断：</span><span data-en>Your diagnosis:</span></div>
+      <div class="diag-tags">
+        ${DIAGNOSES.map(d=>`
+          <button class="diag-tag" data-did="${d.id}" data-vid="${v.id}" onclick="pickDiag('${v.id}','${d.id}',event)">${LANG==='en'?d.label.en:d.label.zh}</button>
+        `).join('')}
+      </div>
+      <div class="diag-feedback hidden mt-3 p-3 rounded-lg text-sm"></div>
+    </div>
+  `).join('');
+}
+
+function pickDiag(vid, did, ev){
+  if(state.diagSubmitted[vid]) return;
+  state.diagAnswers[vid] = did;
+  const row = document.querySelector(`#diagnose-list > div[data-vid="${vid}"]`);
+  row.querySelectorAll('.diag-tag').forEach(t=>t.classList.remove('selected'));
+  ev.currentTarget.classList.add('selected');
+
+  // Auto-submit immediately for instant feedback
+  state.diagSubmitted[vid] = true;
+  const d = DIAGNOSES.find(x=>x.id===did);
+  const v = VISITORS.find(x=>x.id===vid);
+  const correct = d.correct && d.forType===v.type;
+  // mark tags
+  row.querySelectorAll('.diag-tag').forEach(t=>{
+    const dd = DIAGNOSES.find(x=>x.id===t.dataset.did);
+    const isPicked = t.dataset.did===did;
+    if(dd.correct && dd.forType===v.type){
+      t.classList.add('correct');
+    } else if(isPicked && !correct){
+      t.classList.add('wrong');
+    }
+  });
+  const fb = row.querySelector('.diag-feedback');
+  fb.classList.remove('hidden');
+  fb.className = 'diag-feedback mt-3 p-3 rounded-lg text-sm ' + (correct?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
+  fb.innerHTML = `<strong>${correct?'✓ ':'🤔 '}</strong><span data-zh>${d.why.zh}</span><span data-en>${d.why.en}</span>`;
+
+  // Check if all failures diagnosed
+  const failures = VISITORS.filter(x=>!x.ok);
+  if(failures.every(x=>state.diagSubmitted[x.id])){
+    document.getElementById('p2-next').disabled = false;
+  }
+}
+
+/* =====================================================
+   PHASE 3: Add facts
+   ===================================================== */
+const FACTS = [
+  {id:'f1', artifact:'翠玉白菜 / Jadeite Cabbage', attr:{zh:'估价', en:'Estimated price'}, val:{zh:'无价（国宝）', en:'Priceless (national treasure)'}, emoji:'🥬'},
+  {id:'f2', artifact:'清明上河图 / Along the River', attr:{zh:'估价', en:'Estimated price'}, val:{zh:'无价（国宝）', en:'Priceless (national treasure)'}, emoji:'📜'},
+  {id:'f3', artifact:'唐三彩马 / Sancai Horse', attr:{zh:'拍卖纪录', en:'Auction record'}, val:{zh:'~500 万 RMB', en:'~5 million RMB'}, emoji:'🐎'},
+];
+
+function renderFacts(){
+  const host = document.getElementById('fact-cards');
+  host.innerHTML = FACTS.map(f=>`
+    <button class="fact-card text-left ${state.factsAdded.has(f.id)?'added':''}" data-id="${f.id}" onclick="addFact('${f.id}')">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="text-3xl">${f.emoji}</div>
+        <div class="font-bold text-sm">${f.artifact}</div>
+      </div>
+      <div class="text-xs text-slate-600">
+        <div class="font-semibold mb-1"><span data-zh>添加属性：</span><span data-en>Add attribute:</span></div>
+        <div class="bg-slate-50 rounded p-2">
+          <div><span class="text-slate-500">${LANG==='en'?f.attr.en:f.attr.zh}</span> = <strong>${LANG==='en'?f.val.en:f.val.zh}</strong></div>
+        </div>
+      </div>
+      ${state.factsAdded.has(f.id)?'<div class="mt-2 text-xs text-green-700 font-bold">✓ '+(LANG==='en'?'Added to graph':'已加入图谱')+'</div>':'<div class="mt-2 text-xs text-blue-700">👆 '+(LANG==='en'?'Click to add':'点击添加')+'</div>'}
+    </button>
+  `).join('');
+}
+
+function addFact(id){
+  state.factsAdded.add(id);
+  renderFacts();
+  if(state.factsAdded.size>=3){
+    document.getElementById('p3-next').disabled = false;
+  }
+}
+
+/* =====================================================
+   PHASE 4: Re-test
+   ===================================================== */
+const RETEST = [
+  {v:VISITORS[0], note:{zh:'重量问题——和之前一样能答（事实型）', en:'Weight question — still works (factual)'}, stillOk:true},
+  {v:VISITORS[1], note:{zh:'清代玉问题——和之前一样能答（事实型）', en:'Qing jade question — still works (factual)'}, stillOk:true},
+  {v:VISITORS[2], note:{zh:'价格问题——<strong>修好了！</strong> 加了价格知识，AI 现在能答了', en:'Price question — <strong>fixed!</strong> Added price facts'},
+    newAnswer:{zh:'根据更新后的图谱：清明上河图是<strong>无价的国宝</strong>，不在市场流通。但您可以参考类似的唐三彩马拍卖价：约 500 万 RMB。', en:'Updated graph: "Along the River" is a <strong>priceless national treasure</strong>, not on market. For comparison, Sancai Horse auctions at ~5M RMB.'},
+    stillOk:true},
+  {v:VISITORS[3], note:{zh:'<strong>看哪个最好的问题</strong>——仍然答不了！加再多事实也没用', en:'<strong>"Which to see first"</strong> — still bombed! No amount of facts helps'}, stillOk:false},
+];
+
+function renderRetest(){
+  const host = document.getElementById('retest-feed');
+  host.innerHTML = RETEST.map(r=>{
+    const v = r.v;
+    const answer = r.newAnswer || v.aiAnswer;
+    return `
+      <div class="visitor-row">
+        <div class="v-avatar">${v.avatar}</div>
+        <div class="v-bubble">
+          <div class="text-xs text-slate-500 font-bold mb-1"><span data-zh>${v.label.zh}</span><span data-en>${v.label.en}</span></div>
+          <div class="text-sm"><span data-zh>${v.q.zh}</span><span data-en>${v.q.en}</span></div>
+        </div>
+      </div>
+      <div class="ai-row">
+        <div class="ai-bubble ${r.stillOk?'':'fail'}">
+          <div class="text-xs ${r.stillOk?'text-blue-700':'text-red-700'} font-bold mb-1">🤖 <span data-zh>故小宝</span><span data-en>Gugong Bao</span></div>
+          <div class="text-sm mb-2"><span data-zh>${answer.zh}</span><span data-en>${answer.en}</span></div>
+          <div class="text-xs ${r.stillOk?'text-green-700':'text-red-700'} font-bold border-t border-white/40 pt-2"><span data-zh>${r.note.zh}</span><span data-en>${r.note.en}</span></div>
+        </div>
+        <div class="ai-avatar">🤖</div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('retest-summary').innerHTML = `
+    <strong>📊 <span data-zh>重测结果：</span><span data-en>Re-test results:</span></strong>
+    <span data-zh>4 个问题里，<strong class="text-green-700">3 个能答</strong>（包括加了知识修好的那个）。<strong class="text-red-700">1 个仍然答不了</strong>——就是那个"应该先看哪件"的主观问题。下一关我们看为什么<strong>加再多知识也救不了它</strong>。</span>
+    <span data-en>Of 4 questions, <strong class="text-green-700">3 work</strong> (including the fixed one). <strong class="text-red-700">1 still fails</strong> — the "which to see first" subjective one. Next we'll see why <strong>no amount of facts can save it</strong>.</span>
+  `;
+}
+
+/* =====================================================
+   PHASE 5: Blind spot quiz
+   ===================================================== */
+const BLINDS = [
+  {id:'a', label:{zh:'A. 因为没人告诉过 AI 这个问题', en:'A. No one taught AI this question'},
+    why:{zh:'不对——问题清楚，AI 也"想"答，但它<strong>没有客观依据</strong>。', en:'No — the question is clear and AI tries; it just lacks an <strong>objective basis</strong>.'}},
+  {id:'b', label:{zh:'B. 因为 AI 不懂中文', en:'B. AI doesn\'t understand Chinese'},
+    why:{zh:'不对——AI 听懂了问题，它的困难不在语言。', en:'No — AI understood the question; the problem isn\'t language.'}},
+  {id:'c', label:{zh:'C. 因为这个问题<strong>取决于你</strong>，不是事实', en:'C. The answer <strong>depends on you</strong>, not facts'},
+    why:'',correct:true},
+];
+
+function renderBlinds(){
+  const host = document.getElementById('blind-choices');
+  host.innerHTML = BLINDS.map(b=>`
+    <button class="bound-card" data-id="${b.id}" onclick="pickBlind('${b.id}',event)">
+      <div class="font-bold"><span data-zh>${b.label.zh}</span><span data-en>${b.label.en}</span></div>
+    </button>
+  `).join('');
+}
+
+function pickBlind(id, ev){
+  if(state.blindAns) return;
+  state.blindAns=id;
+  document.querySelectorAll('#blind-choices .bound-card').forEach(c=>{c.classList.remove('selected');c.disabled=true});
+  ev.currentTarget.classList.add('selected');
+  document.getElementById('blind-result').classList.remove('hidden');
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+
+/* =====================================================
+   REFLECTION
+   ===================================================== */
+function selReflect(i){
+  state.reflectChoice=i;
+  document.querySelectorAll('input[name=reflect]')[i].checked=true;
+  updateReflectCount();
+}
+function updateReflectCount(){
+  const t = document.getElementById('reflect-text').value;
+  state.reflectText = t;
+  const len = Array.from(t).length;
+  document.getElementById('reflect-count').textContent = len;
+  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+}
+function submitReflect(){
+  const data = {timestamp:Date.now(),mission:'M2-3',
+    visitorsWatched:state.visitorIdx,
+    diagCorrect:Object.entries(state.diagAnswers).filter(([vid,did])=>{
+      const v = VISITORS.find(x=>x.id===vid);
+      const d = DIAGNOSES.find(x=>x.id===did);
+      return d.correct && d.forType===v.type;
+    }).length,
+    factsAdded:state.factsAdded.size,
+    blindAns:state.blindAns,
+    reflectChoice:state.reflectChoice,reflectText:state.reflectText};
+  localStorage.setItem('lingxi-m2-3', JSON.stringify(data));
+  goTo(7);
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function goTo(n){
+  document.querySelectorAll('.phase').forEach(s=>s.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  state.phase=n;
+  const dots=document.querySelectorAll('#steps .step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<n) d.classList.add('done');
+    else if(i===n) d.classList.add('current');
+  });
+  const lbl=document.getElementById('step-label');
+  if(lbl){
+    const shown=Math.min(n+1,6);
+    lbl.innerHTML = `<span data-zh>第 ${shown} / 6 关</span><span data-en>Step ${shown} / 6</span>`;
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===2) renderDiagnose();
+  if(n===3) renderFacts();
+  if(n===4) renderRetest();
+  if(n===5) renderBlinds();
+}
+
+function restart(){
+  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+    Object.assign(state,{phase:0,visitorIdx:0,diagAnswers:{},diagSubmitted:{},factsAdded:new Set(),blindAns:null,reflectChoice:null,reflectText:''});
+    document.getElementById('visitor-feed').innerHTML='';
+    document.getElementById('play-controls').classList.remove('hidden');
+    document.getElementById('play-next').innerHTML = '▶ <span data-zh>播放下一位游客</span><span data-en>Play next visitor</span>';
+    document.getElementById('p1-next').disabled=true;
+    document.getElementById('p2-next').disabled=true;
+    document.getElementById('p3-next').disabled=true;
+    document.getElementById('blind-result').classList.add('hidden');
+    document.querySelectorAll('#blind-choices .bound-card').forEach(c=>c.disabled=false);
+    document.getElementById('reflect-text').value='';
+    document.querySelectorAll('input[name=reflect]').forEach(r=>r.checked=false);
+    goTo(0);
+  }
+}
+</script>
+
+<style>
+@keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
+.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+</style>
+<script>
+(function(){
+  function showXP(n){
+    var el=document.createElement('div');
+    el.className='xp-popup';
+    el.textContent='+'+n+' XP';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove()},1900);
+  }
+  var _set=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    var was=localStorage.getItem(k);
+    _set(k,v);
+    if(k&&k.indexOf('lingxi-m')===0&&!was&&!sessionStorage.getItem('xp-'+k)){
+      sessionStorage.setItem('xp-'+k,'1');
+      showXP(100);
+    }
+  };
+})();
+</script>
+
+<!-- ===== NAV ENHANCEMENT (Round 6: home button + step-dot replay + ESC + save toast) ===== -->
+<style>
+.nav-home{position:fixed;left:16px;top:16px;z-index:60;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:#fff;border:1px solid #E2E8F0;border-radius:9999px;font-size:.8rem;font-weight:500;text-decoration:none;color:#0F172A;box-shadow:0 4px 10px rgba(0,0,0,.06);transition:all .2s;font-family:inherit}
+.nav-home:hover{transform:translateX(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1);background:#F8FAFC}
+.nav-home .nh-icon{font-size:1rem}
+.step-dot.done{cursor:pointer;position:relative}
+.step-dot.done::before{content:"";position:absolute;inset:-12px;border-radius:50%;z-index:1}
+.step-dot.done:hover{transform:scale(1.4);box-shadow:0 0 10px rgba(16,185,129,.6)}
+.save-toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:.6rem 1rem;border-radius:9999px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:9999;display:none;align-items:center;gap:.5rem;font-weight:500}
+.save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.save-toast .st-check{color:#10B981;font-weight:700}
+</style>
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+  <span class="nh-icon">🏠</span>
+  <span data-zh>课程地图</span><span data-en>Course map</span>
+</a>
+<div class="save-toast" id="saveToast">
+  <span class="st-check">✓</span>
+  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+</div>
+<script>
+(function(){
+  // ESC → confirm and return to map
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var en = document.body.classList.contains('lang-en');
+      var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
+      if(confirm(msg)) location.href = 'index.html';
+    }
+  });
+  // Clickable step-dots for completed phases — wire after DOM is ready
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('step-dot') || !t.classList.contains('done')) return;
+    var dots = document.querySelectorAll('#steps .step-dot');
+    var idx = -1;
+    for(var i=0;i<dots.length;i++){ if(dots[i]===t){ idx=i; break; } }
+    if(idx >= 0 && typeof window.goTo === 'function') window.goTo(idx);
+  });
+  // Wrap window.goTo to fire save-toast on forward progress (not on review jumps)
+  var maxPhase = 0;
+  if(typeof window.goTo === 'function'){
+    var _orig = window.goTo;
+    window.goTo = function(n){
+      _orig(n);
+      if(typeof n === 'number' && n > maxPhase){
+        maxPhase = n;
+        var toast = document.getElementById('saveToast');
+        if(toast){
+          toast.classList.add('show');
+          clearTimeout(window._stTimer);
+          window._stTimer = setTimeout(function(){ toast.classList.remove('show') }, 1800);
+        }
+      }
+    };
+  }
+})();
+</script>
+<!-- ===== /NAV ENHANCEMENT ===== -->
+</body>
+</html>
