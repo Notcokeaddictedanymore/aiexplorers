@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>M4-1 诗仙 GPT · How AI Guesses the Next Word</title>
+
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
@@ -571,7 +572,7 @@ function updateReflectCount(){
   state.reflectText = t;
   const len = Array.from(t).length;
   document.getElementById('reflect-count').textContent = len;
-  document.getElementById('reflect-submit').disabled = !(len>=50 && state.reflectChoice!==null);
+  document.getElementById('reflect-submit').disabled = !(len>=20 && state.reflectChoice!==null);
 }
 function submitReflect(){
   const data = {timestamp:Date.now(),mission:'M4-1',
@@ -709,5 +710,88 @@ function restart(){
 })();
 </script>
 <!-- ===== /NAV ENHANCEMENT ===== -->
+<!-- ===== REFLECT SUBMIT GATE HINT ===== -->
+<style>
+.reflect-hint{display:none;font-size:.78rem;margin-top:.6rem;padding:.5rem .9rem;background:#FEF3C7;border:1px solid #FCD34D;border-radius:.6rem;text-align:right;font-weight:500;line-height:1.4}
+.reflect-hint.show{display:block}
+.reflect-hint.all-ok{background:#D1FAE5;border-color:#10B981;color:#065F46}
+.reflect-hint .r-ok{color:#059669;font-weight:700}
+.reflect-hint .r-miss{color:#B91C1C;font-weight:600}
+.reflect-hint .r-sep{color:#94A3B8;margin:0 .5rem}
+</style>
+<script>
+(function(){
+  function setup(){
+    var btn = document.getElementById('reflect-submit');
+    var ta  = document.getElementById('reflect-text');
+    if(!btn || !ta) return;
+
+    // Create hint element and insert after the button's parent row
+    var hint = document.createElement('div');
+    hint.className = 'reflect-hint show';
+    hint.id = 'reflect-hint';
+    var row = btn.parentElement;
+    if(row && row.parentElement){
+      row.parentElement.insertBefore(hint, row.nextSibling);
+    } else {
+      btn.parentElement.appendChild(hint);
+    }
+
+    function update(){
+      var en = document.body.classList.contains('lang-en');
+      var radios = document.querySelectorAll('input[name=reflect]');
+      var radioPicked = false;
+      for(var i=0;i<radios.length;i++){ if(radios[i].checked){ radioPicked=true; break; } }
+      var len = Array.from(ta.value).length;
+      var enough = len >= 20;
+
+      var rStatus = radioPicked
+        ? (en ? '<span class="r-ok">✓ Question picked</span>' : '<span class="r-ok">✓ 选了思考题</span>')
+        : (en ? '<span class="r-miss">○ Pick a question</span>' : '<span class="r-miss">○ 先选一道思考题</span>');
+
+      var tStatus;
+      if(enough){
+        tStatus = en ? '<span class="r-ok">✓ Enough words</span>' : '<span class="r-ok">✓ 字数达标</span>';
+      } else {
+        var diff = 20 - len;
+        tStatus = en
+          ? '<span class="r-miss">⚠ Need ' + diff + ' more chars</span>'
+          : '<span class="r-miss">⚠ 还差 ' + diff + ' 字（共 20）</span>';
+      }
+
+      hint.innerHTML = rStatus + '<span class="r-sep">·</span>' + tStatus;
+      hint.classList.toggle('all-ok', radioPicked && enough);
+
+      // Tooltip on disabled button
+      if(btn.disabled){
+        btn.title = en
+          ? 'Pick a reflection question above and type at least 20 chars'
+          : '先在上面选一道思考题 + 写至少 20 个字才能提交';
+        btn.style.cursor = 'not-allowed';
+      } else {
+        btn.removeAttribute('title');
+        btn.style.cursor = '';
+      }
+    }
+
+    ta.addEventListener('input', update);
+    document.querySelectorAll('input[name=reflect]').forEach(function(r){
+      r.addEventListener('change', update);
+    });
+    // Catch programmatic radio selects via label clicks (selReflect)
+    document.querySelectorAll('label').forEach(function(l){
+      l.addEventListener('click', function(){ setTimeout(update, 50); });
+    });
+
+    update();
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
+})();
+</script>
+<!-- ===== /REFLECT SUBMIT GATE HINT ===== -->
 </body>
 </html>
