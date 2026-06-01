@@ -31,6 +31,11 @@
   .lingxi-fallback{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:64px;color:#fff}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   .bob{animation:bob 3s ease-in-out infinite}
+  .ctile{background:#fff;border:2px solid #E2E8F0;border-radius:12px;padding:.9rem;cursor:pointer;transition:all .15s;text-align:left}
+  .ctile:hover{transform:translateY(-2px);box-shadow:0 12px 28px -12px rgba(15,23,42,.15);border-color:#94A3B8}
+  .ctile.picked{border-color:#10B981;background:#ECFDF5}
+  .ctile .ctile-label{font-weight:700;font-size:.95rem;color:#0F172A;margin-bottom:.25rem}
+  .ctile .ctile-sub{font-size:.78rem;color:#64748B}
   .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
 
   /* Photo grid */
@@ -62,7 +67,7 @@
 </head>
 <body class="grain">
 
-<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()" aria-label="切换语言 / Switch language">
   <span data-zh>EN</span><span data-en>中</span>
 </button>
 
@@ -227,7 +232,7 @@
 
       <div class="flex items-center gap-3 mb-3 flex-wrap">
         <div class="flex-1 min-w-[200px]">
-          <input type="range" min="0" max="100" value="80" class="smart-slider" id="split-slider" oninput="updateSplit()" style="--pos:80%"/>
+          <input type="range" min="0" max="100" value="80" class="smart-slider" id="split-slider" oninput="updateSplit()" onchange="updateSplit()" style="--pos:80%"/>
           <div class="flex justify-between text-xs text-slate-500 mt-1">
             <span><span data-zh>0% 训练</span><span data-en>0% train</span></span>
             <span><span data-zh>100% 训练</span><span data-en>100% train</span></span>
@@ -338,7 +343,7 @@
     <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
       placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
     <div class="flex items-center justify-between mt-2">
-      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <div class="text-sm text-slate-500"><span id="reflect-count" aria-live="polite" aria-atomic="true">0</span> <span data-zh>字</span><span data-en>chars</span></div>
       <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
         <span data-zh>提交并完成 M3-2 →</span><span data-en>Submit & finish →</span>
       </button>
@@ -369,7 +374,7 @@
       </div>
 
       <div class="mt-7 flex flex-wrap justify-center gap-3">
-        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-ghost" onclick="restart()" aria-label="重玩 / Replay">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
         <button class="btn-primary" onclick="location.href='m3-3-overfit.html'">
           <span data-zh>下一关：M3-3 过拟合陷阱 →</span><span data-en>Next: M3-3 Overfitting →</span>
         </button>
@@ -530,7 +535,9 @@ function updateSplit(){
     msg.innerHTML = '<span data-zh>🤔 测试集偏大，但训练数据不够。AI 学不深。</span><span data-en>🤔 Big test set, but not enough training. AI learns shallowly.</span>';
   } else if(v<50 && v>0){
     msg.innerHTML = '<span data-zh>⚠️ 训练数据太少，AI 几乎没学会东西。</span><span data-en>⚠️ Too little training data — AI barely learns.</span>';
-  } else if(v>85 && v<100){
+  } else if(v>=86 && v<90){
+    msg.innerHTML = '<span data-zh>✓ 还可以，但训练集略大、测试集略小（'+ (100-v) +' 张）——结果可信度比 80/20 差一点。</span><span data-en>✓ Workable, but training slightly large and test set slightly small ('+ (100-v) +' photos) — slightly less reliable than 80/20.</span>';
+  } else if(v>=90 && v<100){
     msg.innerHTML = '<span data-zh>🤔 测试集太小（只剩 '+ (100-v) +' 张）——准确率<strong>不可信</strong>，每次测都跳。</span><span data-en>🤔 Test set too tiny (only '+ (100-v) +' photos) — accuracy is <strong>unreliable</strong>, jumps every time.</span>';
   }
 
@@ -619,7 +626,7 @@ function goTo(n){
 }
 
 function restart(){
-  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+  if(confirm(LANG==='en'?'Restart this mission? Your progress will be cleared.':'重新开始本关？进度会清空。')){
     Object.assign(state,{phase:0,trained1:false,tested:false,splitRatio:80,triedRatios:new Set([80]),pickedRatio:null,reflectChoice:null,reflectText:''});
     document.getElementById('train-btn').disabled=false;
     document.getElementById('test-same-btn').disabled=true;
@@ -640,7 +647,7 @@ function restart(){
 
 <style>
 @keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
-.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+.xp-popup{position:fixed;top:max(80px,30vh);left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
 </style>
 <script>
 (function(){
@@ -675,20 +682,29 @@ function restart(){
 .save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
 @keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
 .save-toast .st-check{color:#10B981;font-weight:700}
+/* Mobile: ensure page header doesn't overlap with nav-home + lang-toggle */
+@media (max-width:640px){.max-w-5xl{padding-top:60px !important}}
 </style>
-<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)" aria-label="返回课程地图 / Return to course map">
   <span class="nh-icon">🏠</span>
   <span data-zh>课程地图</span><span data-en>Course map</span>
 </a>
 <div class="save-toast" id="saveToast">
   <span class="st-check">✓</span>
-  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+  <span data-zh>这一步完成</span><span data-en>Step done</span>
 </div>
 <script>
 (function(){
   // ESC → confirm and return to map
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
+      // 完成态不显示确认弹窗
+      var lastPhase = document.querySelector('.phase.active');
+      var isCompletion = lastPhase && (lastPhase.id === 'p' + (document.querySelectorAll('.phase').length - 1) || lastPhase.querySelector('.badge-glow,.badge-glow-final,.cert-sealed'));
+      if(isCompletion){
+        location.href = 'index.html';
+        return;
+      }
       var en = document.body.classList.contains('lang-en');
       var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
       if(confirm(msg)) location.href = 'index.html';

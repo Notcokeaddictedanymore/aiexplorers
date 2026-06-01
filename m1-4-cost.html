@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>M1-4 误识别的代价 · The Cost of Being Wrong</title>
+
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body{font-family:"PingFang SC","Microsoft YaHei","Source Han Sans CN",-apple-system,system-ui,sans-serif;background:#FAF8F4;color:#0F172A;min-height:100vh}
@@ -69,7 +70,7 @@
 </head>
 <body class="grain">
 
-<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()" aria-label="切换语言 / Switch language">
   <span data-zh>EN</span><span data-en>中</span>
 </button>
 
@@ -153,7 +154,7 @@
     </div>
 
     <div class="flex items-center justify-between mb-3 text-sm">
-      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count">0</span> / 4</div>
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count" aria-live="polite" aria-atomic="true">0</span> / 4</div>
     </div>
 
     <div id="case-grid" class="grid md:grid-cols-2 gap-4"></div>
@@ -285,6 +286,7 @@
     <div class="bg-white border border-slate-200 rounded-2xl p-5">
       <div class="text-sm font-semibold mb-3"><span data-zh>请把每个"行为"匹配到一个"角色"：先点行为，再点角色。</span><span data-en>Tap an action, then tap the role you blame.</span></div>
 
+      <div id="resp-hint" class="resp-hint"></div>
       <div class="grid md:grid-cols-2 gap-5">
         <div>
           <div class="text-xs uppercase text-slate-500 mb-2"><span data-zh>5 个行为</span><span data-en>5 actions</span></div>
@@ -380,9 +382,9 @@
       </div>
 
       <div class="mt-7 flex flex-wrap justify-center gap-3">
-        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
-        <button class="btn-primary" onclick="alert(LANG==='en'?'Chapter 2 coming soon!':'第 2 章即将开放！')">
-          <span data-zh>开启 Ch.2 →</span><span data-en>Start Ch.2 →</span>
+        <button class="btn-ghost" onclick="restart()" aria-label="重玩 / Replay">🔄 <span data-zh>重玩本关</span><span data-en>Replay</span></button>
+        <button class="btn-primary" onclick="location.href='m2-1-graph.html'">
+          <span data-zh>开启 Ch.2：M2-1 文物族谱 →</span><span data-en>Start Ch.2: M2-1 Artifact Family Tree →</span>
         </button>
       </div>
       <div class="mt-3">
@@ -529,19 +531,24 @@ function renderFPFN(){
 }
 const fpfnAnswers = {};
 function fpfnAns(i, k, ev){
-  if(fpfnAnswers[i]!==undefined) return;
+  // 允许改选：先重置该题的所有按钮，再标记当前选中的那个
   fpfnAnswers[i] = k;
   const q = FPFN[i];
   const card = document.querySelector(`#fpfn-grid > div[data-idx="${i}"]`);
   card.querySelectorAll('.err-card').forEach(c=>{
     c.style.opacity = '0.5';
+    c.classList.remove('fp','fn');
   });
   ev.currentTarget.style.opacity='1';
   ev.currentTarget.classList.add(k);
   const fb = card.querySelector('.fpfn-feedback');
   fb.classList.remove('hidden');
   fb.className = 'fpfn-feedback mt-3 p-3 rounded-lg text-sm ' + (k===q.worse?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200');
-  fb.innerHTML = `<strong>${k===q.worse?'✓ '+(LANG==='en'?'Yes':'同意'):'🤔 '+(LANG==='en'?'Consider this':'再想想')}</strong> — <span data-zh>${q.why.zh}</span><span data-en>${q.why.en}</span>`;
+  const en = document.body.classList.contains('lang-en');
+  const correctTag = k===q.worse
+    ? (en?'<strong>✓ Yes</strong>':'<strong>✓ 同意</strong>')
+    : (en?'<strong>🤔 Consider this</strong>':'<strong>🤔 再想想，可以重新选</strong>');
+  fb.innerHTML = `${correctTag} — <span data-zh>${q.why.zh}</span><span data-en>${q.why.en}</span>`;
   if(Object.keys(fpfnAnswers).length===4){
     document.getElementById('p2-next').disabled=false;
   }
@@ -632,7 +639,12 @@ function selectAction(id){
 }
 function assignRole(roleId){
   if(!selectedAction){
-    alert(LANG==='en'?'Click an action first':'请先点一个行为');
+    const h = document.getElementById('resp-hint');
+    if(h){
+      h.textContent = LANG==='en' ? '👆 Click an action first' : '👆 请先点一个行为';
+      h.classList.add('show');
+      setTimeout(()=>h.classList.remove('show'), 2000);
+    }
     return;
   }
   // Remove any prev match for this action
@@ -702,7 +714,7 @@ function goTo(n){
 }
 
 function restart(){
-  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+  if(confirm(LANG==='en'?'Restart this mission? Your progress will be cleared.':'重新开始本关？进度会清空。')){
     caseVisited.clear();
     Object.keys(fpfnAnswers).forEach(k=>delete fpfnAnswers[k]);
     Object.keys(matches).forEach(k=>delete matches[k]);
@@ -726,7 +738,7 @@ function restart(){
 
 <style>
 @keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
-.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+.xp-popup{position:fixed;top:max(80px,30vh);left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
 </style>
 <script>
 (function(){
@@ -761,20 +773,33 @@ function restart(){
 .save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
 @keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
 .save-toast .st-check{color:#10B981;font-weight:700}
+/* Mobile: ensure page header doesn't overlap with nav-home + lang-toggle */
+@media (max-width:640px){.max-w-5xl{padding-top:60px !important}}
+/* Inline hint (replaces alert()) */
+.resp-hint{display:none;color:#B91C1C;font-weight:600;text-align:center;margin-bottom:.5rem;padding:.5rem;background:#FEF2F2;border-radius:.5rem;border:1px solid #FECACA}
+.resp-hint.show{display:block;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 </style>
-<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)" aria-label="返回课程地图 / Return to course map">
   <span class="nh-icon">🏠</span>
   <span data-zh>课程地图</span><span data-en>Course map</span>
 </a>
 <div class="save-toast" id="saveToast">
   <span class="st-check">✓</span>
-  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+  <span data-zh>这一步完成</span><span data-en>Step done</span>
 </div>
 <script>
 (function(){
   // ESC → confirm and return to map
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
+      // 完成态不显示确认弹窗
+      var lastPhase = document.querySelector('.phase.active');
+      var isCompletion = lastPhase && (lastPhase.id === 'p' + (document.querySelectorAll('.phase').length - 1) || lastPhase.querySelector('.badge-glow,.badge-glow-final,.cert-sealed'));
+      if(isCompletion){
+        location.href = 'index.html';
+        return;
+      }
       var en = document.body.classList.contains('lang-en');
       var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
       if(confirm(msg)) location.href = 'index.html';

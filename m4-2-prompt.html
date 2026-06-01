@@ -65,7 +65,7 @@
 </head>
 <body class="grain">
 
-<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()" aria-label="切换语言 / Switch language">
   <span data-zh>EN</span><span data-en>中</span>
 </button>
 
@@ -331,7 +331,7 @@
     <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
       placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
     <div class="flex items-center justify-between mt-2">
-      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <div class="text-sm text-slate-500"><span id="reflect-count" aria-live="polite" aria-atomic="true">0</span> <span data-zh>字</span><span data-en>chars</span></div>
       <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
         <span data-zh>提交并完成 M4-2 →</span><span data-en>Submit & finish →</span>
       </button>
@@ -362,7 +362,7 @@
       </div>
 
       <div class="mt-7 flex flex-wrap justify-center gap-3">
-        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-ghost" onclick="restart()" aria-label="重玩 / Replay">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
         <button class="btn-primary" onclick="location.href='m4-3-hallucinate.html'">
           <span data-zh>下一关：M4-3 幻觉狩猎 →</span><span data-en>Next: M4-3 Hallucination Hunt →</span>
         </button>
@@ -529,39 +529,120 @@ function updatePrompt(){
 function askAI(){
   state.asked = true;
   document.getElementById('ai-response').classList.remove('hidden');
-  // Construct a simulated personalized response
-  const respZh = `尊敬的张老师：
+  // Construct a simulated response themed to the task
+  const task = (state.prompt.task || '').toLowerCase();
+  const isTravel = /旅行|旅游|travel|trip|itinerary/.test(task);
+  const isStudy = /学习|作业|数学|复习|study|homework|math|exam/.test(task);
+  const isCode = /编程|代码|程序|programming|code|coding/.test(task);
 
-您好。我是初一(3)班的小明。
+  let respZh, respEn;
+  if(isTravel){
+    respZh = `好的，给你一个 3 天行程示例（可按你的目的地与预算调整）：
 
-写这封信时，我心里有些沉重——我的爷爷昨晚因突发心脏问题住进了医院。爸爸妈妈都在 ICU 外面陪护，家里需要我帮忙照应一些事情，比如给爷爷换洗衣物、跑跑医院手续。
+Day 1 · 抵达 & 熟悉
+- 上午：抵达，办理入住，附近散步
+- 下午：地标性博物馆或公园
+- 晚上：本地小吃街
 
-因此，特向您请假 3 天（${state.prompt.context.includes('日期')?'下周一至下周三':'本周三至周五'}），周一晚自习前我会回到学校。
+Day 2 · 深度体验
+- 上午：经典景点（建议提前买票）
+- 下午：手工 / 美食 / 文化体验
+- 晚上：观景台或夜景
 
-我会借同学的笔记，提前补上落下的数学课。请您放心。
+Day 3 · 轻松收尾
+- 上午：购物 / 咖啡馆
+- 下午：返程
 
-谢谢您的理解。
+小贴士：带充电宝、备用现金、本地交通卡。
 
-学生 小明 敬上
-2026 年 5 月 28 日
+（说明：这是示例结构。给我目的地、预算、出行日期，我可以做得更具体。）`;
+    respEn = `Sure — here's a sample 3-day itinerary (adjust to your destination/budget):
 
-（约 280 字，称呼、原因、时长、补课承诺、署名俱全）`;
+Day 1 · Arrive & settle
+- Morning: arrive, check in, neighborhood walk
+- Afternoon: landmark museum or park
+- Evening: local street food
 
-  const respEn = `Dear Teacher Zhang,
+Day 2 · Deep dive
+- Morning: classic site (book tickets ahead)
+- Afternoon: hands-on / food / culture
+- Evening: viewpoint or night view
 
-I'm writing this with a heavy heart — my grandfather was rushed to the hospital last night for a sudden heart issue. Both parents are at the ICU, and I'm needed at home to help with errands like bringing him clean clothes and managing hospital paperwork.
+Day 3 · Easy wrap
+- Morning: shopping / cafe
+- Afternoon: depart
 
-I'd like to ask for 3 days off (${state.prompt.context.toLowerCase().includes('date')?'Mon-Wed':'Wed-Fri this week'}). I'll be back by Monday evening study hall.
+Tips: power bank, backup cash, transit card.
 
-I'll borrow notes from classmates and catch up on missed math lessons. Please don't worry.
+(Note: this is a template. Give me destination, budget, dates and I'll be more specific.)`;
+  } else if(isStudy){
+    respZh = `好，下面是一个高效学习计划的 3 步建议：
 
-Thank you for your understanding.
+1. 拆目标
+   把"复习数学"拆成具体小块：函数图像 / 三角函数 / 几何证明，每块 30-45 分钟。
 
-Sincerely,
-Xiaoming
-May 28, 2026
+2. 番茄钟节奏
+   25 分钟专注 + 5 分钟休息，每 4 个循环后休息 20 分钟。手机放另一个房间。
 
-(~280 words; greeting, reason, duration, makeup promise, signature all included)`;
+3. 主动复习
+   做题 > 抄笔记 > 重读。错题本每天看一遍，3 天后再重做。
+
+如果你能告诉我哪一科、还有几天考试，我可以给出更具体的每日安排。`;
+    respEn = `Here's a 3-step plan for efficient studying:
+
+1. Break the goal down
+   Split "review math" into chunks: functions / trig / geometry, 30-45 min each.
+
+2. Pomodoro rhythm
+   25 min focus + 5 min break. After 4 cycles, take 20 min. Phone in another room.
+
+3. Active recall
+   Practice problems > note-copying > re-reading. Review mistake log daily, redo after 3 days.
+
+Tell me the subject and days until the exam, and I'll give you a day-by-day plan.`;
+  } else if(isCode){
+    respZh = `好的，编程学习起步建议：
+
+1. 选语言：初学推荐 Python（语法简单、用途广）。
+2. 第一周做一件能跑的小东西：比如"猜数字游戏"或"待办清单"。
+3. 学新概念 → 立刻写 5 行代码试试 → 出 bug → 读报错 → 修。这是最快的学习循环。
+4. 不要看完整本教程才开始动手；先做、再补缺。
+
+如果你告诉我你想做什么（小游戏？数据图？网页？），我可以给出更针对的步骤。`;
+    respEn = `Quick programming start guide:
+
+1. Pick a language: Python first (simple syntax, broad use).
+2. Week 1 — build something tiny that runs: a number-guessing game or todo list.
+3. Learn concept → write 5 lines → hit a bug → read error → fix. That's the fastest loop.
+4. Don't finish the whole tutorial before coding. Build first, fill gaps later.
+
+Tell me what you want to make (game? data chart? webpage?) and I'll be more specific.`;
+  } else {
+    respZh = `好的。基于你给的任务，这里是 3 步建议：
+
+1. 明确目标
+   把你想要的"结果"先写一句话——越具体越好（比如"3 天内完成"、"给 5 个人看"、"语气要正式"）。
+
+2. 拆步骤
+   把大任务拆成 3-5 个小步骤，每一步可以独立完成。
+
+3. 先做最小可用版本
+   不要一开始就追求完美。做出一个粗略版本，看看是不是你想要的方向，再迭代。
+
+如果你愿意把任务说得更具体（场景、对象、时间、风格），我可以给出更针对性的内容。`;
+    respEn = `Here's a 3-step suggestion based on your task:
+
+1. Define the outcome
+   Write one sentence describing what "done" looks like — the more specific the better (timeline, audience, tone).
+
+2. Break it into steps
+   Split into 3-5 small steps, each completable on its own.
+
+3. Build a rough draft first
+   Don't aim for perfect on round 1. Make a rough version, check the direction, then iterate.
+
+If you share more context (audience, timing, tone), I can be more specific.`;
+  }
 
   document.getElementById('ai-resp-text').textContent = LANG==='en' ? respEn : respZh;
   document.getElementById('p3-next').disabled = false;
@@ -639,7 +720,7 @@ function goTo(n){
 }
 
 function restart(){
-  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+  if(confirm(LANG==='en'?'Restart this mission? Your progress will be cleared.':'重新开始本关？进度会清空。')){
     Object.assign(state,{phase:0,pairsRead:new Set(),prompt:{role:'',context:'',task:'',format:''},asked:false,tipsRead:new Set(),reflectChoice:null,reflectText:''});
     document.getElementById('pair-count').textContent='0';
     document.getElementById('tip-count').textContent='0';
@@ -659,7 +740,7 @@ updatePlaceholders();
 
 <style>
 @keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
-.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+.xp-popup{position:fixed;top:max(80px,30vh);left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
 </style>
 <script>
 (function(){
@@ -695,20 +776,29 @@ updatePlaceholders();
 .save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
 @keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
 .save-toast .st-check{color:#10B981;font-weight:700}
+/* Mobile: ensure page header doesn't overlap with nav-home + lang-toggle */
+@media (max-width:640px){.max-w-5xl{padding-top:60px !important}}
 </style>
-<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)" aria-label="返回课程地图 / Return to course map">
   <span class="nh-icon">🏠</span>
   <span data-zh>课程地图</span><span data-en>Course map</span>
 </a>
 <div class="save-toast" id="saveToast">
   <span class="st-check">✓</span>
-  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+  <span data-zh>这一步完成</span><span data-en>Step done</span>
 </div>
 <script>
 (function(){
   // ESC → confirm and return to map
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
+      // 完成态不显示确认弹窗
+      var lastPhase = document.querySelector('.phase.active');
+      var isCompletion = lastPhase && (lastPhase.id === 'p' + (document.querySelectorAll('.phase').length - 1) || lastPhase.querySelector('.badge-glow,.badge-glow-final,.cert-sealed'));
+      if(isCompletion){
+        location.href = 'index.html';
+        return;
+      }
       var en = document.body.classList.contains('lang-en');
       var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
       if(confirm(msg)) location.href = 'index.html';

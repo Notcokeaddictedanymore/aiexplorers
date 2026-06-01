@@ -33,7 +33,7 @@
 
   .status-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .65rem;border-radius:9999px;font-size:.7rem;font-weight:700}
   .status-todo{background:#F1F5F9;color:#64748B}
-  .status-now{background:#FEE2E2;color:#B91C1C;animation:pulse2 2s ease infinite}
+  .status-now{background:#FEF3C7;color:#92400E;animation:pulse2 2s ease infinite}
   .status-done{background:#D1FAE5;color:#065F46}
   .status-locked{background:#E2E8F0;color:#94A3B8}
   @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.6}}
@@ -54,7 +54,9 @@
   .avatar-img{width:180px;height:180px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 12px 28px rgba(99,179,255,.35),0 0 0 6px rgba(99,179,255,.12)}
   .avatar-fallback{width:180px;height:180px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#A78BFA);display:none;align-items:center;justify-content:center;font-size:80px;color:#fff;box-shadow:0 12px 28px rgba(99,179,255,.35)}
   @keyframes pulseGlow{0%,100%{box-shadow:0 12px 28px rgba(99,179,255,.35),0 0 0 6px rgba(99,179,255,.12)}50%{box-shadow:0 12px 28px rgba(167,139,250,.5),0 0 0 10px rgba(167,139,250,.15)}}
-  .avatar-img,.avatar-fallback{animation:pulseGlow 4s ease-in-out infinite}
+  /* Pulse only applies to the visible element — fallback is hidden by default */
+  .avatar-img{animation:pulseGlow 4s ease-in-out infinite}
+  .avatar-fallback[style*="flex"]{animation:pulseGlow 4s ease-in-out infinite}
   .m-card.completed::after{height:4px;background:linear-gradient(90deg,#10B981,#3B82F6,#a855f7);background-size:200% 100%;animation:shimmer 3s linear infinite}
   @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
   .m-card.completed:hover{box-shadow:0 24px 48px -16px rgba(16,185,129,.3);border-color:#10B981}
@@ -87,7 +89,7 @@
   <span>←</span>
   <span data-zh>入口</span><span data-en>Home</span>
 </a>
-<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()" aria-label="切换语言 / Switch language">
   <span data-zh>EN</span><span data-en>中</span>
 </button>
 
@@ -98,7 +100,7 @@
       <div class="text-center order-2 md:order-1">
         <img src="lingxi-avatar.png" alt="小京灵" class="avatar-img mx-auto bob" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="avatar-fallback mx-auto bob">🧚‍♀️</div>
-        <div class="text-sm font-bold text-blue-700 mt-2"><span data-zh>小京灵 · 你的 AI 向导</span><span data-en>Jingling · Your AI guide</span></div>
+        <div class="text-sm font-bold text-blue-700 mt-2"><span data-zh>小京灵 · 你的 AI 小助手</span><span data-en>Jingling · Your AI buddy</span></div>
       </div>
       <div class="order-1 md:order-2">
         <div class="flex items-center gap-2 mb-3 flex-wrap">
@@ -111,7 +113,7 @@
           <span data-en>AI Literacy Courses for Beginners</span>
         </h1>
         <p class="text-lg text-slate-700 mt-3 leading-relaxed" data-zh>
-          为中国中小学生打造的 AI 素养课程。<strong>共 7 章，28 个互动任务，在情景中学习</strong>。<br><span class="text-sm text-blue-700">小京灵会一路陪你，从认 AI、用 AI 到训练你自己的 AI。</span>
+          为中国中小学生打造的 AI 素养课程。<strong>共 7 章，28 个互动任务，在情景中学习</strong>。<br><span class="text-sm text-blue-700">小京灵会一路陪你，从认识 AI、使用 AI 到训练你自己的 AI。</span>
         </p>
         <p class="text-lg text-slate-700 mt-3 leading-relaxed" data-en>
           AI literacy for Chinese students. <strong>7 chapters, 28 interactive missions, learning through real scenarios</strong>.<br><span class="text-sm text-blue-700">Jingling guides you from knowing AI, to using AI, to training your own.</span>
@@ -152,9 +154,9 @@
   <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5">
     <div class="text-sm font-bold text-blue-900 mb-2">📚 <span data-zh>课程对齐</span><span data-en>Aligned with</span></div>
     <div class="text-xs text-slate-700 space-y-1">
-      <div>• <strong>AI4K12 Five Big Ideas</strong>: Perception · Reasoning · Learning · Interaction · Societal Impact</div>
-      <div>• <strong><span data-zh>中国教育部《中小学人工智能通识教育指南 2025 版》</span><span data-en>China MoE AI Education Guideline 2025</span></strong>: 知识—技能—思维—价值观四维</div>
-      <div>• <strong>UNESCO K-12 AI Curricula Framework</strong></div>
+      <div>• <strong><a href="https://ai4k12.org/" target="_blank" rel="noopener noreferrer" class="text-blue-700 hover:underline">AI4K12 Five Big Ideas</a></strong>: Perception · Reasoning · Learning · Interaction · Societal Impact</div>
+      <div>• <strong><a href="http://www.moe.gov.cn/srcsite/A06/s3321/202504/t20250420_1188571.html" target="_blank" rel="noopener noreferrer" class="text-blue-700 hover:underline"><span data-zh>中国教育部《中小学人工智能通识教育指南 2025 版》</span><span data-en>China MoE AI Education Guideline 2025</span></a></strong>: 知识—技能—思维—价值观四维</div>
+      <div>• <strong><a href="https://www.unesco.org/en/digital-education/ai-future-learning" target="_blank" rel="noopener noreferrer" class="text-blue-700 hover:underline">UNESCO K-12 AI Curricula Framework</a></strong></div>
     </div>
   </div>
 </section>
@@ -172,6 +174,8 @@ function toggleLang(){
   document.body.classList.toggle('lang-en');
   LANG = document.body.classList.contains('lang-en')?'en':'zh';
   localStorage.setItem(LANG_KEY, LANG);
+  // Refresh dynamic text (continue button, xp counter, etc.)
+  if(typeof renderAll === 'function') renderAll();
 }
 
 /* =====================================================
@@ -435,9 +439,12 @@ function renderAll(){
   // Total progress
   document.getElementById('total-done').textContent = totalDone;
   document.getElementById('prog-fill').style.width = (totalDone/28*100) + '%';
-  // XP display (100 XP per mission)
+  // 积分显示（每关 +100 分）
   const xpEl = document.getElementById('xp');
-  if(xpEl) xpEl.textContent = `+${totalDone*100} XP`;
+  if(xpEl){
+    const en = document.body.classList.contains('lang-en');
+    xpEl.textContent = `+${totalDone*100} ${en ? 'pts' : '分'}`;
+  }
   // Trigger confetti on 28/28
   if(totalDone===28 && !localStorage.getItem('lingxi-confetti-shown')){
     localStorage.setItem('lingxi-confetti-shown', '1');
@@ -451,18 +458,23 @@ function renderAll(){
   const earnedCount = badges.filter(b=>b==='🟢').length;
   document.getElementById('badge-summary').textContent = `${earnedCount} / ${badges.length}`;
 
-  // Continue button
+  // Continue button (rewritten to use textContent based on current language)
+  updateContinueBtn(firstTodo, totalDone);
+}
+
+function updateContinueBtn(firstTodo, totalDone){
   const btn = document.getElementById('continue-btn');
-  if(totalDone===0){
-    btn.innerHTML = '<span data-zh>▶ 开始第一关：M1-1 AI 视觉初识</span><span data-en>▶ Start M1-1: World Through AI Eyes</span>';
+  if(!btn) return;
+  const en = document.body.classList.contains('lang-en');
+  if(totalDone === 0){
+    btn.textContent = en ? '▶ Start M1-1: World Through AI Eyes' : '▶ 开始第一关：M1-1 AI 视觉初识';
     btn.onclick = ()=>{ location.href = 'm1-1-intro.html'; };
   } else if(firstTodo){
-    btn.innerHTML = `<span data-zh>▶ 继续：${firstTodo.title.zh}</span><span data-en>▶ Continue: ${firstTodo.title.en}</span>`;
+    btn.textContent = en ? `▶ Continue: ${firstTodo.title.en}` : `▶ 继续：${firstTodo.title.zh}`;
     btn.onclick = ()=>{ location.href = firstTodo.file; };
   } else {
-    // All open chapters done
-    btn.innerHTML = '<span data-zh>🎉 已完成所有开放任务！等待新章节</span><span data-en>🎉 All open missions done! Waiting for new chapters</span>';
-    btn.onclick = ()=>alert(LANG==='en'?'🎓 All 28 missions done — full course complete!':'🎓 全部 28 个任务已完成 · 全课程结业！');
+    btn.textContent = en ? '🎉 All open missions done! Waiting for new chapters' : '🎉 已完成所有开放任务！等待新章节';
+    btn.onclick = ()=>alert(en ? '🎓 All 28 missions done — full course complete!' : '🎓 全部 28 个任务已完成 · 全课程结业！');
   }
 }
 
@@ -495,6 +507,7 @@ function launchConfetti(){
 }
 
 renderAll();
+
 </script>
 
 </body>

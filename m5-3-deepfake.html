@@ -63,7 +63,7 @@
 </head>
 <body class="grain">
 
-<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()" aria-label="切换语言 / Switch language">
   <span data-zh>EN</span><span data-en>中</span>
 </button>
 
@@ -80,6 +80,11 @@
       <span data-zh>深度伪造识别：你看到的"视频"是真的吗？</span>
       <span data-en>Real or Deepfake: Can You Trust That Video?</span>
     </h1>
+    <div class="mt-2 p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm" style="line-height:1.5">
+      <strong>📌 <span data-zh>内容提示</span><span data-en>Content note</span>：</strong>
+      <span data-zh>这一关讨论网络诈骗的真实受害者。如有不适，可以暂停。</span>
+      <span data-en>This mission discusses real victims of online scams. You can pause anytime.</span>
+    </div>
     <div class="mt-4 flex items-center gap-1" id="steps">
       <span class="step-dot current"></span>
       <span class="step-dot"></span>
@@ -103,23 +108,23 @@
       </div>
       <div>
         <div class="lingxi-bubble">
-          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-zh>
-            ⚠️ 2024 年起，<strong>看视频"眼见为实"</strong>的时代已经结束。
+          <p class="text-lg leading-relaxed text-blue-700 font-semibold" data-zh>
+            🕵️ 今天你要学一个<strong>新超能力</strong>：识别 AI 做的假视频、假照片、假声音。
           </p>
-          <p class="text-lg leading-relaxed text-red-700 font-semibold" data-en>
-            ⚠️ Since 2024, "seeing is believing" with video has <strong>ended</strong>.
-          </p>
-          <p class="mt-3 leading-relaxed" data-zh>
-            AI 现在能<strong>完美模仿</strong>：任何人的脸、任何人的声音、任何人的笔迹、任何人的表情。<strong>骗子</strong>用它打电话给你奶奶："我是你孙子，我被绑架了，快打钱"——你奶奶<strong>怎么分辨</strong>？
-          </p>
-          <p class="mt-3 leading-relaxed" data-en>
-            AI now <strong>perfectly mimics</strong>: anyone\'s face, voice, handwriting, expression. <strong>Scammers</strong> call your grandma: "I\'m your grandson, I\'ve been kidnapped, send money!" — how does she <strong>tell</strong>?
+          <p class="text-lg leading-relaxed text-blue-700 font-semibold" data-en>
+            🕵️ Today you'll learn a <strong>new superpower</strong>: spotting AI-made fake videos, photos, and voices.
           </p>
           <p class="mt-3 leading-relaxed" data-zh>
-            今天我让你<strong>当侦探</strong>：先看 4 个真实事件，然后做"<strong>真假图片测试</strong>"，最后学会 5 个识破破绽和 4 件反伪造工具。<strong>这些技能，你妈妈和奶奶都需要你来教</strong>。
+            你妈妈和奶奶可能见过一种新的网络骗局：视频里"是某个人"，但其实是 AI 做的。我们叫它"<strong>深度伪造</strong>"。AI 能模仿别人的脸和声音——挺神奇的，但也能被骗子用来骗人。
           </p>
           <p class="mt-3 leading-relaxed" data-en>
-            Today you\'re the <strong>detective</strong>: 4 real cases → "<strong>real or fake</strong>" test → 5 telltales + 4 tools. <strong>Your mom and grandma need you to teach them this</strong>.
+            Your mom and grandma may have seen a new kind of online scam: a video that "looks like" a real person, but is actually made by AI. We call it "<strong>deepfake</strong>". AI can mimic faces and voices — pretty cool, but scammers can misuse it.
+          </p>
+          <p class="mt-3 leading-relaxed" data-zh>
+            今天你来<strong>当侦探</strong>：先看 4 个真实事件，再做"<strong>真假图片测试</strong>"，最后学会 5 个识破技巧和 4 件反伪造工具。<strong>你会成为家里的"识假高手"</strong>。
+          </p>
+          <p class="mt-3 leading-relaxed" data-en>
+            Today you're the <strong>detective</strong>: 4 real cases → "<strong>real or fake</strong>" test → 5 telltales + 4 tools. <strong>You'll be your family's "fake-spotter"</strong>.
           </p>
         </div>
         <div class="mt-5">
@@ -140,7 +145,7 @@
     </div>
 
     <div class="flex items-center justify-between mb-3 text-sm">
-      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count">0</span> / 4</div>
+      <div class="font-semibold text-slate-700"><span data-zh>已读：</span><span data-en>Read:</span><span id="case-count" aria-live="polite" aria-atomic="true">0</span> / 4</div>
     </div>
 
     <div id="case-grid" class="grid md:grid-cols-2 gap-4"></div>
@@ -245,7 +250,7 @@
     <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
       placeholder="写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
     <div class="flex items-center justify-between mt-2">
-      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <div class="text-sm text-slate-500"><span id="reflect-count" aria-live="polite" aria-atomic="true">0</span> <span data-zh>字</span><span data-en>chars</span></div>
       <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
         <span data-zh>提交并完成 M5-3 →</span><span data-en>Submit & finish →</span>
       </button>
@@ -276,7 +281,7 @@
       </div>
 
       <div class="mt-7 flex flex-wrap justify-center gap-3">
-        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-ghost" onclick="restart()" aria-label="重玩 / Replay">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
         <button class="btn-primary" onclick="location.href='m5-4-citizen.html'">
           <span data-zh>下一关：M5-4 AI 公民身份 →</span><span data-en>Next: M5-4 AI Citizenship →</span>
         </button>
@@ -464,7 +469,16 @@ function renderCases(){
 }
 function openCase(id){
   state.casesRead.add(id);
-  renderCases();
+  const card = document.querySelector('.case-card[data-id="' + id + '"]');
+  if(!card) return;
+  card.classList.add('read');
+  const detail = card.querySelector('.case-detail');
+  if(detail) detail.classList.toggle('hidden');
+  const collapse = card.querySelector('.case-collapse');
+  if(collapse){
+    // Hide the "click to expand" hint once read
+    collapse.classList.add('hidden');
+  }
   document.getElementById('case-count').textContent = state.casesRead.size;
   if(state.casesRead.size>=4) document.getElementById('p1-next').disabled = false;
 }
@@ -490,8 +504,13 @@ function renderTests(){
         </div>
         ${answered ? `
           <div class="p-3 rounded-lg ${correct?'bg-green-50 border border-green-200':'bg-amber-50 border border-amber-200'} text-sm">
-            <strong>${correct?'✓ ':'🤔 '}${t.isFake?'🎭 '+(LANG==='en'?'FAKE!':'伪造！'):'✅ '+(LANG==='en'?'REAL!':'真的！')}</strong>
-            <p class="mt-1"><span data-zh>${t.feedback.zh}</span><span data-en>${t.feedback.en}</span></p>
+            <strong>${correct?'✓ ':'🤔 '}${correct?(t.isFake?'🎭 '+(LANG==='en'?'FAKE!':'伪造！'):'✅ '+(LANG==='en'?'REAL!':'真的！')):(LANG==='en'?'Not quite — try again':'再想想，可以重新选')}</strong>
+            ${correct ? `<p class="mt-1"><span data-zh>${t.feedback.zh}</span><span data-en>${t.feedback.en}</span></p>` : `
+              <div class="flex gap-2 mt-2">
+                <button class="btn-ghost text-sm flex-1 border-green-300" onclick="testAns('${t.id}','real')">✅ <span data-zh>真照片</span><span data-en>REAL</span></button>
+                <button class="btn-ghost text-sm flex-1 border-red-300" onclick="testAns('${t.id}','fake')">🎭 <span data-zh>伪造</span><span data-en>FAKE</span></button>
+              </div>
+            `}
           </div>
         ` : `
           <div class="flex gap-2">
@@ -613,7 +632,7 @@ function goTo(n){
 }
 
 function restart(){
-  if(confirm(LANG==='en'?'Restart?':'重新开始？')){
+  if(confirm(LANG==='en'?'Restart this mission? Your progress will be cleared.':'重新开始本关？进度会清空。')){
     state.phase=0;state.casesRead=new Set();state.testAnswers={};state.tellsRead=new Set();state.toolsRead=new Set();state.reflectChoice=null;state.reflectText='';
     document.getElementById('case-count').textContent='0';
     document.getElementById('test-count').textContent='0';
@@ -633,7 +652,7 @@ function restart(){
 
 <style>
 @keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
-.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+.xp-popup{position:fixed;top:max(80px,30vh);left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
 </style>
 <script>
 (function(){
@@ -668,20 +687,29 @@ function restart(){
 .save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
 @keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
 .save-toast .st-check{color:#10B981;font-weight:700}
+/* Mobile: ensure page header doesn't overlap with nav-home + lang-toggle */
+@media (max-width:640px){.max-w-5xl{padding-top:60px !important}}
 </style>
-<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)" aria-label="返回课程地图 / Return to course map">
   <span class="nh-icon">🏠</span>
   <span data-zh>课程地图</span><span data-en>Course map</span>
 </a>
 <div class="save-toast" id="saveToast">
   <span class="st-check">✓</span>
-  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+  <span data-zh>这一步完成</span><span data-en>Step done</span>
 </div>
 <script>
 (function(){
   // ESC → confirm and return to map
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
+      // 完成态不显示确认弹窗
+      var lastPhase = document.querySelector('.phase.active');
+      var isCompletion = lastPhase && (lastPhase.id === 'p' + (document.querySelectorAll('.phase').length - 1) || lastPhase.querySelector('.badge-glow,.badge-glow-final,.cert-sealed'));
+      if(isCompletion){
+        location.href = 'index.html';
+        return;
+      }
       var en = document.body.classList.contains('lang-en');
       var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
       if(confirm(msg)) location.href = 'index.html';

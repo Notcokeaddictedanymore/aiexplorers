@@ -34,12 +34,17 @@
   .bob{animation:bob 3s ease-in-out infinite}
   /* Museum card flip */
   .flip-card{perspective:1000px;cursor:pointer;aspect-ratio:1/1.15}
+  @supports not (aspect-ratio:1/1){
+    .flip-card{position:relative;padding-bottom:115%;height:0}
+    .flip-card > .flip-inner{position:absolute;inset:0}
+  }
   .flip-card .flip-inner{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
   .flip-card.flipped .flip-inner{transform:rotateY(180deg)}
   .flip-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;overflow:hidden;border:2px solid #E2E8F0;background:#fff;display:flex;flex-direction:column}
   .flip-back{transform:rotateY(180deg);background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;padding:1rem;justify-content:space-between}
   .flip-card.visited .flip-face{border-color:#10B981}
   .flip-card.visited::after{content:"✓";position:absolute;top:8px;right:8px;background:#10B981;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;z-index:2;box-shadow:0 4px 8px rgba(16,185,129,.3)}
+  .flip-card.flipped::after{display:none}
   /* Speed challenge */
   .hunt-tile{cursor:pointer;border:2px solid transparent;border-radius:8px;transition:all .15s;aspect-ratio:1}
   .hunt-tile.found{border-color:#10B981;background:#ECFDF5;transform:scale(.96)}
@@ -53,6 +58,11 @@
   /* Badge */
   .badge-glow{box-shadow:0 0 0 6px rgba(220,38,38,.08),0 0 0 12px rgba(220,38,38,.04),0 18px 40px -12px rgba(220,38,38,.4)}
   .lang-toggle{position:fixed;right:16px;top:16px;z-index:50}
+  /* Reflection textarea: visual feedback when threshold is met */
+  #reflect-text.ok{border-color:#10B981 !important;background:#ECFDF5}
+  /* Reflection radios: visible :checked state */
+  .reflect-card{transition:all .2s;cursor:pointer}
+  .reflect-card:has(input:checked){background:#EFF6FF !important;border-color:#3B82F6 !important;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
   @keyframes flashIn{0%{transform:scale(.5);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
   .flash-in{animation:flashIn .5s ease}
   /* Timer */
@@ -62,7 +72,7 @@
 </head>
 <body class="grain">
 
-<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()">
+<button class="lang-toggle bg-white border border-slate-200 rounded-full px-3 py-1 text-sm shadow-sm hover:shadow-md" onclick="toggleLang()" aria-label="切换语言 / Switch language">
   <span data-zh>EN</span><span data-en>中</span>
 </button>
 
@@ -101,6 +111,12 @@
       </div>
       <div>
         <div class="lingxi-bubble">
+          <p class="leading-relaxed bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm" data-zh>
+            <strong>📖 故事背景：</strong>四川<strong>卧龙国家级自然保护区</strong>是中国最大的大熊猫栖息地。研究员在山林里架设了<strong>几百台红外触发相机</strong>——有动物经过就自动拍照。王老师是其中一位研究员，他每个月要把<strong>所有相机的照片导出来一张一张看</strong>，找出里面有没有大熊猫、有几只、健不健康。一个月光是他负责的片区就能拍 <strong>5000 多张</strong>，全部看完要一整天。
+          </p>
+          <p class="leading-relaxed bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm" data-en>
+            <strong>📖 Background:</strong> Sichuan's <strong>Wolong National Nature Reserve</strong> is China's largest giant panda habitat. Researchers set up <strong>hundreds of infrared trail cameras</strong> in the mountains — they auto-snap when an animal walks by. Ranger Wang is one such researcher. Every month he must <strong>review every photo from his cameras one by one</strong>, looking for pandas. His area alone produces <strong>5,000+ photos/month</strong>. Reviewing them all takes a full workday.
+          </p>
           <p class="text-lg leading-relaxed" data-zh>
             还记得卧龙保护区的王老师吗？他要数 <strong>5000 张照片</strong>。一个人要数 <strong>8 个小时</strong>。
           </p>
@@ -150,12 +166,12 @@
   <section class="phase" id="p1">
     <div class="lingxi-bubble mb-5">
       <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
-      <p data-zh>这里有 <strong>6 个真实场景</strong>，AI 视觉都已经在做事了。点击每张卡片，翻到背面看故事。<strong>6 张都看完才能继续</strong>。</p>
+      <p data-zh>这里有 <strong>6 个真实场景</strong>，AI 视觉技术已经随处可见了。点击每张卡片，翻到背面看故事。<strong>6 张都看完才能继续</strong>。</p>
       <p data-en>Here are <strong>6 real-world scenes</strong> already powered by AI vision. Click each card to flip it. <strong>Visit all 6 to continue</strong>.</p>
     </div>
 
     <div class="flex items-center justify-between mb-3 text-sm">
-      <div class="font-semibold text-slate-700"><span data-zh>已参观：</span><span data-en>Visited:</span><span id="museum-count">0</span> / 6</div>
+      <div class="font-semibold text-slate-700"><span data-zh>已参观：</span><span data-en>Visited:</span><span id="museum-count" aria-live="polite" aria-atomic="true">0</span> / 6</div>
       <div class="text-slate-500"><span data-zh>提示：点卡片翻转</span><span data-en>Click to flip</span></div>
     </div>
 
@@ -199,7 +215,7 @@
         </div>
         <div class="text-right">
           <div class="text-xs text-slate-500 uppercase"><span data-zh>已标记</span><span data-en>Marked</span></div>
-          <div class="text-xl font-bold" id="hunt-marked">0</div>
+          <div class="text-xl font-bold" id="hunt-marked" aria-live="polite" aria-atomic="true">0</div>
         </div>
       </div>
       <div id="hunt-grid" class="grid grid-cols-6 sm:grid-cols-10 gap-2"></div>
@@ -220,9 +236,9 @@
           <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div class="text-sm font-semibold text-blue-800"><span data-zh>🤖 AI 表现（模拟）</span><span data-en>🤖 AI (simulated)</span></div>
             <div class="mt-2 space-y-1 text-sm">
-              <div><span data-zh>找到熊猫：</span><span data-en>Pandas found:</span><strong>8 / 8</strong></div>
+              <div><span data-zh>找到熊猫：</span><span data-en>Pandas found:</span><strong id="ai-found">8 / 8</strong></div>
               <div><span data-zh>误判：</span><span data-en>False alarms:</span><strong>0</strong></div>
-              <div><span data-zh>用时：</span><span data-en>Time:</span><strong>0.2</strong> <span data-zh>秒</span><span data-en>sec</span></div>
+              <div><span data-zh>用时：</span><span data-en>Time:</span><strong id="ai-time">0.2</strong> <span data-zh>秒</span><span data-en>sec</span></div>
             </div>
           </div>
         </div>
@@ -265,23 +281,23 @@
   <section class="phase" id="p4">
     <div class="lingxi-bubble mb-5">
       <div class="font-bold mb-1 text-blue-700"><span data-zh>小京灵</span><span data-en>Jingling</span></div>
-      <p data-zh>太棒了！你已经看见了 AI 视觉的全貌。最后一步：把它"内化"成你自己的想法——选一个问题，写下你的回答（≥ 50 字）。</p>
-      <p data-en>You've seen the big picture. Final step: internalize it — pick a question and write your thoughts (≥ 50 chars).</p>
+      <p data-zh>太棒了！你已经看见了 AI 视觉的全貌。最后一步：把它"内化"成你自己的想法——选一个问题，写下你的回答（≥ 20 字）。</p>
+      <p data-en>You've seen the big picture. Final step: internalize it — pick a question and write your thoughts (≥ 20 chars).</p>
     </div>
 
     <h2 class="text-xl font-bold mb-3"><span data-zh>📝 三选一</span><span data-en>📝 Pick one</span></h2>
     <div class="space-y-2 mb-4">
-      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
+      <label class="reflect-card block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(0)">
         <input type="radio" name="reflect" class="mr-2"/>
         <span data-zh>① 你今天看到的 AI 视觉应用里，哪个最让你惊讶？为什么？</span>
         <span data-en>① Of all the AI vision apps today, which surprised you most? Why?</span>
       </label>
-      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
+      <label class="reflect-card block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(1)">
         <input type="radio" name="reflect" class="mr-2"/>
         <span data-zh>② 如果你能教 AI "看见"一种东西，你想教它看什么？</span>
         <span data-en>② If you could teach AI to "see" one thing, what would it be?</span>
       </label>
-      <label class="block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
+      <label class="reflect-card block bg-white rounded-xl p-4 border border-slate-200 cursor-pointer hover:border-blue-400 transition" onclick="selReflect(2)">
         <input type="radio" name="reflect" class="mr-2"/>
         <span data-zh>③ AI 视觉这么强，有没有什么地方你<strong>不希望</strong>它"看见"你？</span>
         <span data-en>③ AI vision is powerful — where do you <strong>not</strong> want it watching you?</span>
@@ -290,7 +306,7 @@
     <textarea id="reflect-text" rows="5" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
       placeholder="在这里写下你的想法 / Write here..." oninput="updateReflectCount()"></textarea>
     <div class="flex items-center justify-between mt-2">
-      <div class="text-sm text-slate-500"><span id="reflect-count">0</span> <span data-zh>字</span><span data-en>chars</span></div>
+      <div class="text-sm text-slate-500"><span id="reflect-count" aria-live="polite" aria-atomic="true">0</span> <span data-zh>字</span><span data-en>chars</span></div>
       <button class="btn-primary" id="reflect-submit" disabled onclick="submitReflect()">
         <span data-zh>提交并完成 M1-1 →</span><span data-en>Submit & finish →</span>
       </button>
@@ -321,7 +337,7 @@
       </div>
 
       <div class="mt-7 flex flex-wrap justify-center gap-3">
-        <button class="btn-ghost" onclick="restart()">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
+        <button class="btn-ghost" onclick="restart()" aria-label="重玩 / Replay">🔄 <span data-zh>重玩</span><span data-en>Replay</span></button>
         <button class="btn-primary" onclick="location.href='m1-2-pixels.html'">
           <span data-zh>下一关：M1-2 标签游戏 →</span><span data-en>Next: M1-2 Labeling Game →</span>
         </button>
@@ -351,7 +367,7 @@ function toggleLang(){
 
 /* ---------- Museum content ---------- */
 const MUSEUM = [
-  {emoji:'💳', front:{zh:'微信刷脸支付', en:'WeChat Face Pay'},
+  {emoji:'💳', front:{zh:'收银机刷脸支付', en:'Face Pay at Checkout'},
    back:{zh:'你站在收银机前 0.3 秒，AI 就把你的脸变成 128 个数字，和数据库对比。每年中国有 <strong>20 多亿次</strong>这样的"刷脸"。',
          en:'In 0.3 sec, AI turns your face into 128 numbers and matches a database. China has <strong>2+ billion</strong> face payments yearly.'},
    fact:{zh:'惊人事实：每个人的"脸数字"几乎独一无二，连双胞胎都能分清。', en:'Mind-blow: even twins get different feature vectors.'}},
@@ -387,7 +403,7 @@ function renderMuseum(){
     <div class="flip-card" data-idx="${i}" onclick="flipCard(${i})">
       <div class="flip-inner">
         <div class="flip-face items-center justify-center p-4 text-center">
-          <div class="text-6xl mb-2">${m.emoji}</div>
+          <div class="text-4xl sm:text-6xl mb-2">${m.emoji}</div>
           <div class="font-bold mt-2"><span data-zh>${m.front.zh}</span><span data-en>${m.front.en}</span></div>
           <div class="text-xs text-slate-500 mt-2"><span data-zh>点击查看故事</span><span data-en>Click for story</span></div>
         </div>
@@ -422,15 +438,20 @@ function startHunt(){
   document.getElementById('hunt-pre').classList.add('hidden');
   document.getElementById('hunt-active').classList.remove('hidden');
   state.huntFound=0; state.huntMiss=0;
-  // shuffle a copy
-  const shuffled = [...HUNT_ANIMALS].sort(()=>Math.random()-0.5);
+  // shuffle a copy (Fisher-Yates)
+  const shuffled = [...HUNT_ANIMALS];
+  for(let i = shuffled.length-1; i > 0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   const total = shuffled.filter(x=>x==='🐼').length;
   state.huntTotal = total;
   const grid = document.getElementById('hunt-grid');
   grid.innerHTML = shuffled.map((emoji,i)=>`
     <button class="hunt-tile bg-white text-3xl sm:text-4xl flex items-center justify-center" data-emoji="${emoji}" onclick="huntClick(this)">${emoji}</button>
   `).join('');
-  // Timer
+  // Timer + 记录真实开始时间
+  state.huntStart = Date.now();
   let t=10;
   document.getElementById('timer-num').textContent=t;
   const circle = document.getElementById('timer-circle');
@@ -455,6 +476,11 @@ function huntClick(btn){
     state.huntMiss++;
   }
   document.getElementById('hunt-marked').textContent = state.huntFound + state.huntMiss;
+  // 全找到大熊猫了 → 立即结束（即使时间还没到）
+  if(state.huntFound >= state.huntTotal){
+    clearInterval(huntTimerInterval);
+    endHunt();
+  }
 }
 function endHunt(){
   document.getElementById('hunt-active').classList.add('hidden');
@@ -462,6 +488,15 @@ function endHunt(){
   document.getElementById('you-found').textContent = state.huntFound;
   document.getElementById('you-total').textContent = state.huntTotal;
   document.getElementById('you-miss').textContent = state.huntMiss;
+  // 计算实际用时（秒，保留 1 位小数；超过 10 秒就显示 10）
+  const elapsedMs = Date.now() - (state.huntStart || Date.now());
+  const elapsedSec = Math.min(10, Math.max(0.1, elapsedMs / 1000));
+  document.getElementById('you-time').textContent = elapsedSec.toFixed(1);
+  // AI stats — derived from huntTotal, AI is ~2x faster (floor 0.1s)
+  const aiFoundEl = document.getElementById('ai-found');
+  if(aiFoundEl) aiFoundEl.textContent = `${state.huntTotal} / ${state.huntTotal}`;
+  const aiTimeEl = document.getElementById('ai-time');
+  if(aiTimeEl) aiTimeEl.textContent = Math.max(0.1, elapsedSec * 0.5).toFixed(1);
 }
 function resetHunt(){
   document.getElementById('hunt-done').classList.add('hidden');
@@ -502,17 +537,24 @@ function renderYN(){
   `).join('');
 }
 function ynAns(i, ans, ev){
-  if(state.ynAnswers[i]!==undefined) return;
   const card = document.querySelector(`.yn-card[data-idx="${i}"]`);
   const q = YN[i];
   const ok = ans===q.isVision;
+  // If re-selecting, undo previous correct count
+  if(state.ynAnswers[i]!==undefined){
+    const prevOk = state.ynAnswers[i]===q.isVision;
+    if(prevOk) state.ynCorrect--;
+  }
+  // Reset visual state before applying new pick
+  card.classList.remove('answered-correct','answered-wrong');
   state.ynAnswers[i] = ans;
   if(ok) state.ynCorrect++;
   card.classList.add(ok?'answered-correct':'answered-wrong');
   const fb = card.querySelector('.yn-feedback');
   fb.classList.remove('hidden');
   const correct = q.isVision ? (LANG==='en'?'Yes':'是') : (LANG==='en'?'No':'不是');
-  fb.innerHTML = `${ok ? '✓ '+(LANG==='en'?'Correct!':'答对了！') : '✗ '+(LANG==='en'?'Not quite. Correct: ':'不对，正确答案：')+correct}<br><span class="text-slate-600"><span data-zh>${q.why.zh}</span><span data-en>${q.why.en}</span></span>`;
+  const retry = ok ? '' : `<br><span class="text-slate-500"><span data-zh>再想想，可以重新选</span><span data-en>Try again — you can re-pick</span></span>`;
+  fb.innerHTML = `${ok ? '✓ '+(LANG==='en'?'Correct!':'答对了！') : '✗ '+(LANG==='en'?'Not quite. Correct: ':'不对，正确答案：')+correct}<br><span class="text-slate-600"><span data-zh>${q.why.zh}</span><span data-en>${q.why.en}</span></span>${retry}`;
   document.getElementById('yn-count').textContent = Object.keys(state.ynAnswers).length;
   document.getElementById('yn-correct').textContent = state.ynCorrect;
   if(Object.keys(state.ynAnswers).length===6){
@@ -528,10 +570,12 @@ function selReflect(i){
   updateReflectCount();
 }
 function updateReflectCount(){
-  const t = document.getElementById('reflect-text').value;
+  const ta = document.getElementById('reflect-text');
+  const t = ta.value;
   state.reflectText = t;
   const len = Array.from(t).length;
   document.getElementById('reflect-count').textContent = len;
+  ta.classList.toggle('ok', len >= 20);
   document.getElementById('reflect-submit').disabled = !(len>=20 && state.reflectChoice!==null);
 }
 function submitReflect(){
@@ -565,7 +609,7 @@ function goTo(n){
 }
 
 function restart(){
-  if(confirm(LANG==='en'?'Restart this mission?':'确定重新开始？')){
+  if(confirm(LANG==='en'?'Restart this mission? Your progress will be cleared.':'重新开始本关？进度会清空。')){
     Object.assign(state,{phase:0,museumVisited:new Set(),huntFound:0,huntMiss:0,huntTotal:8,huntTime:0,ynAnswers:{},ynCorrect:0,reflectChoice:null,reflectText:''});
     document.querySelectorAll('.flip-card').forEach(c=>{c.classList.remove('flipped','visited')});
     document.getElementById('museum-count').textContent='0';
@@ -586,7 +630,7 @@ renderMuseum();
 
 <style>
 @keyframes xpPop{0%{opacity:0;transform:translate(-50%,0) scale(.5)}30%{opacity:1;transform:translate(-50%,-20px) scale(1.1)}100%{opacity:0;transform:translate(-50%,-100px) scale(1)}}
-.xp-popup{position:fixed;top:30%;left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
+.xp-popup{position:fixed;top:max(80px,30vh);left:50%;color:#FBBF24;font-size:38px;font-weight:900;text-shadow:0 0 18px #F59E0B,0 2px 8px rgba(0,0,0,.4);pointer-events:none;z-index:9999;animation:xpPop 1.8s cubic-bezier(.16,1,.3,1) forwards;letter-spacing:.05em}
 </style>
 <script>
 (function(){
@@ -621,20 +665,29 @@ renderMuseum();
 .save-toast.show{display:inline-flex;animation:toastIn .35s cubic-bezier(.16,1,.3,1)}
 @keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
 .save-toast .st-check{color:#10B981;font-weight:700}
+/* Mobile: ensure page header doesn't overlap with nav-home + lang-toggle */
+@media (max-width:640px){.max-w-5xl{padding-top:60px !important}}
 </style>
-<a class="nav-home" href="index.html" title="返回课程地图 (ESC)">
+<a class="nav-home" href="index.html" title="返回课程地图 (ESC)" aria-label="返回课程地图 / Return to course map">
   <span class="nh-icon">🏠</span>
   <span data-zh>课程地图</span><span data-en>Course map</span>
 </a>
 <div class="save-toast" id="saveToast">
   <span class="st-check">✓</span>
-  <span data-zh>进度已保存</span><span data-en>Progress saved</span>
+  <span data-zh>这一步完成</span><span data-en>Step done</span>
 </div>
 <script>
 (function(){
   // ESC → confirm and return to map
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
+      // 完成态不显示确认弹窗
+      var lastPhase = document.querySelector('.phase.active');
+      var isCompletion = lastPhase && (lastPhase.id === 'p' + (document.querySelectorAll('.phase').length - 1) || lastPhase.querySelector('.badge-glow,.badge-glow-final,.cert-sealed'));
+      if(isCompletion){
+        location.href = 'index.html';
+        return;
+      }
       var en = document.body.classList.contains('lang-en');
       var msg = en ? 'Leave this mission? Your progress is auto-saved.' : '离开这一关？进度已自动保存。';
       if(confirm(msg)) location.href = 'index.html';

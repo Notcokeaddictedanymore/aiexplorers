@@ -61,6 +61,7 @@
     animation:titleGlow 4s ease-in-out infinite alternate;margin:0;text-align:center}
   @keyframes titleGlow{from{filter:drop-shadow(0 6px 18px rgba(59,130,246,.3))}to{filter:drop-shadow(0 6px 28px rgba(168,85,247,.5))}}
   .title-en{font-size:clamp(11px,1.3vw,15px);letter-spacing:.18em;color:#BFDBFE;opacity:.75;font-weight:400;text-transform:uppercase;margin-top:4px;text-align:center}
+  .title-pre{font-size:clamp(14px,1.6vw,20px);letter-spacing:.3em;color:#FCD34D;opacity:.9;font-weight:600;text-align:center;margin-bottom:8px;text-shadow:0 0 16px rgba(251,191,36,.4)}
 
   /* Globe stage */
   .globe-wrap{position:relative;width:clamp(220px,24vw,300px);height:clamp(220px,24vw,300px);display:flex;align-items:center;justify-content:center;margin:0}
@@ -126,7 +127,7 @@
   .tagline strong{color:#FCD34D;font-weight:700}
 
   /* Avatar portrait — bottom right floating */
-  .portrait{position:fixed;bottom:24px;right:24px;width:108px;height:108px;border-radius:50%;
+  .portrait{position:fixed;bottom:54px;right:24px;width:108px;height:108px;border-radius:50%;
     background:rgba(255,255,255,.06);
     border:2px solid rgba(196,181,253,.5);
     box-shadow:0 0 0 4px rgba(255,255,255,.05),0 8px 32px rgba(0,0,0,.4),0 0 40px rgba(167,139,250,.35);
@@ -135,7 +136,7 @@
   @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
   .portrait img{width:100%;height:100%;object-fit:cover;display:block}
   .portrait .fallback{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0EA5E9,#A78BFA);color:#fff;font-size:42px}
-  .portrait-label{position:fixed;bottom:8px;right:24px;width:108px;text-align:center;font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2em;z-index:11;text-transform:uppercase}
+  .portrait-label{position:fixed;bottom:32px;right:24px;width:108px;text-align:center;font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.2em;z-index:11;text-transform:uppercase}
 
   /* Bottom-left resources pill */
   .resources{position:fixed;bottom:24px;left:24px;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(255,255,255,.95);color:#0F172A;border-radius:9999px;font-size:13px;font-weight:500;text-decoration:none;cursor:pointer;border:none;transition:all .2s;z-index:11;box-shadow:0 4px 12px rgba(0,0,0,.2)}
@@ -143,7 +144,7 @@
   .resources-icon{display:flex;align-items:center;justify-content:center}
 
   /* Lang toggle */
-  .lang{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(255,255,255,.08);color:#fff;border-radius:9999px;font-size:12px;border:1px solid rgba(255,255,255,.2);cursor:pointer;backdrop-filter:blur(8px);z-index:11;transition:all .2s}
+  .lang{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(255,255,255,.08);color:#fff;border-radius:9999px;font-size:12px;border:1px solid rgba(255,255,255,.2);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);z-index:11;transition:all .2s}
   .lang:hover{background:rgba(255,255,255,.15)}
 
   /* EN/ZH switching */
@@ -152,15 +153,6 @@
   /* Press start hint pulses to draw attention */
   .hint-arrow{font-size:14px;color:#FCD34D;opacity:.7;animation:hintPulse 1.6s ease-in-out infinite;margin-top:4px}
   @keyframes hintPulse{0%,100%{opacity:.4;transform:translateY(0)}50%{opacity:1;transform:translateY(4px)}}
-
-  /* Constellation: 7 dots for 7 chapters — placed inline above CTA */
-  .constellation{position:relative;width:260px;display:flex;justify-content:space-between;align-items:center;z-index:6;opacity:.9;margin:4px 0 8px;padding:0 6px}
-  .chap-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35);position:relative;transition:all .3s}
-  .chap-dot::after{content:attr(data-n);position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.05em}
-  .chap-dot.completed{background:#10B981;box-shadow:0 0 8px #10B981}
-  .chap-dot.current{background:#FBBF24;box-shadow:0 0 12px #FBBF24;transform:scale(1.5)}
-  .chap-dot.current::after{color:#FBBF24}
-  .chap-connector{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.25),rgba(255,255,255,.05));margin:0 4px}
 
   /* Mobile fallback */
   @media (max-width:640px){
@@ -197,16 +189,9 @@
     <span class="zh">辜月晗 出品</span>
     <span class="en">By Gu Yuehan</span>
     <span class="pipe">|</span>
-    <span class="zh">从0开始学AI</span>
+    <span class="zh">启思AI探索营</span>
     <span class="en">AI Literacy Courses for Beginners</span>
   </div>
-  <button class="sound-btn" id="sound" aria-label="切换声音">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-    </svg>
-  </button>
 </header>
 
 <!-- Main stage -->
@@ -214,6 +199,8 @@
 
   <!-- Title -->
   <div class="title-row">
+    <div class="title-pre zh">启思AI探索营</div>
+    <div class="title-pre en">QISI · AI EXPLORERS CAMP</div>
     <h1 class="title-zh zh">从 0 开始学 AI</h1>
     <h1 class="title-zh en" style="font-size:clamp(34px,5.5vw,72px)">AI Literacy</h1>
     <div class="title-en zh">AI Literacy Courses for Beginners</div>
@@ -253,17 +240,6 @@
     </div>
   </div>
 
-  <!-- Constellation showing 7 chapters -->
-  <div class="constellation" aria-label="7 chapters">
-    <div class="chap-dot" data-n="1"></div>
-    <div class="chap-dot" data-n="2"></div>
-    <div class="chap-dot" data-n="3"></div>
-    <div class="chap-dot" data-n="4"></div>
-    <div class="chap-dot" data-n="5"></div>
-    <div class="chap-dot" data-n="6"></div>
-    <div class="chap-dot" data-n="7"></div>
-  </div>
-
   <!-- CTA -->
   <div class="cta-wrap">
     <a class="cta" href="index.html" id="cta">
@@ -288,7 +264,7 @@
 </a>
 
 <!-- Bottom center: lang -->
-<button class="lang" id="langbtn">
+<button class="lang" id="langbtn" aria-label="切换语言 / Switch language">
   🌐
   <span class="zh">中 / EN</span>
   <span class="en">EN / 中</span>
@@ -310,40 +286,10 @@
     localStorage.setItem(LANG_KEY, document.body.classList.contains('lang-en')?'en':'zh');
   };
 
-  // Read progress from localStorage to light up constellation
-  const COURSE_KEYS = [
-    ['lingxi-m1-1','lingxi-m1-2','lingxi-m1-3','lingxi-m1-4'],
-    ['lingxi-m2-1','lingxi-m2-2','lingxi-m2-3','lingxi-m2-4'],
-    ['lingxi-m3-1','lingxi-m3-2','lingxi-m3-3','lingxi-m3-4'],
-    ['lingxi-m4-1','lingxi-m4-2','lingxi-m4-3','lingxi-m4-4'],
-    ['lingxi-m5-1','lingxi-m5-2','lingxi-m5-3','lingxi-m5-4'],
-    ['lingxi-m6-1','lingxi-m6-2','lingxi-m6-3','lingxi-m6-4'],
-    ['lingxi-m7-1','lingxi-m7-2','lingxi-m7-3','lingxi-m7-4'],
-  ];
-  const dots = document.querySelectorAll('.chap-dot');
-  let firstIncomplete = -1;
-  COURSE_KEYS.forEach((keys,i)=>{
-    const done = keys.every(k=>localStorage.getItem(k));
-    if(done){
-      dots[i].classList.add('completed');
-    } else if(firstIncomplete<0){
-      firstIncomplete = i;
-      dots[i].classList.add('current');
-    }
-  });
-
   // CTA dynamically goes to the next mission OR index
   const CTA = document.getElementById('cta');
   // We don't redirect deep — keep CTA going to index (the chapter map),
   // which itself handles "continue from last" logic.
-
-  // Sound button (visual only — no real audio)
-  let muted = true;
-  document.getElementById('sound').onclick = e=>{
-    muted = !muted;
-    e.currentTarget.style.opacity = muted ? '.85' : '1';
-    e.currentTarget.style.background = muted ? 'rgba(255,255,255,.95)' : '#FBBF24';
-  };
 
   // Subtle parallax on mouse
   const stage = document.querySelector('.stage');
@@ -368,6 +314,7 @@
   <span class="zh">从0开始学AI · v1.0 · 开发者：辜月晗 · 2026</span>
   <span class="en">AI Literacy Courses for Beginners · v1.0 · Dev: Gu Yuehan · 2026</span>
 </div>
+
 
 </body>
 </html>
